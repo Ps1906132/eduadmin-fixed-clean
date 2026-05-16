@@ -4,7 +4,7 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "eduadmin_db"
-database_id = "YOUR_D1_DATABASE_ID" # Will be replaced after creation
+database_id = "1c7f883c-5992-4f26-8245-b1ee2340b6d0"
 
 [vars]
 # Add environment variables here
