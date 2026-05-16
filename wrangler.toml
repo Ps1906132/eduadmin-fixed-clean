@@ -1,0 +1,11 @@
+name = "eduadmin-fixed"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "eduadmin_db"
+database_id = "YOUR_D1_DATABASE_ID" # Will be replaced after creation
+
+[vars]
+# Add environment variables here
+VITE_USE_D1 = "true"

@@ -1,0 +1,129 @@
+import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { examsDataGlobal, classesDataGlobal } from '../data/sharedData';
+
+interface JadwalUjianProps {
+    onBack: () => void;
+    user?: any;
+}
+
+const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
+    const [selectedDay, setSelectedDay] = useState('Senin');
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jumat", 'Sabtu'];
+
+    const studentClass = user?.studentClass || user?.kelas || '1A';
+
+    // 1. Get Master Exam Schedule (Filter for published status)
+    const masterExam = examsDataGlobal.find(e => e.status === 'published') || examsDataGlobal[0];
+
+    // 2. Filter Items for Class and Day
+    const items = masterExam ? masterExam.items
+        .filter(item => {
+            // If user is a student/parent, filter by class
+            if (user?.role === 'Orang Tua' || user?.role === 'Siswa' || user?.studentClass) {
+                return item.classId === studentClass && item.day === selectedDay;
+            }
+            // If user is a teacher, show their subjects across all classes (for the teacher view)
+            if (user?.role === 'Guru' || user?.nip) {
+                return item.teacherName === user.nama && item.day === selectedDay;
+            }
+            return item.classId === studentClass && item.day === selectedDay;
+        })
+        .sort((a, b) => a.timeSlotId - b.timeSlotId) : [];
+
+    // 3. Get Daily Info (Uniform & Notes from standard or specific exam notes)
+    // Exam schedule has 'dailyNotes'. Uniform might be standard or specific. 
+    // For now, we use a placeholder or check if MasterExamSchedule has daily uniform info.
+    // The current MasterExamSchedule interface only has dailyNotes.
+    const dailyNote = masterExam?.dailyNotes?.[selectedDay];
+
+    // Helper: Get Time Label
+    const getTimeLabel = (slotId: number) => {
+        if (!masterExam) return '-';
+        const slot = masterExam.timeSlots.find(s => s.id === slotId);
+        return slot ? `${slot.start} - ${slot.end}` : `Sesi ${slotId + 1}`;
+    };
+
+    return (
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right duration-300">
+            {/* Header / Title inside the card */}
+            <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+                <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors lg:hidden">
+                    <ChevronRight className="rotate-180" size={24} />
+                </button>
+                <div className="flex-1">
+                    <h3 className="font-bold text-slate-800 text-lg">Jadwal Ujian</h3>
+                    <p className="text-xs text-slate-500">
+                        Kelas {studentClass} • {masterExam ? `${masterExam.type} ${masterExam.semester} ${masterExam.year}` : 'Tidak ada jadwal aktif'}
+                    </p>
+                </div>
+            </div>
+
+            <div className="p-6">
+                {/* Day Tabs */}
+                <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-4">
+                    {days.map((day) => (
+                        <button
+                            key={day}
+                            onClick={() => setSelectedDay(day)}
+                            className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedDay === day
+                                ? 'bg-[#004AAD] text-white border-[#004AAD] shadow-md shadow-blue-500/20'
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                                }`}
+                        >
+                            {day}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Uniform Info (Static or Dynamic if added later) */}
+                <div className="mb-6">
+                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                        <span className="text-sm font-bold text-slate-700 w-20 flex-shrink-0">Seragam</span>
+                        <div className="h-6 w-[1px] bg-slate-300"></div>
+                        <span className="text-xs sm:text-sm text-slate-600 font-medium truncate">
+                            Sesuaikan dengan tata tertib ujian sekolah
+                        </span>
+                    </div>
+                </div>
+
+                {/* Schedule List */}
+                <div className="space-y-3 mb-8">
+                    {items.length > 0 ? (
+                        items.map((item, index) => (
+                            <div key={item.id} className="flex items-center bg-white border border-slate-200 rounded-xl p-3 hover:border-blue-300 transition-colors shadow-sm">
+                                <div className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-600 font-bold rounded-lg text-sm mr-4 flex-shrink-0">
+                                    {index + 1}
+                                </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-6 flex-1">
+                                    <div className="text-[10px] sm:text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded w-fit mb-1 sm:mb-0">
+                                        {getTimeLabel(item.timeSlotId)}
+                                    </div>
+                                    <div className="font-bold text-slate-800 text-sm">
+                                        {item.subjectName}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            <p className="text-slate-400 text-sm italic">Tidak ada ujian pada hari ini.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Notes */}
+                <div>
+                    <h4 className="font-bold text-slate-800 text-sm mb-2">Catatan Ujian</h4>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 min-h-[100px]">
+                        <p className="text-sm text-slate-600">
+                            {dailyNote || 'Harap membawa Kartu Ujian dan alat tulis lengkap. Dilarang membawa HP ke dalam ruang ujian.'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default JadwalUjian;

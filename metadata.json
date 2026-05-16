@@ -1,0 +1,8 @@
+{
+  "name": "EduAdmin - Sistem Manajemen Sekolah",
+  "description": "Dashboard admin pengelola sekolah modern dan responsif dengan fitur analitik AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

@@ -1,0 +1,122 @@
+import React from 'react';
+import {
+    Users,
+    UserCog,
+    School,
+    UserCheck,
+    Bell,
+    Info,
+    Calendar,
+    Megaphone,
+    BookOpen,
+    Zap,
+    BarChart2,
+    UserPlus
+} from 'lucide-react';
+import { studentsDataGlobal, teachersDataGlobal, classesDataGlobal } from '../../../../data/sharedData';
+
+interface DashboardHomeProps {
+    students: any[];
+    setActiveView: (view: string) => void;
+}
+
+const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView }) => {
+    return (
+        <div className="animate-in fade-in space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Card 1: Total Siswa */}
+                <div className="bg-gradient-to-br from-blue-50 to-white p-5 rounded-3xl shadow-sm border border-blue-100/50 relative hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-bold text-slate-700 text-sm">Total Siswa</h3>
+                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-blue-500 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors"><Users size={18} /></div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{students?.length || 0}</span>
+                        <p className="text-xs text-slate-400 mb-1 font-medium">Aktif</p>
+                    </div>
+                </div>
+
+                {/* Card 2: Data Guru */}
+                <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-3xl shadow-sm border border-indigo-100/50 relative hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-bold text-slate-700 text-sm">Data Guru</h3>
+                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-indigo-500 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors"><UserCog size={18} /></div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{teachersDataGlobal?.length || 0}</span>
+                        <p className="text-xs text-slate-400 mb-1 font-medium">Pengajar</p>
+                    </div>
+                </div>
+
+                {/* Card 3: Total Kelas */}
+                <div className="bg-gradient-to-br from-orange-50 to-white p-5 rounded-3xl shadow-sm border border-orange-100/50 relative hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-bold text-slate-700 text-sm">Total Kelas</h3>
+                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-orange-500 group-hover:text-orange-600 group-hover:bg-orange-50 transition-colors"><School size={18} /></div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{classesDataGlobal?.length || 0}</span>
+                        <p className="text-xs text-slate-400 mb-1 font-medium">Rombel</p>
+                    </div>
+                </div>
+
+                {/* Card 4: Jumlah Kehadiran (was Pemasukan) */}
+                <div className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-3xl shadow-sm border border-emerald-100/50 relative hover:shadow-md transition-all group">
+                    <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-bold text-slate-700 text-sm">Jumlah Kehadiran</h3>
+                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-emerald-500 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors"><UserCheck size={18} /></div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                        <span className="text-3xl font-bold text-slate-800 tracking-tight">0%</span>
+                        <p className="text-xs text-slate-400 mb-1 font-medium">Hadir Hari Ini</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* New Section: Notifikasi & Akses Cepat */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto min-h-[24rem]">
+                {/* Notifikasi */}
+                <div className="lg:col-span-2 bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100/50 flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <Bell className="text-red-500" size={20} /> Pemberitahuan
+                            <span className="flex items-center justify-center bg-red-500 text-white text-[10px] w-5 h-5 rounded-full animate-pulse shadow-sm shadow-red-200">0</span>
+                        </h3>
+                        <button className="text-xs font-bold text-blue-500 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full transition-colors cursor-pointer">Lihat Semua</button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                        {/* Empty state for notifications */}
+                        <div className="flex flex-col items-center justify-center h-full py-10 opacity-40">
+                            <Bell size={48} className="text-slate-300 mb-2" />
+                            <p className="text-sm font-medium text-slate-500">Belum ada pemberitahuan baru</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Akses Cepat */}
+                <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100/50 flex flex-col">
+                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2">
+                        <Zap className="text-amber-500" size={20} /> Akses Cepat
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        {[
+                            { label: 'Input Nilai', icon: <BarChart2 size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'nilai' },
+                            { label: 'Absensi Siswa', icon: <UserCheck size={24} />, color: 'bg-rose-50 text-rose-600', link: 'absen' },
+                            { label: 'Jadwal Kelas', icon: <Calendar size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'jadwal' },
+                            { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
+                        ].map((item, idx) => (
+                            <button key={idx} onClick={() => setActiveView(item.link)} className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border border-slate-100 hover:shadow-md cursor-pointer transition-all hover:bg-slate-50 group h-32">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.color} group-hover:scale-110 transition-transform`}>
+                                    {item.icon}
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 text-center">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default DashboardHome;
