@@ -114,6 +114,7 @@ const App: React.FC = () => {
     setUserRole(role);
     setCurrentUser(user);
     setIsLoggedIn(true);
+    localStorage.setItem('eduadmin_user', JSON.stringify({ role, ...user }));
   };
 
   const handleLogout = () => {
