@@ -65,6 +65,22 @@ export let teachersDataGlobal: any[] = [
         password: "admin123",
         role: "Operator Data",
         jabatan: "Operator Data"
+    },
+    {
+        id: 2,
+        nama: "Bpk. Budi (Kurikulum Demo)",
+        username: "budikurikulum",
+        password: "password123",
+        role: "Wakil Kurikulum",
+        jabatan: "Wakil Kurikulum"
+    },
+    {
+        id: 3,
+        nama: "Ibu Siti (Keuangan Demo)",
+        username: "tatausaha",
+        password: "password123",
+        role: "Staff Tata Usaha",
+        jabatan: "Staff Tata Usaha"
     }
 ];
 
