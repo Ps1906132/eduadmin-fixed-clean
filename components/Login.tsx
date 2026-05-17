@@ -12,12 +12,18 @@ interface LoginProps {
     bannerImage?: string;
 }
 
-const Login: FC<LoginProps> = ({ onLogin, schoolName = "NAMA SEKOLAH", logo, bannerImage }) => {
+const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Mengambil Nama Sekolah/Yayasan dan Logo secara dinamis dari Identitas Sekolah (localStorage)
+    const savedSettings = localStorage.getItem('school_settings_v10');
+    const parsedSettings = savedSettings ? JSON.parse(savedSettings) : null;
+    const activeSchoolName = schoolName || parsedSettings?.name || "EduAdmin";
+    const activeLogo = logo || parsedSettings?.logo || null;
 
     const handleLogin = async (e: FormEvent) => {
         e.preventDefault();
@@ -202,16 +208,16 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName = "NAMA SEKOLAH", logo, ban
                         {/* Logo Area */}
                         <div className="flex flex-col items-center mb-8 relative z-10">
                             <div className="w-24 h-24 rounded-full border-2 border-slate-700 flex items-center justify-center bg-white mb-4 shadow-lg group hover:scale-105 transition-transform duration-300 overflow-hidden">
-                                {logo ? (
-                                    <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+                                {activeLogo ? (
+                                    <img src={activeLogo} alt="Logo" className="w-full h-full object-contain p-2" />
                                 ) : (
                                     <span className="font-bold text-slate-800 text-xl tracking-widest group-hover:tracking-[0.2em] transition-all">Logo</span>
                                 )}
                             </div>
-                            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight text-center leading-tight">
-                                {schoolName}
+                            <h2 className="text-2xl font-black text-[#1E3A8A] uppercase tracking-tight text-center leading-tight">
+                                {activeSchoolName}
                             </h2>
-                            <p className="text-slate-600 text-xs font-medium mt-1">Sistem Informasi Manajemen</p>
+                            <p className="text-slate-600 text-xs font-semibold mt-1.5 bg-white/40 px-3 py-1 rounded-full border border-white/20">Sistem Informasi Manajemen</p>
                         </div>
 
                         {/* Form */}

@@ -68,35 +68,36 @@ export const useClasses = () => {
                 paralel
             };
 
+            // BUG FIX: Update state lokal DULU (offline-first)
+            // Sebelumnya: isDbConfigured() selalu true → coba D1 → gagal dalam .then()
+            // → throw tidak tertangkap → setClasses tidak pernah dipanggil → kelas tidak muncul
+            setClasses(prev => [...prev, newClass]);
+            setShowAddClassModal(false);
+
+            // Sync ke D1 di background
             if (isDbConfigured()) {
                 try {
-                    db.from('classes')
-                        .insert([{
-                            name: nama,
-                            grade_level: parseInt(tingkat),
-                            is_active: true
-                        }])
-                        .select()
-                        .then(({ data, error }: any) => {
-                            if (error) throw error;
-                            if (data) {
-                                setClasses(prev => [...prev, {
-                                    id: data[0].id,
-                                    nama: data[0].name,
-                                    tingkat: data[0].grade_level,
-                                    paralel
-                                }]);
-                            }
-                        });
+                    const { data, error } = await db.from('classes').insert([{
+                        name: nama,
+                        grade_level: parseInt(tingkat),
+                        is_active: true
+                    }]).select() as any;
+
+                    if (error) {
+                        console.warn('D1 sync gagal (offline mode), kelas disimpan lokal:', error);
+                        return true;
+                    }
+                    // Jika D1 beri ID baru, update state
+                    if (data?.[0]?.id && data[0].id !== newClass.id) {
+                        setClasses(prev => prev.map(c =>
+                            c.id === newClass.id ? { ...c, id: data[0].id } : c
+                        ));
+                    }
                 } catch (err) {
-                    console.error('Error adding class to D1:', err);
-                    setClasses(prev => [...prev, newClass]);
+                    console.warn('D1 tidak tersedia, kelas disimpan lokal saja:', err);
                 }
-            } else {
-                setClasses(prev => [...prev, newClass]);
             }
 
-            setShowAddClassModal(false);
             return true;
         }
         return false;
@@ -105,20 +106,17 @@ export const useClasses = () => {
     const handleDeleteClass = async (id: string | number) => {
         if (!confirm("Hapus kelas ini?")) return;
 
+        // BUG FIX: Hapus dari state lokal dulu (offline-first)
+        setClasses(prev => prev.filter(c => c.id !== id));
+
+        // Sync ke D1 di background
         if (isDbConfigured()) {
             try {
-                db.from('classes')
-                    .update({ is_active: false })
-                    .eq('id', id)
-                    .then(({ error }: any) => {
-                        if (error) throw error;
-                        setClasses(prev => prev.filter(c => c.id !== id));
-                    });
+                const { error } = await db.from('classes').update({ is_active: false }).eq('id', id) as any;
+                if (error) console.warn('D1 delete sync gagal:', error);
             } catch (err) {
-                console.error('Error deleting class from D1:', err);
+                console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
             }
-        } else {
-            setClasses(prev => prev.filter(c => c.id !== id));
         }
     };
 

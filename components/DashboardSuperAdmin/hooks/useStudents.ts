@@ -77,36 +77,44 @@ export const useStudents = () => {
     }, [students, loading]);
 
     const addNewStudent = async (student: Student) => {
+        // BUG FIX: Offline-first — update state DULU, baru sync ke D1
+        // Sebelumnya: isDbConfigured() selalu true → coba D1 → gagal dalam .then()
+        // → throw tidak tertangkap → setStudents tidak pernah dipanggil
+        setStudents(prev => [...prev, student]);
+        addStudentToShared(student);
+
+        // Sync ke D1 di background (jika tersedia)
         if (isDbConfigured()) {
             try {
-                db.from('students')
-                    .insert([{
-                        id: student.id.toString(), // Ensure ID is string for D1
-                        nis: student.nis,
-                        full_name: student.nama,
-                        parent_name: student.ayah,
-                        gender: student.gender as any,
-                        status: 'active'
-                    }])
-                    .select()
-                    .then(({ data, error }: any) => {
-                        if (error) throw error;
-                        if (data) {
-                            const created = { ...student, id: data[0].id };
-                            setStudents(prev => [...prev, created]);
-                            return created;
-                        }
-                    });
+                const { data, error } = await db.from('students').insert([{
+                    id: student.id.toString(),
+                    nis: student.nis,
+                    full_name: student.nama,
+                    parent_name: student.ayah,
+                    gender: student.gender as any,
+                    status: 'active'
+                }]).select() as any;
+
+                if (error) {
+                    console.warn('D1 sync gagal (offline mode), data disimpan lokal:', error);
+                    return;
+                }
+                // Jika D1 beri ID baru, update state
+                if (data?.[0]?.id && data[0].id !== student.id) {
+                    setStudents(prev => prev.map(s =>
+                        s.id === student.id ? { ...s, id: data[0].id } : s
+                    ));
+                }
             } catch (err) {
-                console.error('Error adding student to D1:', err);
-                setStudents(prev => [...prev, student]);
+                console.warn('D1 tidak tersedia, data disimpan lokal saja:', err);
             }
-        } else {
-            setStudents(prev => [...prev, student]);
         }
     };
 
     const updateStudent = async (id: string | number, updates: Partial<Student>) => {
+        // BUG FIX: Update state lokal dulu
+        setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
         if (isDbConfigured()) {
             try {
                 const dbUpdates: any = {};
@@ -115,35 +123,25 @@ export const useStudents = () => {
                 if (updates.ayah) dbUpdates.parent_name = updates.ayah;
                 if (updates.gender) dbUpdates.gender = updates.gender;
 
-                db.from('students')
-                    .update(dbUpdates)
-                    .eq('id', id)
-                    .then(({ error }: any) => {
-                        if (error) throw error;
-                        setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-                    });
+                const { error } = await db.from('students').update(dbUpdates).eq('id', id) as any;
+                if (error) console.warn('D1 update sync gagal:', error);
             } catch (err) {
-                console.error('Error updating student in D1:', err);
-                setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+                console.warn('D1 tidak tersedia, update disimpan lokal saja:', err);
             }
-        } else {
-            setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
         }
     };
 
     const updateStudents = (updatedStudents: Student[]) => {
-        // Bulk update logic (locally for now, or implement one by one for Supabase)
         setStudents(prev => {
             const newStudents = [...prev];
             updatedStudents.forEach(updated => {
                 const index = newStudents.findIndex(s => s.id === updated.id);
-                if (index !== -1) {
-                    newStudents[index] = updated;
-                }
+                if (index !== -1) newStudents[index] = updated;
             });
             return newStudents;
         });
     };
+
 
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [showAddStudentModal, setShowAddStudentModal] = useState(false);
@@ -174,20 +172,17 @@ export const useStudents = () => {
         const id = student.id;
         const name = student.nama;
         if (confirm(`Apakah Anda yakin ingin menghapus data ${name}?`)) {
+            // BUG FIX: Hapus dari state lokal dulu (offline-first)
+            setStudents(prev => prev.filter(s => s.id !== id));
+
+            // Sync ke D1 di background
             if (isDbConfigured()) {
                 try {
-                    db.from('students')
-                        .delete()
-                        .eq('id', id)
-                        .then(({ error }: any) => {
-                            if (error) throw error;
-                            setStudents(prev => prev.filter(s => s.id !== id));
-                        });
+                    const { error } = await db.from('students').delete().eq('id', id) as any;
+                    if (error) console.warn('D1 delete sync gagal:', error);
                 } catch (err) {
-                    console.error('Error deleting student from D1:', err);
+                    console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
                 }
-            } else {
-                setStudents(prev => prev.filter(s => s.id !== id));
             }
         }
     };
