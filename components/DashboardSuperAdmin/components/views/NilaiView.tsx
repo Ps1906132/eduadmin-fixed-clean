@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 
 interface NilaiViewProps {
     setActiveView: (view: string) => void;
+    user?: any;
 }
 
 // Tipe data untuk struktur nilai lokal
@@ -35,7 +36,11 @@ interface GradeRow {
     [key: string]: any; // Allow dynamic TP columns
 }
 
-const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
+const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
+    const role = user?.role || user?.role_type || user?.roleCode;
+    const lowerRole = role?.toLowerCase();
+    const isKurikulum = !role || lowerRole === 'kurikulum' || lowerRole === 'kepala sekolah';
+
     // --- STATE FILTER ---
     const [selectedClass, setSelectedClass] = useState(classesDataGlobal[0]?.nama || '1A');
     const [selectedSubject, setSelectedSubject] = useState('Matematika');
@@ -384,17 +389,20 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                         <button className="p-2 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded-xl transition-colors" title="Export Excel">
                             <Download size={20} />
                         </button>
-                        <button className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Import Excel">
-                            <Upload size={20} />
-                        </button>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={!isDirty}
-                            className={`ml-2 px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg ${isDirty ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`}
-                        >
-                            <Save size={18} /> Simpan Perubahan
-                        </button>
+                        {isKurikulum && (
+                            <>
+                                <button className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Import Excel">
+                                    <Upload size={20} />
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={!isDirty}
+                                    className={`ml-2 px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg ${isDirty ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`}
+                                >
+                                    <Save size={18} /> Simpan Perubahan
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -414,24 +422,26 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                                             </th>
                                         ))}
                                         {/* Add Button */}
-                                        <th className="py-4 px-2 w-20 text-center border-b bg-[#F8FAFC]">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <button
-                                                    onClick={() => updateTpCount(Math.min(tpCount + 1, 15))}
-                                                    className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors"
-                                                    title="Tambah Kolom Ulangan"
-                                                >
-                                                    <Plus size={14} />
-                                                </button>
-                                                <button
-                                                    onClick={removeTpCount}
-                                                    className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
-                                                    title="Hapus Kolom Ulangan Terakhir"
-                                                >
-                                                    <Minus size={14} />
-                                                </button>
-                                            </div>
-                                        </th>
+                                        {isKurikulum && (
+                                            <th className="py-4 px-2 w-20 text-center border-b bg-[#F8FAFC]">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button
+                                                        onClick={() => updateTpCount(Math.min(tpCount + 1, 15))}
+                                                        className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors"
+                                                        title="Tambah Kolom Ulangan"
+                                                    >
+                                                        <Plus size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={removeTpCount}
+                                                        className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
+                                                        title="Hapus Kolom Ulangan Terakhir"
+                                                    >
+                                                        <Minus size={14} />
+                                                    </button>
+                                                </div>
+                                            </th>
+                                        )}
                                         <th className="py-4 px-4 w-32 text-center border-b bg-blue-50 text-blue-700 border-l border-r border-blue-100">Rerata Nilai</th>
                                         <th className="border-b bg-[#F8FAFC] min-w-[20px]"></th>
                                     </>
@@ -493,13 +503,14 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                                                             value={grade[tpKey] || ''}
                                                             onChange={(e) => handleInputChange(grade.studentId, tpKey as keyof GradeRow, e.target.value)}
                                                             placeholder="0"
-                                                            className={`w-16 h-10 text-center border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all font-bold ${getScoreColor(Number(grade[tpKey]))}`}
+                                                            readOnly={!isKurikulum}
+                                                            className={`w-16 h-10 text-center border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all font-bold ${getScoreColor(Number(grade[tpKey]))} ${!isKurikulum ? 'bg-slate-50 cursor-default' : ''}`}
                                                         />
                                                     </td>
                                                 );
                                             })}
                                             {/* Spacer for the + button column */}
-                                            <td></td>
+                                            {isKurikulum && <td></td>}
 
                                             <td className="p-2 text-center bg-blue-50/30 border-l border-r border-blue-50">
                                                 <span className={`font-bold text-lg ${getScoreColor(grade.avgSumatif)}`}>
@@ -518,7 +529,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                                                     min="0" max="100"
                                                     value={grade.pts || ''}
                                                     onChange={(e) => handleInputChange(grade.studentId, 'pts', e.target.value)}
-                                                    className={`w-28 h-10 text-center border-2 border-amber-100 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-bold text-amber-700 bg-white shadow-sm`}
+                                                    readOnly={!isKurikulum}
+                                                    className={`w-28 h-10 text-center border-2 border-amber-100 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-bold text-amber-700 bg-white shadow-sm ${!isKurikulum ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
                                                 />
                                             </td>
                                             <td></td>
@@ -534,7 +546,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                                                     value={grade.pas || ''}
                                                     onChange={(e) => handleInputChange(grade.studentId, 'pas', e.target.value)}
                                                     placeholder="PAS"
-                                                    className={`w-24 h-10 text-center border-2 border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none transition-all font-bold text-purple-700 bg-white shadow-sm`}
+                                                    readOnly={!isKurikulum}
+                                                    className={`w-24 h-10 text-center border-2 border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none transition-all font-bold text-purple-700 bg-white shadow-sm ${!isKurikulum ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
                                                 />
                                             </td>
                                             <td className="p-2 text-center bg-rose-50/20">
@@ -544,7 +557,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                                                     value={grade.pat || ''}
                                                     onChange={(e) => handleInputChange(grade.studentId, 'pat', e.target.value)}
                                                     placeholder="PAT"
-                                                    className={`w-24 h-10 text-center border-2 border-rose-100 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all font-bold text-rose-700 bg-white shadow-sm`}
+                                                    readOnly={!isKurikulum}
+                                                    className={`w-24 h-10 text-center border-2 border-rose-100 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all font-bold text-rose-700 bg-white shadow-sm ${!isKurikulum ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
                                                 />
                                             </td>
 
@@ -594,7 +608,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView }) => {
                                                     value={grade.description}
                                                     onChange={(e) => handleDescriptionChange(grade.studentId, e.target.value)}
                                                     placeholder="Deskripsi otomatis..."
-                                                    className="w-full p-2 text-xs border border-slate-200 rounded-lg focus:border-blue-400 outline-none resize-none h-16 bg-white"
+                                                    readOnly={!isKurikulum}
+                                                    className={`w-full p-2 text-xs border border-slate-200 rounded-lg focus:border-blue-400 outline-none resize-none h-16 bg-white ${!isKurikulum ? 'bg-slate-50 text-slate-500 cursor-default' : ''}`}
                                                 />
                                             </td>
                                         </>

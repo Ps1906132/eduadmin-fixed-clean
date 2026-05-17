@@ -65,34 +65,38 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     // Filter Menu Items based on Role (Jabatan)
     const filteredMenuItems = React.useMemo(() => {
-        const role = user?.role || '';
+        const rawRole = (user?.role || user?.role_type || user?.roleCode || '').toLowerCase();
 
-        // Master Admin / Super Admin gets everything
-        if (role === 'Super Admin') return menuItems;
-
-        // Specific Roles Filtering
-        switch (role) {
-            case 'kurikulum':
-            case 'Wakil Kurikulum':
-                return menuItems.filter(item =>
-                    ['dashboard', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas'].includes(item.id)
-                );
-            case 'keuangan':
-            case 'Staff Tata Usaha':
-                return menuItems.filter(item =>
-                    ['dashboard', 'keuangan', 'tabungan', 'laporan'].includes(item.id)
-                );
-            case 'multimedia':
-                return menuItems.filter(item =>
-                    ['dashboard', 'multimedia', 'ai_management'].includes(item.id)
-                );
-            case 'Operator Data':
-                return menuItems.filter(item =>
-                    ['dashboard', 'data_siswa', 'data_guru', 'kelas_wali', 'naik_kelas', 'bimbingan_belajar', 'pengumuman', 'multimedia', 'settings'].includes(item.id)
-                );
-            default:
-                return menuItems; // Default to all if role not recognized (for safety)
+        // Admin / Super Admin / Operator Data (9 Modul Admin Utama)
+        if (rawRole === 'admin' || rawRole === 'super admin' || rawRole === 'operator data') {
+            return menuItems.filter(item =>
+                ['dashboard', 'data_siswa', 'data_guru', 'kelas_wali', 'mapel', 'bimbingan_belajar', 'pengumuman', 'multimedia', 'ai_management', 'settings'].includes(item.id)
+            );
         }
+
+        // Kurikulum / Wakil Kurikulum (6 Modul Akademik Utama)
+        if (rawRole === 'kurikulum' || rawRole === 'wakil kurikulum') {
+            return menuItems.filter(item =>
+                ['dashboard', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas'].includes(item.id)
+            );
+        }
+
+        // Keuangan / Staff Tata Usaha (3 Modul Keuangan Utama)
+        if (rawRole === 'keuangan' || rawRole === 'staff tata usaha') {
+            return menuItems.filter(item =>
+                ['dashboard', 'keuangan', 'tabungan', 'laporan'].includes(item.id)
+            );
+        }
+
+        // Multimedia
+        if (rawRole === 'multimedia') {
+            return menuItems.filter(item =>
+                ['dashboard', 'multimedia', 'ai_management'].includes(item.id)
+            );
+        }
+
+        // Default to all for safety or fallback
+        return menuItems;
     }, [user]);
 
     const getLinkClass = (id: string) => {

@@ -1,6 +1,7 @@
 import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+/// <reference types="vitest" />
 
 // CATATAN KEAMANAN:
 // GEMINI_API_KEY diakses di client melalui prefix VITE_ (lihat .env.example).
@@ -58,5 +59,18 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 600
-  }
+  },
+  test: {
+    // Vitest configuration — Fase 5: Testing
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/__tests__/setup.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    reporters: ['verbose'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/rbac/**'],
+      reporter: ['text', 'json-summary'],
+    },
+  },
 });

@@ -10,6 +10,7 @@ interface UploadKelasSatuViewProps {
     handleViewStudent: (student: any) => void;
     handleEditStudent: (student: any) => void;
     handleDelete: (name: string) => void;
+    user?: any;
 }
 
 const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
@@ -20,8 +21,14 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
     students,
     handleViewStudent,
     handleEditStudent,
-    handleDelete
+    handleDelete,
+    user
 }) => {
+    const role = user?.role || user?.role_type || user?.roleCode;
+    const lowerRole = role?.toLowerCase();
+    const isAdmin = !role || lowerRole === 'admin' || lowerRole === 'super admin' || lowerRole === 'operator data' || lowerRole === 'multimedia';
+    const isKeuangan = lowerRole === 'keuangan' || lowerRole === 'staff tata usaha';
+
     return (
         <div className="bg-white rounded-[2.5rem] p-8 h-full shadow-sm animate-in slide-in-from-right flex flex-col">
             {/* Header & Actions */}
@@ -33,26 +40,28 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                         <p className="text-slate-400 text-sm">Upload data peserta didik baru (Kelas 1)</p>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-3 items-center">
-                    {/* DROPDOWN PILIH KELAS - SYNCED WITH CLASS 1 LIST (1A, 1B) */}
-                    <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
-                        <span className="text-sm font-bold text-slate-600 whitespace-nowrap">Pilih Kelas:</span>
-                        <select className="bg-transparent font-bold text-slate-800 outline-none w-20 cursor-pointer text-center">
-                            <option>1A</option>
-                            <option>1B</option>
-                        </select>
+                {isAdmin && (
+                    <div className="flex flex-wrap gap-3 items-center">
+                        {/* DROPDOWN PILIH KELAS - SYNCED WITH CLASS 1 LIST (1A, 1B) */}
+                        <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
+                            <span className="text-sm font-bold text-slate-600 whitespace-nowrap">Pilih Kelas:</span>
+                            <select className="bg-transparent font-bold text-slate-800 outline-none w-20 cursor-pointer text-center">
+                                <option>1A</option>
+                                <option>1B</option>
+                            </select>
+                        </div>
+                        <div className="h-8 w-px bg-slate-200 hidden md:block mx-1"></div>
+                        <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-colors border border-green-200 shadow-sm">
+                            <Download size={18} /> <span className="hidden md:inline">Template</span>
+                        </button>
+                        <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm">
+                            <UploadCloud size={18} /> <span className="hidden md:inline">Upload</span>
+                        </button>
+                        <button onClick={handleSaveData} className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200">
+                            <Save size={18} /> Simpan
+                        </button>
                     </div>
-                    <div className="h-8 w-px bg-slate-200 hidden md:block mx-1"></div>
-                    <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-colors border border-green-200 shadow-sm">
-                        <Download size={18} /> <span className="hidden md:inline">Template</span>
-                    </button>
-                    <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm">
-                        <UploadCloud size={18} /> <span className="hidden md:inline">Upload</span>
-                    </button>
-                    <button onClick={handleSaveData} className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200">
-                        <Save size={18} /> Simpan
-                    </button>
-                </div>
+                )}
             </div>
 
             {/* Complex Table Container */}
@@ -63,20 +72,22 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                             <th rowSpan={2} className="p-4 border-r border-slate-200 text-center w-12">No</th>
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Nomor Induk Siswa</th>
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Nama Lengkap Siswa</th>
-                            <th rowSpan={2} className="p-4 border-r border-slate-200">Tempat & Tanggal Lahir</th>
+                            {!isKeuangan && <th rowSpan={2} className="p-4 border-r border-slate-200">Tempat & Tanggal Lahir</th>}
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Nama Kelas</th>
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Tingkat</th>
                             <th rowSpan={2} className="p-4 border-r border-slate-200 text-center">Paralel</th>
-                            <th colSpan={2} className="p-2 border-b border-r border-slate-200 text-center bg-slate-100">Nama Orangtua / Wali</th>
-                            <th colSpan={2} className="p-2 border-b border-r border-slate-200 text-center bg-slate-100">Pekerjaan</th>
-                            <th rowSpan={2} className="p-4">Username</th>
+                            {!isKeuangan && <th colSpan={2} className="p-2 border-b border-r border-slate-200 text-center bg-slate-100">Nama Orangtua / Wali</th>}
+                            {!isKeuangan && <th colSpan={2} className="p-2 border-b border-r border-slate-200 text-center bg-slate-100">Pekerjaan</th>}
+                            {isAdmin && <th rowSpan={2} className="p-4">Username</th>}
                         </tr>
-                        <tr>
-                            <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ayah</th>
-                            <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ibu</th>
-                            <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ayah</th>
-                            <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ibu</th>
-                        </tr>
+                        {!isKeuangan && (
+                            <tr>
+                                <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ayah</th>
+                                <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ibu</th>
+                                <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ayah</th>
+                                <th className="p-3 border-r border-slate-200 bg-slate-50 text-xs text-slate-500 uppercase">Ibu</th>
+                            </tr>
+                        )}
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">
                         {/* Class 1 Data from students state */}
@@ -85,22 +96,28 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                                 <td className="p-4 text-center text-slate-500 font-medium">{i + 1}</td>
                                 <td className="p-4 font-mono text-slate-600">{siswa.nis}</td>
                                 <td className="p-4 font-bold text-slate-800">{siswa.nama}</td>
-                                <td className="p-4 text-slate-600">{siswa.ttl}</td>
+                                {!isKeuangan && <td className="p-4 text-slate-600">{siswa.ttl}</td>}
                                 <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">{siswa.kelas}</span></td>
                                 <td className="p-4 text-slate-600">Kelas {siswa.tingkat}</td>
                                 <td className="p-4 text-center font-bold text-[#1E1B4B]">{siswa.paralel}</td>
-                                <td className="p-4 text-slate-600">{siswa.ayah}</td>
-                                <td className="p-4 text-slate-600">{siswa.ibu}</td>
-                                <td className="p-4 text-slate-600">{siswa.jobAyah}</td>
-                                <td className="p-4 text-slate-600">{siswa.jobIbu}</td>
-                                <td className="p-4 flex items-center gap-2">
-                                    <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{siswa.username}</span>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleViewStudent(siswa)}><Eye size={14} className="text-blue-400 cursor-pointer hover:text-blue-600" /></button>
-                                        <button onClick={() => handleEditStudent(siswa)}><Edit size={14} className="text-green-400 cursor-pointer hover:text-green-600" /></button>
-                                        <button onClick={() => handleDelete(siswa.nama)}><Trash2 size={14} className="text-red-400 cursor-pointer hover:text-red-600" /></button>
-                                    </div>
-                                </td>
+                                {!isKeuangan && <td className="p-4 text-slate-600">{siswa.ayah}</td>}
+                                {!isKeuangan && <td className="p-4 text-slate-600">{siswa.ibu}</td>}
+                                {!isKeuangan && <td className="p-4 text-slate-600">{siswa.jobAyah}</td>}
+                                {!isKeuangan && <td className="p-4 text-slate-600">{siswa.jobIbu}</td>}
+                                {isAdmin ? (
+                                    <td className="p-4 flex items-center gap-2">
+                                        <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{siswa.username}</span>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleViewStudent(siswa)}><Eye size={14} className="text-blue-400 cursor-pointer hover:text-blue-600" /></button>
+                                            <button onClick={() => handleEditStudent(siswa)}><Edit size={14} className="text-green-400 cursor-pointer hover:text-green-600" /></button>
+                                            <button onClick={() => handleDelete(siswa.nama)}><Trash2 size={14} className="text-red-400 cursor-pointer hover:text-red-600" /></button>
+                                        </div>
+                                    </td>
+                                ) : (
+                                    <td className="p-4 text-center">
+                                        <button onClick={() => handleViewStudent(siswa)} className="p-1 hover:bg-slate-100 rounded text-blue-500 flex items-center gap-1 text-xs"><Eye size={14} /> Detail</button>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>

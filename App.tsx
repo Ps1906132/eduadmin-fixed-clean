@@ -30,6 +30,11 @@ import DashboardGuruBimbel from './components/DashboardGuruBimbel';
 import DashboardSuperAdmin from './components/DashboardSuperAdmin';
 import DashboardKepalaSekolah from './components/DashboardKepalaSekolah';
 
+// --- RBAC: Fase 1 & 2 — Permission Guard & Audit Log ---
+// Sumber: TEKNIS_DATABASE_CODE.md (Middleware), KODE_SIAP_PAKAI.md (Policy)
+import ProtectedModule from './components/ProtectedModule';
+import { logAuthEvent } from './src/lib/rbac/auditLog';
+
 import { schoolSettingsGlobal, updateAnnouncementsGlobal } from './data/sharedData';
 
 
@@ -115,9 +120,13 @@ const App: React.FC = () => {
     setCurrentUser(user);
     setIsLoggedIn(true);
     localStorage.setItem('eduadmin_user', JSON.stringify({ ...user, roleCode: role }));
+    // Fase 2: Audit log LOGIN — sesuai PERMISSION_MATRIX.md § Session Management
+    logAuthEvent({ action: 'LOGIN', user_id: user?.id, user_role: role });
   };
 
   const handleLogout = () => {
+    // Fase 2: Audit log LOGOUT — sesuai PERMISSION_MATRIX.md § Session Management
+    logAuthEvent({ action: 'LOGOUT', user_id: currentUser?.id, user_role: userRole });
     auth.signOut();
     setIsLoggedIn(false);
     setUserRole('');
@@ -230,84 +239,166 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {activeTab === 'beranda' && <Dashboard />}
+
+            {/* ================================================================
+                MODUL ADMIN (9 Modul) — Fase 2: ProtectedModule Guard
+                Sumber: PERMISSION_MATRIX.md § ADMIN ROLE
+                        TEKNIS_DATABASE_CODE.md § AdminMiddleware
+            ================================================================ */}
             {activeTab === 'data-siswa' && (
-              <DataSiswa
-                onTambahKelas={() => setActiveTab('tambah-kelas')}
-                onUploadSiswa={() => setActiveTab('upload-siswa')}
-                onUploadPerkelas={() => setActiveTab('upload-perkelas')}
-                onUploadSiswaBaru={() => setActiveTab('upload-siswa-baru')}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-siswa">
+                <DataSiswa
+                  onTambahKelas={() => setActiveTab('tambah-kelas')}
+                  onUploadSiswa={() => setActiveTab('upload-siswa')}
+                  onUploadPerkelas={() => setActiveTab('upload-perkelas')}
+                  onUploadSiswaBaru={() => setActiveTab('upload-siswa-baru')}
+                />
+              </ProtectedModule>
             )}
             {activeTab === 'data-guru' && (
-              <DataGuruStaff
-                mapelList={mapelData}
-                setMapelList={setSubjects as any}
-                stafList={stafList}
-                setStafList={setTeachers as any}
-                kelasData={kelasData}
-                setKelasData={setClasses as any}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-guru">
+                <DataGuruStaff
+                  mapelList={mapelData}
+                  setMapelList={setSubjects as any}
+                  stafList={stafList}
+                  setStafList={setTeachers as any}
+                  kelasData={kelasData}
+                  setKelasData={setClasses as any}
+                />
+              </ProtectedModule>
             )}
             {activeTab === 'kelas-wali' && (
-              <KelasWali
-                kelasData={kelasData}
-                studentsData={studentsDataByClass}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="kelas-wali">
+                <KelasWali
+                  kelasData={kelasData}
+                  studentsData={studentsDataByClass}
+                />
+              </ProtectedModule>
             )}
             {activeTab === 'mata-pelajaran' && (
-              <MataPelajaran
-                kelasData={kelasData}
-                mapelList={mapelData}
-                stafList={stafList}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="mata-pelajaran">
+                <MataPelajaran
+                  kelasData={kelasData}
+                  mapelList={mapelData}
+                  stafList={stafList}
+                />
+              </ProtectedModule>
             )}
 
             {activeTab === 'tambah-kelas' && (
-              <TambahKelas
-                onBack={() => setActiveTab('data-siswa')}
-                kelasData={kelasData}
-                setKelasData={setClasses as any}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-siswa" requiredAction="CREATE">
+                <TambahKelas
+                  onBack={() => setActiveTab('data-siswa')}
+                  kelasData={kelasData}
+                  setKelasData={setClasses as any}
+                />
+              </ProtectedModule>
             )}
-            {activeTab === 'upload-siswa' && <UploadSiswa onBack={() => setActiveTab('data-siswa')} />}
-            {activeTab === 'upload-perkelas' && <UploadPerkelas onBack={() => setActiveTab('data-siswa')} />}
-            {activeTab === 'upload-siswa-baru' && <UploadSiswaBaru onBack={() => setActiveTab('data-siswa')} />}
+            {activeTab === 'upload-siswa' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-siswa" requiredAction="CREATE">
+                <UploadSiswa onBack={() => setActiveTab('data-siswa')} />
+              </ProtectedModule>
+            )}
+            {activeTab === 'upload-perkelas' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-siswa" requiredAction="CREATE">
+                <UploadPerkelas onBack={() => setActiveTab('data-siswa')} />
+              </ProtectedModule>
+            )}
+            {activeTab === 'upload-siswa-baru' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-siswa" requiredAction="CREATE">
+                <UploadSiswaBaru onBack={() => setActiveTab('data-siswa')} />
+              </ProtectedModule>
+            )}
 
-            {activeTab === 'jadwal' && <Jadwal kelasData={kelasData} mapelData={mapelData} />}
+            {/* ================================================================
+                MODUL KURIKULUM (6 Modul) — Fase 2: ProtectedModule Guard
+                Sumber: PERMISSION_MATRIX.md § KURIKULUM ROLE
+                        TEKNIS_DATABASE_CODE.md § KurikulumMiddleware
+            ================================================================ */}
+            {activeTab === 'jadwal' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="jadwal">
+                <Jadwal kelasData={kelasData} mapelData={mapelData} />
+              </ProtectedModule>
+            )}
             {activeTab === 'absen' && (
-              <Absen
-                kelasData={kelasData}
-                studentsData={studentsDataByClass}
-                attendanceData={attendanceData}
-                setAttendanceData={setAttendanceData}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="absen">
+                <Absen
+                  kelasData={kelasData}
+                  studentsData={studentsDataByClass}
+                  attendanceData={attendanceData}
+                  setAttendanceData={setAttendanceData}
+                />
+              </ProtectedModule>
             )}
             {activeTab === 'nilai' && (
-              <Nilai
-                kelasData={kelasData}
-                studentsData={studentsDataByClass}
-                mapelData={mapelData}
-                gradesData={gradesData}
-                setGradesData={setGradesData}
-                customColumnsData={customColumnsData}
-                setCustomColumnsData={setCustomColumnsData}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="nilai">
+                <Nilai
+                  kelasData={kelasData}
+                  studentsData={studentsDataByClass}
+                  mapelData={mapelData}
+                  gradesData={gradesData}
+                  setGradesData={setGradesData}
+                  customColumnsData={customColumnsData}
+                  setCustomColumnsData={setCustomColumnsData}
+                />
+              </ProtectedModule>
             )}
             {activeTab === 'rapot' && (
-              <Rapot
-                studentsData={studentsDataByClass}
-                gradesData={gradesData}
-                attendanceData={attendanceData}
-                schoolSettings={schoolSettings}
-              />
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="rapot">
+                <Rapot
+                  studentsData={studentsDataByClass}
+                  gradesData={gradesData}
+                  attendanceData={attendanceData}
+                  schoolSettings={schoolSettings}
+                />
+              </ProtectedModule>
             )}
-            {activeTab === 'keuangan' && <Keuangan />}
-            {activeTab === 'tabungan' && <Tabungan />}
-            {activeTab === 'naik-kelas' && <NaikKelas />}
-            {activeTab === 'bimbingan' && <BimbinganBelajar />}
-            {activeTab === 'pengumuman' && <Pengumuman />}
-            {activeTab === 'laporan' && <Laporan />}
-            {activeTab === 'pengaturan' && <Pengaturan schoolSettings={schoolSettings} setSchoolSettings={setSchoolSettings} />}
+            {activeTab === 'naik-kelas' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="naik-kelas">
+                <NaikKelas />
+              </ProtectedModule>
+            )}
+
+            {/* ================================================================
+                MODUL KEUANGAN (3 Modul) — Fase 2: ProtectedModule Guard
+                Sumber: PERMISSION_MATRIX.md § KEUANGAN ROLE
+                        TEKNIS_DATABASE_CODE.md § KeuanganMiddleware
+            ================================================================ */}
+            {activeTab === 'keuangan' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="keuangan">
+                <Keuangan />
+              </ProtectedModule>
+            )}
+            {activeTab === 'tabungan' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="tabungan">
+                <Tabungan />
+              </ProtectedModule>
+            )}
+            {activeTab === 'laporan' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="laporan">
+                <Laporan />
+              </ProtectedModule>
+            )}
+
+            {/* ================================================================
+                MODUL ADMIN LANJUTAN — Tetap di Admin
+                Sumber: START_HERE.md § DISTRIBUSI MODUL (Admin: 9 modul)
+            ================================================================ */}
+            {activeTab === 'bimbingan' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="bimbingan">
+                <BimbinganBelajar />
+              </ProtectedModule>
+            )}
+            {activeTab === 'pengumuman' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="pengumuman">
+                <Pengumuman />
+              </ProtectedModule>
+            )}
+            {activeTab === 'pengaturan' && (
+              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="pengaturan">
+                <Pengaturan schoolSettings={schoolSettings} setSchoolSettings={setSchoolSettings} />
+              </ProtectedModule>
+            )}
 
             {!['beranda', 'data-siswa', 'data-guru', 'kelas-wali', 'mata-pelajaran', 'tambah-kelas', 'upload-siswa', 'upload-perkelas', 'upload-siswa-baru', 'jadwal', 'absen', 'nilai', 'rapot', 'keuangan', 'tabungan', 'naik-kelas', 'bimbingan', 'pengumuman', 'laporan', 'pengaturan'].includes(activeTab) && (
               <div className="flex flex-col items-center justify-center h-64 bg-white rounded-3xl shadow-sm border border-slate-200">

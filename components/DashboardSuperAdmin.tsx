@@ -14,6 +14,7 @@ import { studentsDataGlobal, teachersDataGlobal, classesDataGlobal, schedulesDat
 import { toast, Toaster } from 'react-hot-toast';
 import { hashPassword } from '../utils/auth';
 import Sidebar from './DashboardSuperAdmin/components/Sidebar';
+import ProtectedModule from './ProtectedModule';
 import { ScheduleItem, Period, MasterSchedule, DailyScheduleInfo, DAYS } from './DashboardSuperAdmin/types';
 import DashboardHome from './DashboardSuperAdmin/components/views/DashboardHome';
 import GuruStaffView from './DashboardSuperAdmin/components/views/GuruStaffView';
@@ -61,6 +62,57 @@ interface SuperAdminProps {
     onLogout: () => void;
 }
 
+const VIEW_TO_MODULE_MAP: Record<string, string> = {
+    data_siswa: 'data-siswa',
+    cetak_kartu_login: 'data-siswa',
+    tambah_kelas_view: 'data-siswa',
+    upload_kelas_satu_view: 'data-siswa',
+    upload_siswa_view: 'data-siswa',
+    upload_perkelas_view: 'data-siswa',
+    data_guru: 'data-guru',
+    tambah_guru_view: 'data-guru',
+    tambah_jabatan_view: 'data-guru',
+    kelas_wali: 'kelas-wali',
+    mapel: 'mata-pelajaran',
+    tambah_mapel_view: 'mata-pelajaran',
+    jadwal: 'jadwal',
+    absen: 'absen',
+    ujian: 'jadwal-ujian',
+    nilai: 'nilai',
+    rapot: 'rapot',
+    rapot_print: 'rapot',
+    rapot_settings: 'rapot',
+    keuangan: 'keuangan',
+    tabungan: 'tabungan',
+    naik_kelas: 'naik-kelas',
+    bimbingan_belajar: 'bimbingan',
+    pengumuman: 'pengumuman',
+    laporan: 'laporan',
+    multimedia: 'multimedia',
+    settings: 'pengaturan',
+    ai_management: 'manajemen-ai'
+};
+
+const ProtectedViewWrapper: React.FC<{
+    activeView: string;
+    user: any;
+    children: React.ReactNode;
+}> = ({ activeView, user, children }) => {
+    const module = VIEW_TO_MODULE_MAP[activeView];
+    if (!module) {
+        return <>{children}</>;
+    }
+    return (
+        <ProtectedModule
+            userRole={user?.role || user?.role_type || user?.roleCode}
+            userId={user?.id}
+            module={module as any}
+            requiredAction="READ"
+        >
+            {children}
+        </ProtectedModule>
+    );
+};
 
 const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [activeView, setActiveView] = useState('dashboard');
@@ -1130,6 +1182,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                 <main className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
 
+                    <ProtectedViewWrapper activeView={activeView} user={user}>
 
                     {/* --- VIEW: DASHBOARD HOME --- */}
                     {activeView === 'dashboard' && (
@@ -1169,6 +1222,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleViewStudent={handleViewStudent}
                             handleEditStudent={handleEditStudent}
                             handleDelete={handleDelete}
+                            user={user}
                         />
                     )}
 
@@ -1183,6 +1237,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleViewStudent={handleViewStudent}
                             handleEditStudent={handleEditStudent}
                             handleDelete={handleDelete}
+                            user={user}
                         />
                     )}
 
@@ -1199,6 +1254,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleDelete={handleDelete}
                             classes={classes}
                             handleAddStudent={handleAddStudent}
+                            user={user}
                         />
                     )}
 
@@ -1875,13 +1931,13 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     {/* --- VIEW: INPUT NILAI (NEW) --- */}
                     {activeView === 'nilai' && (
                         <div className="h-full">
-                            <NilaiView setActiveView={setActiveView} />
+                            <NilaiView setActiveView={setActiveView} user={user} />
                         </div>
                     )}
 
                     {/* --- VIEW: KEUANGAN --- */}
                     {activeView === 'keuangan' && (
-                        <KeuanganView students={students} />
+                        <KeuanganView students={students} user={user} />
                     )}
 
                     {/* --- VIEW: TABUNGAN --- */}
@@ -2802,6 +2858,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             <AIManagementView onBack={() => setActiveView('dashboard')} />
                         </div>
                     )}
+
+                    </ProtectedViewWrapper>
 
 
 

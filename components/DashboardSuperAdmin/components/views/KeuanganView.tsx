@@ -16,10 +16,14 @@ import EditYearModal from '../modals/EditYearModal';
 
 interface KeuanganViewProps {
     students: any[];
+    user?: any;
 }
 
-const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) => {
+const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user }) => {
     const students = Array.isArray(rawStudents) ? rawStudents : [];
+    const role = user?.role || user?.role_type || user?.roleCode;
+    const lowerRole = role?.toLowerCase();
+    const isKeuangan = !role || lowerRole === 'keuangan' || lowerRole === 'staff tata usaha';
 
     // --- KEUANGAN STATE ---
     const [financeActiveTab, setFinanceActiveTab] = useState('dashboard'); // dashboard, data, tagihan, pembayaran, pengeluaran, kas, laporan, pengaturan
@@ -221,18 +225,22 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
 
                     {/* Action Shortcuts */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <button onClick={() => setFinanceActiveTab('pembayaran')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
-                            <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Plus size={24} /></div>
-                            <span className="font-bold text-slate-700 text-sm">Terima Pembayaran</span>
-                        </button>
-                        <button onClick={() => setFinanceActiveTab('tagihan')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-emerald-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
-                            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform"><FileText size={24} /></div>
-                            <span className="font-bold text-slate-700 text-sm">Buat Tagihan SPP</span>
-                        </button>
-                        <button onClick={() => setFinanceActiveTab('pengeluaran')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-amber-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
-                            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform"><TrendingDown size={24} /></div>
-                            <span className="font-bold text-slate-700 text-sm">Catat Pengeluaran</span>
-                        </button>
+                        {isKeuangan && (
+                            <>
+                                <button onClick={() => setFinanceActiveTab('pembayaran')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
+                                    <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Plus size={24} /></div>
+                                    <span className="font-bold text-slate-700 text-sm">Terima Pembayaran</span>
+                                </button>
+                                <button onClick={() => setFinanceActiveTab('tagihan')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-emerald-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
+                                    <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                                    <span className="font-bold text-slate-700 text-sm">Buat Tagihan SPP</span>
+                                </button>
+                                <button onClick={() => setFinanceActiveTab('pengeluaran')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-amber-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
+                                    <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform"><TrendingDown size={24} /></div>
+                                    <span className="font-bold text-slate-700 text-sm">Catat Pengeluaran</span>
+                                </button>
+                            </>
+                        )}
                         <button onClick={() => setFinanceActiveTab('laporan')} className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-purple-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group">
                             <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Printer size={24} /></div>
                             <span className="font-bold text-slate-700 text-sm">Cetak Laporan</span>
@@ -249,19 +257,23 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Calendar size={20} className="text-blue-500" /> Tahun Ajaran Aktif</h3>
-                                <button onClick={() => setShowEditYearModal(true)} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors">Ubah</button>
+                                {isKeuangan && (
+                                    <button onClick={() => setShowEditYearModal(true)} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors">Ubah</button>
+                                )}
                             </div>
                             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
                                 <p className="text-2xl font-bold text-slate-800">{financialYear}</p>
                                 <p className="text-sm text-slate-500">Semester Ganjil</p>
                             </div>
                         </div>
-
+ 
                         {/* Rekening / Kas */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Wallet size={20} className="text-emerald-500" /> Akun Kas / Bank</h3>
-                                <button className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">+ Tambah</button>
+                                {isKeuangan && (
+                                    <button className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">+ Tambah</button>
+                                )}
                             </div>
                             <div className="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar">
                                 {cashAccounts.map(acc => (
@@ -281,7 +293,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                             </div>
                         </div>
                     </div>
-
+ 
                     {/* Jenis Pembayaran Lists */}
                     <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                         <div className="flex justify-between items-center mb-6">
@@ -289,11 +301,13 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                                 <h3 className="font-bold text-lg text-slate-800">Jenis Pembayaran & Tarif</h3>
                                 <p className="text-sm text-slate-400">Atur komponen biaya sekolah per kelas.</p>
                             </div>
-                            <button onClick={() => setShowAddPaymentTypeModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">
-                                + Tambah Jenis
-                            </button>
+                            {isKeuangan && (
+                                <button onClick={() => setShowAddPaymentTypeModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">
+                                    + Tambah Jenis
+                                </button>
+                            )}
                         </div>
-
+ 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
@@ -301,7 +315,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                                         <th className="p-3 text-sm font-bold text-slate-500">Nama Pembayaran</th>
                                         <th className="p-3 text-sm font-bold text-slate-500">Tipe</th>
                                         <th className="p-3 text-sm font-bold text-slate-500">Tarif (Default)</th>
-                                        <th className="p-3 text-sm font-bold text-slate-500 text-center">Aksi</th>
+                                        {isKeuangan && <th className="p-3 text-sm font-bold text-slate-500 text-center">Aksi</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -316,17 +330,19 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                                                 </span>
                                             </td>
                                             <td className="p-3 font-mono text-slate-600">Rp {type.amount.toLocaleString('id-ID')}</td>
-                                            <td className="p-3 text-center">
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingPaymentType(type);
-                                                        setShowEditPaymentTypeModal(true);
-                                                    }}
-                                                    className="text-slate-400 hover:text-blue-500 transition-colors"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                            </td>
+                                            {isKeuangan && (
+                                                <td className="p-3 text-center">
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingPaymentType(type);
+                                                            setShowEditPaymentTypeModal(true);
+                                                        }}
+                                                        className="text-slate-400 hover:text-blue-500 transition-colors"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -350,81 +366,89 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                                 <option>Maret 2026</option>
                                 <option>April 2026</option>
                             </select>
-                            <button onClick={handleGenerateBills} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">
-                                Generate Sekarang
-                            </button>
+                            {isKeuangan ? (
+                                <button onClick={handleGenerateBills} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">
+                                    Generate Sekarang
+                                </button>
+                            ) : (
+                                <button disabled className="px-6 py-2 bg-slate-300 text-white rounded-xl font-bold cursor-not-allowed">
+                                    Generate Sekarang
+                                </button>
+                            )}
                         </div>
                     </div>
 
                     {/* Import Section */}
-                    <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                            <div>
-                                <h4 className="font-bold text-blue-800 text-sm">Import Data Tagihan (Excel)</h4>
-                                <p className="text-xs text-blue-600">Gunakan fitur ini untuk upload tagihan massal dari file Excel.</p>
+                    {isKeuangan && (
+                        <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                <div>
+                                    <h4 className="font-bold text-blue-800 text-sm">Import Data Tagihan (Excel)</h4>
+                                    <p className="text-xs text-blue-600">Gunakan fitur ini untuk upload tagihan massal dari file Excel.</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleDownloadBillTemplate}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+                                    >
+                                        <Download size={16} /> Template
+                                    </button>
+                                    <label className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 cursor-pointer">
+                                        <UploadIcon size={16} /> Pilih File
+                                        <input
+                                            type="file"
+                                            accept=".xlsx, .xls, .csv"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files[0]) {
+                                                    setUploadedBillFile(e.target.files[0]);
+                                                    toast.success(`File ${e.target.files[0].name} terpilih!`);
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                </div>
                             </div>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={handleDownloadBillTemplate}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
-                                >
-                                    <Download size={16} /> Template
-                                </button>
-                                <label className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 cursor-pointer">
-                                    <UploadIcon size={16} /> Pilih File
-                                    <input
-                                        type="file"
-                                        accept=".xlsx, .xls, .csv"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                            if (e.target.files && e.target.files[0]) {
-                                                setUploadedBillFile(e.target.files[0]);
-                                                toast.success(`File ${e.target.files[0].name} terpilih!`);
-                                            }
-                                        }}
-                                    />
-                                </label>
-                            </div>
-                        </div>
 
-                        {/* Show selected file and save button */}
-                        {uploadedBillFile && (
-                            <div className="mt-4 p-4 bg-white rounded-2xl border border-blue-200 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between gap-3 mb-3">
-                                    <div className="flex items-center gap-3 truncate">
-                                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                                            <FileText size={20} className="text-blue-600" />
+                            {/* Show selected file and save button */}
+                            {uploadedBillFile && (
+                                <div className="mt-4 p-4 bg-white rounded-2xl border border-blue-200 animate-in fade-in slide-in-from-top-2">
+                                    <div className="flex items-center justify-between gap-3 mb-3">
+                                        <div className="flex items-center gap-3 truncate">
+                                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                <FileText size={20} className="text-blue-600" />
+                                            </div>
+                                            <div className="truncate">
+                                                <p className="text-sm font-bold text-slate-700 truncate">{uploadedBillFile.name}</p>
+                                                <p className="text-[10px] text-slate-400">{(uploadedBillFile.size / 1024).toFixed(1)} KB</p>
+                                            </div>
                                         </div>
-                                        <div className="truncate">
-                                            <p className="text-sm font-bold text-slate-700 truncate">{uploadedBillFile.name}</p>
-                                            <p className="text-[10px] text-slate-400">{(uploadedBillFile.size / 1024).toFixed(1)} KB</p>
-                                        </div>
+                                        <button
+                                            onClick={() => setUploadedBillFile(null)}
+                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        >
+                                            <X size={18} />
+                                        </button>
                                     </div>
                                     <button
-                                        onClick={() => setUploadedBillFile(null)}
-                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        onClick={() => {
+                                            const loadingToast = toast.loading('Memproses data tagihan...');
+                                            // Mock processing
+                                            setTimeout(() => {
+                                                toast.dismiss(loadingToast);
+                                                handleGenerateBills(); // Reuse generate logic as mock import
+                                                toast.success(`Berhasil mengimport data tagihan dari ${uploadedBillFile.name}`);
+                                                setUploadedBillFile(null);
+                                            }, 1500);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
                                     >
-                                        <X size={18} />
+                                        <CheckCircle size={18} /> Simpan Data Tagihan
                                     </button>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        const loadingToast = toast.loading('Memproses data tagihan...');
-                                        // Mock processing
-                                        setTimeout(() => {
-                                            toast.dismiss(loadingToast);
-                                            handleGenerateBills(); // Reuse generate logic as mock import
-                                            toast.success(`Berhasil mengimport data tagihan dari ${uploadedBillFile.name}`);
-                                            setUploadedBillFile(null);
-                                        }, 1500);
-                                    }}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
-                                >
-                                    <CheckCircle size={18} /> Simpan Data Tagihan
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Table Tagihan */}
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
@@ -464,7 +488,11 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                                         </td>
                                         <td className="p-4 text-center">
                                             {bill.status !== 'Lunas' ? (
-                                                <button onClick={() => handlePayBill(bill)} className="text-blue-600 hover:underline font-bold text-xs">Bayar</button>
+                                                isKeuangan ? (
+                                                    <button onClick={() => handlePayBill(bill)} className="text-blue-600 hover:underline font-bold text-xs">Bayar</button>
+                                                ) : (
+                                                    <button disabled className="text-slate-400 font-bold text-xs cursor-not-allowed">Belum Lunas</button>
+                                                )
                                             ) : (
                                                 <button className="text-slate-400 hover:text-blue-500 font-bold text-xs">Cetak</button>
                                             )}
@@ -605,46 +633,55 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
                                             <span className="text-sm font-medium">Transfer Bank</span>
                                         </label>
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            if (selectedBillIds.length > 0 && selectedStudentForPay) {
-                                                // Process payment
-                                                const updatedBills = studentBills.map(bill =>
-                                                    selectedBillIds.includes(bill.id)
-                                                        ? { ...bill, status: 'Lunas' as const }
-                                                        : bill
-                                                );
-                                                setStudentBills(updatedBills);
+                                    {isKeuangan ? (
+                                        <button
+                                            onClick={() => {
+                                                if (selectedBillIds.length > 0 && selectedStudentForPay) {
+                                                    // Process payment
+                                                    const updatedBills = studentBills.map(bill =>
+                                                        selectedBillIds.includes(bill.id)
+                                                            ? { ...bill, status: 'Lunas' as const }
+                                                            : bill
+                                                    );
+                                                    setStudentBills(updatedBills);
 
-                                                // Add to Payment History for Global Sync
-                                                const paidBills = studentBills.filter(bill => selectedBillIds.includes(bill.id));
-                                                const newHistoryRecords = paidBills.map(bill => ({
-                                                    id: Date.now() + Math.random(),
-                                                    studentId: selectedStudentForPay.id,
-                                                    studentName: selectedStudentForPay.nama,
-                                                    paymentName: bill.paymentName,
-                                                    amount: bill.amount,
-                                                    date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-                                                    method: paymentMethod,
-                                                    status: 'Lunas',
-                                                    month: bill.period.split(' ')[0],
-                                                    year: bill.period.split(' ')[1]
-                                                }));
+                                                    // Add to Payment History for Global Sync
+                                                    const paidBills = studentBills.filter(bill => selectedBillIds.includes(bill.id));
+                                                    const newHistoryRecords = paidBills.map(bill => ({
+                                                        id: Date.now() + Math.random(),
+                                                        studentId: selectedStudentForPay.id,
+                                                        studentName: selectedStudentForPay.nama,
+                                                        paymentName: bill.paymentName,
+                                                        amount: bill.amount,
+                                                        date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+                                                        method: paymentMethod,
+                                                        status: 'Lunas',
+                                                        month: bill.period.split(' ')[0],
+                                                        year: bill.period.split(' ')[1]
+                                                    }));
 
-                                                setPaymentHistory([...newHistoryRecords, ...paymentHistory]);
+                                                    setPaymentHistory([...newHistoryRecords, ...paymentHistory]);
 
-                                                toast.success(`Pembayaran berhasil untuk ${selectedBillIds.length} tagihan!`);
-                                                setSelectedBillIds([]);
-                                                setSelectedStudentForPay(null);
-                                                setSearchStudentForPayment('');
-                                            } else {
-                                                toast.error('Pilih siswa dan tagihan terlebih dahulu!');
-                                            }
-                                        }}
-                                        className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-900/50"
-                                    >
-                                        PROSES PEMBAYARAN
-                                    </button>
+                                                    toast.success(`Pembayaran berhasil untuk ${selectedBillIds.length} tagihan!`);
+                                                    setSelectedBillIds([]);
+                                                    setSelectedStudentForPay(null);
+                                                    setSearchStudentForPayment('');
+                                                } else {
+                                                    toast.error('Pilih siswa dan tagihan terlebih dahulu!');
+                                                }
+                                            }}
+                                            className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-900/50"
+                                        >
+                                            PROSES PEMBAYARAN
+                                        </button>
+                                    ) : (
+                                        <button
+                                            disabled
+                                            className="w-full py-3 bg-slate-600 text-slate-400 font-bold rounded-xl cursor-not-allowed"
+                                        >
+                                            PROSES PEMBAYARAN (READ-ONLY)
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -687,77 +724,80 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents }) =>
             {/* 5. PENGELUARAN */}
             {financeActiveTab === 'pengeluaran' && (
                 <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                        <h3 className="font-bold text-lg text-slate-800 mb-4">Catat Pengeluaran Baru</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Tanggal</label>
-                                <input
-                                    type="date"
-                                    value={newExpense.date}
-                                    onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Kategori</label>
-                                <select
-                                    value={newExpense.category}
-                                    onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
-                                >
-                                    <option>Operasional Sekolah</option>
-                                    <option>Honor Guru/Staff</option>
-                                    <option>ATK & Fotokopi</option>
-                                    <option>Konsumsi</option>
-                                </select>
-                            </div>
-                            <div className="lg:col-span-1">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Keterangan</label>
-                                <input
-                                    type="text"
-                                    placeholder="Contoh: Beli Kertas A4"
-                                    value={newExpense.description}
-                                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Nominal (Rp)</label>
-                                <input
-                                    type="number"
-                                    placeholder="0"
-                                    value={newExpense.amount || ''}
-                                    onChange={(e) => setNewExpense({ ...newExpense, amount: parseInt(e.target.value) || 0 })}
-                                    className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-mono"
-                                />
-                            </div>
-                            <div className="flex items-end">
-                                <button
-                                    onClick={() => {
-                                        if (newExpense.amount > 0 && newExpense.description) {
-                                            const exp = {
-                                                id: Date.now(),
-                                                date: newExpense.date || new Date().toISOString().split('T')[0],
-                                                description: newExpense.description,
-                                                category: newExpense.category,
-                                                amount: newExpense.amount,
-                                                proof: 'file.jpg' // mock
-                                            };
-                                            setExpenses([exp, ...expenses]);
-                                            setNewExpense({ date: '', description: '', category: 'Operasional', amount: 0 });
-                                            toast.success("Pengeluaran berhasil disimpan!");
-                                        } else {
-                                            toast.error("Mohon isi keterangan dan nominal!");
-                                        }
-                                    }}
-                                    className="w-full p-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-colors shadow-lg shadow-amber-200"
-                                >
-                                    Simpan
-                                </button>
+                    {/* Catat Pengeluaran Baru */}
+                    {isKeuangan && (
+                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <h3 className="font-bold text-lg text-slate-800 mb-4">Catat Pengeluaran Baru</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Tanggal</label>
+                                    <input
+                                        type="date"
+                                        value={newExpense.date}
+                                        onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                                        className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Kategori</label>
+                                    <select
+                                        value={newExpense.category}
+                                        onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+                                        className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
+                                    >
+                                        <option>Operasional Sekolah</option>
+                                        <option>Honor Guru/Staff</option>
+                                        <option>ATK & Fotokopi</option>
+                                        <option>Konsumsi</option>
+                                    </select>
+                                </div>
+                                <div className="lg:col-span-1">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Keterangan</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Contoh: Beli Kertas A4"
+                                        value={newExpense.description}
+                                        onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                                        className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Nominal (Rp)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        value={newExpense.amount || ''}
+                                        onChange={(e) => setNewExpense({ ...newExpense, amount: parseInt(e.target.value) || 0 })}
+                                        className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500 font-mono"
+                                    />
+                                </div>
+                                <div className="flex items-end">
+                                    <button
+                                        onClick={() => {
+                                            if (newExpense.amount > 0 && newExpense.description) {
+                                                const exp = {
+                                                    id: Date.now(),
+                                                    date: newExpense.date || new Date().toISOString().split('T')[0],
+                                                    description: newExpense.description,
+                                                    category: newExpense.category,
+                                                    amount: newExpense.amount,
+                                                    proof: 'file.jpg' // mock
+                                                };
+                                                setExpenses([exp, ...expenses]);
+                                                setNewExpense({ date: '', description: '', category: 'Operasional', amount: 0 });
+                                                toast.success("Pengeluaran berhasil disimpan!");
+                                            } else {
+                                                toast.error("Mohon isi keterangan dan nominal!");
+                                            }
+                                        }}
+                                        className="w-full p-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-colors shadow-lg shadow-amber-200"
+                                    >
+                                        Simpan
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Data Pengeluaran */}
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
