@@ -81,6 +81,14 @@ export let teachersDataGlobal: any[] = [
         password: "password123",
         role: "Staff Tata Usaha",
         jabatan: "Staff Tata Usaha"
+    },
+    {
+        id: 4,
+        nama: "Sdr. Andi (Multimedia Demo)",
+        username: "adminmultimedia",
+        password: "password123",
+        role: "multimedia",
+        jabatan: "Admin Multimedia"
     }
 ];
 

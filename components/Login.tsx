@@ -116,7 +116,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName = "NAMA SEKOLAH", logo, ban
                     if (role === 'Wali Kelas' || role === 'Guru Kelas') roleCode = 'wk';
                     if (role === 'Guru Bimbel') roleCode = 'gb';
                     if (role === 'Kepala Sekolah') roleCode = 'ks';
-                    if (['Wakil Kurikulum', 'Staff Tata Usaha', 'Operator Data'].includes(role)) roleCode = 'admin';
+                    if (['Wakil Kurikulum', 'Staff Tata Usaha', 'Operator Data', 'kurikulum', 'keuangan', 'multimedia'].includes(role)) roleCode = 'admin';
 
                     onLogin(roleCode, {
                         nama: teacherAccount.nama,
