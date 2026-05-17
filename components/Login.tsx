@@ -24,6 +24,49 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName = "NAMA SEKOLAH", logo, ban
         setError('');
         setIsLoading(true);
 
+        // --- DEVELOPMENT OFFLINE BYPASS ---
+        // Menjamin 100% kesuksesan login ketika database backend (Supabase/D1) offline di lokal
+        if (!import.meta.env.PROD) {
+            const lowerUsername = username.trim().toLowerCase();
+            if ((lowerUsername === 'admin@eduadmin.com' && password === 'EduAdmin@2026!') || 
+                (lowerUsername === 'admin' && password === 'admin123')) {
+                onLogin('admin', {
+                    id: 999,
+                    nama: "Super Admin (Offline)",
+                    email: "admin@eduadmin.com",
+                    role: "admin",
+                    role_type: "admin",
+                    avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+                });
+                setIsLoading(false);
+                return;
+            }
+            if (lowerUsername === 'budikurikulum' && password === 'password123') {
+                onLogin('kurikulum', {
+                    id: 998,
+                    nama: "Bpk. Budi (Offline)",
+                    email: "kurikulum@eduadmin.com",
+                    role: "kurikulum",
+                    role_type: "kurikulum",
+                    avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+                });
+                setIsLoading(false);
+                return;
+            }
+            if (lowerUsername === 'tatausaha' && password === 'password123') {
+                onLogin('keuangan', {
+                    id: 997,
+                    nama: "Ibu Siti (Offline)",
+                    email: "keuangan@eduadmin.com",
+                    role: "keuangan",
+                    role_type: "keuangan",
+                    avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+                });
+                setIsLoading(false);
+                return;
+            }
+        }
+
         try {
             // ATTEMPT D1 DB LOGIN
             const res = await db.from('profiles').select('*').eq('email', username).single();
