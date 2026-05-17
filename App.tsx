@@ -55,7 +55,7 @@ const App: React.FC = () => {
       const { data: { user } } = await auth.getUser();
 
       if (user) {
-        setUserRole(user.role);
+        setUserRole(user.roleCode || user.role);
         setCurrentUser(user);
         setIsLoggedIn(true);
       }
@@ -114,7 +114,7 @@ const App: React.FC = () => {
     setUserRole(role);
     setCurrentUser(user);
     setIsLoggedIn(true);
-    localStorage.setItem('eduadmin_user', JSON.stringify({ role, ...user }));
+    localStorage.setItem('eduadmin_user', JSON.stringify({ ...user, roleCode: role }));
   };
 
   const handleLogout = () => {
