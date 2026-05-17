@@ -209,7 +209,7 @@ const App: React.FC = () => {
   if (userRole === 'wk') return <DashboardWaliKelas user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
   if (userRole === 'gb') return <DashboardGuruBimbel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
   if (userRole === 'gm') return <DashboardGuruMapel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
-  if (userRole === 'admin') return <DashboardSuperAdmin user={currentUser} onLogout={handleLogout} />;
+  if (['admin', 'kurikulum', 'keuangan', 'multimedia'].includes(userRole)) return <DashboardSuperAdmin user={currentUser} onLogout={handleLogout} />;
   if (userRole === 'ks') return <DashboardKepalaSekolah user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
 
   return (

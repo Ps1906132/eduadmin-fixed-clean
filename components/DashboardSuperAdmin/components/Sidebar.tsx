@@ -72,13 +72,19 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         // Specific Roles Filtering
         switch (role) {
+            case 'kurikulum':
             case 'Wakil Kurikulum':
                 return menuItems.filter(item =>
-                    ['dashboard', 'mapel', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot'].includes(item.id)
+                    ['dashboard', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas'].includes(item.id)
                 );
+            case 'keuangan':
             case 'Staff Tata Usaha':
                 return menuItems.filter(item =>
                     ['dashboard', 'keuangan', 'tabungan', 'laporan'].includes(item.id)
+                );
+            case 'multimedia':
+                return menuItems.filter(item =>
+                    ['dashboard', 'multimedia', 'ai_management'].includes(item.id)
                 );
             case 'Operator Data':
                 return menuItems.filter(item =>
