@@ -1,25 +1,25 @@
 import React, { useRef, useState } from 'react';
 import { ArrowLeft, Printer, Search, Download } from 'lucide-react';
-import { studentsDataGlobal } from '../../../../data/sharedData';
-
 interface CetakKartuLoginViewProps {
     setActiveView: (view: string) => void;
+    students: any[];
+    classes: any[];
 }
 
-const CetakKartuLoginView: React.FC<CetakKartuLoginViewProps> = ({ setActiveView }) => {
+const CetakKartuLoginView: React.FC<CetakKartuLoginViewProps> = ({ setActiveView, students, classes }) => {
     const componentRef = useRef<HTMLDivElement>(null);
     const [selectedClass, setSelectedClass] = useState('Semua Kelas');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Filter students
-    const filteredStudents = studentsDataGlobal.filter(s => {
+    // Filter students using live props
+    const filteredStudents = students.filter(s => {
         const matchClass = selectedClass === 'Semua Kelas' || s.kelas === selectedClass;
         const matchSearch = s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
             s.nis.includes(searchQuery);
         return matchClass && matchSearch;
     });
 
-    const uniqueClasses = ['Semua Kelas', ...Array.from(new Set(studentsDataGlobal.map(s => s.kelas))).sort()];
+    const uniqueClasses = ['Semua Kelas', ...classes.map(c => c.nama).sort()];
 
     const handlePrint = () => {
         const printContent = componentRef.current;

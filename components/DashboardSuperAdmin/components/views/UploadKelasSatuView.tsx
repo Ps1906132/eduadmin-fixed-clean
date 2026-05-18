@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronRight, Download, UploadCloud, Save, Eye, Edit, Trash2 } from 'lucide-react';
 
 interface UploadKelasSatuViewProps {
@@ -7,6 +7,7 @@ interface UploadKelasSatuViewProps {
     handleUploadClick: () => void;
     handleSaveData: () => void;
     students: any[];
+    classes?: any[];
     handleViewStudent: (student: any) => void;
     handleEditStudent: (student: any) => void;
     handleDelete: (name: string) => void;
@@ -19,11 +20,30 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
     handleUploadClick,
     handleSaveData,
     students,
+    classes = [],
     handleViewStudent,
     handleEditStudent,
     handleDelete,
     user
 }) => {
+    const classOptions = classes && classes.length > 0
+        ? classes.filter((c: any) => c.tingkat === 1).map((c: any) => c.nama)
+        : [];
+
+    const [selectedClass, setSelectedClass] = useState(() => {
+        return classOptions[0] || '';
+    });
+
+    React.useEffect(() => {
+        if (classOptions.length > 0 && !classOptions.includes(selectedClass)) {
+            setSelectedClass(classOptions[0]);
+        }
+    }, [classes]);
+
+    const filteredStudents = selectedClass
+        ? students.filter(s => s.kelas === selectedClass)
+        : students.filter(s => s.tingkat === 1);
+
     const role = user?.role || user?.role_type || user?.roleCode;
     const lowerRole = role?.toLowerCase();
     const isAdmin = !role || lowerRole === 'admin' || lowerRole === 'super admin' || lowerRole === 'operator data' || lowerRole === 'multimedia';
@@ -42,12 +62,21 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                 </div>
                 {isAdmin && (
                     <div className="flex flex-wrap gap-3 items-center">
-                        {/* DROPDOWN PILIH KELAS - SYNCED WITH CLASS 1 LIST (1A, 1B) */}
+                        {/* DROPDOWN PILIH KELAS - SYNCED WITH CLASS 1 LIST */}
                         <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
                             <span className="text-sm font-bold text-slate-600 whitespace-nowrap">Pilih Kelas:</span>
-                            <select className="bg-transparent font-bold text-slate-800 outline-none w-20 cursor-pointer text-center">
-                                <option>1A</option>
-                                <option>1B</option>
+                            <select 
+                                value={selectedClass}
+                                onChange={(e) => setSelectedClass(e.target.value)}
+                                className="bg-transparent font-bold text-slate-800 outline-none w-20 cursor-pointer text-center"
+                            >
+                                {classOptions.length > 0 ? (
+                                    classOptions.map((cls) => (
+                                        <option key={cls} value={cls}>{cls}</option>
+                                    ))
+                                ) : (
+                                    <option disabled value="">Kosong</option>
+                                )}
                             </select>
                         </div>
                         <div className="h-8 w-px bg-slate-200 hidden md:block mx-1"></div>
@@ -91,7 +120,7 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">
                         {/* Class 1 Data from students state */}
-                        {students.filter(s => s.tingkat === 1).map((siswa, i) => (
+                        {filteredStudents.map((siswa, i) => (
                             <tr key={i} className="hover:bg-slate-50 transition-colors group">
                                 <td className="p-4 text-center text-slate-500 font-medium">{i + 1}</td>
                                 <td className="p-4 font-mono text-slate-600">{siswa.nis}</td>
