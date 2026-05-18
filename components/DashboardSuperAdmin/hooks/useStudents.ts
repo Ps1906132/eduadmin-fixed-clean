@@ -112,8 +112,9 @@ export const useStudents = () => {
     };
 
     const updateStudent = async (id: string | number, updates: Partial<Student>) => {
+        const idStr = id.toString();
         // BUG FIX: Update state lokal dulu
-        setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+        setStudents(prev => prev.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s));
 
         if (isDbConfigured()) {
             try {
@@ -123,7 +124,7 @@ export const useStudents = () => {
                 if (updates.ayah) dbUpdates.parent_name = updates.ayah;
                 if (updates.gender) dbUpdates.gender = updates.gender;
 
-                const { error } = await (db.from('students').update(dbUpdates).eq('id', id) as any);
+                const { error } = await (db.from('students').update(dbUpdates).eq('id', idStr) as any);
                 if (error) console.warn('D1 update sync gagal:', error);
             } catch (err) {
                 console.warn('D1 tidak tersedia, update disimpan lokal saja:', err);
@@ -135,7 +136,7 @@ export const useStudents = () => {
         setStudents(prev => {
             const newStudents = [...prev];
             updatedStudents.forEach(updated => {
-                const index = newStudents.findIndex(s => s.id === updated.id);
+                const index = newStudents.findIndex(s => s.id.toString() === updated.id.toString());
                 if (index !== -1) newStudents[index] = updated;
             });
             return newStudents;
@@ -172,13 +173,14 @@ export const useStudents = () => {
         const id = student.id;
         const name = student.nama;
         if (confirm(`Apakah Anda yakin ingin menghapus data ${name}?`)) {
-            // BUG FIX: Hapus dari state lokal dulu (offline-first)
-            setStudents(prev => prev.filter(s => s.id !== id));
+            const targetIdStr = id.toString();
+            // BUG FIX: Hapus dari state lokal dulu (offline-first) dengan string comparison
+            setStudents(prev => prev.filter(s => s.id.toString() !== targetIdStr));
 
             // Sync ke D1 di background
             if (isDbConfigured()) {
                 try {
-                    const { error } = await (db.from('students').delete().eq('id', id) as any);
+                    const { error } = await (db.from('students').delete().eq('id', targetIdStr) as any);
                     if (error) console.warn('D1 delete sync gagal:', error);
                 } catch (err) {
                     console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);

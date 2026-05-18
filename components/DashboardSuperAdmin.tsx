@@ -2942,7 +2942,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                     </div>
 
 
-                                    <form onSubmit={(e) => {
+                                    <form key={editItem && editType === 'Kelas' ? `edit-${editItem.id}-${editItem.nama}` : 'new'} onSubmit={(e) => {
                                         e.preventDefault();
                                         const form = e.currentTarget;
                                         const customName = (form.elements.namedItem('className') as HTMLInputElement).value;
@@ -3133,7 +3133,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* MODAL EDIT DATA UMUM */}
                     {
-                        editItem && (
+                        editItem && !['Kelas', 'Mata Pelajaran', 'Teacher', 'Data Guru'].includes(editType) && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">

@@ -112,7 +112,7 @@ export const useClasses = () => {
         // Sync ke D1 di background
         if (isDbConfigured()) {
             try {
-                const { error } = await (db.from('classes').update({ is_active: false }).eq('id', id) as any);
+                const { error } = await (db.from('classes').delete().eq('id', id) as any);
                 if (error) console.warn('D1 delete sync gagal:', error);
             } catch (err) {
                 console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
