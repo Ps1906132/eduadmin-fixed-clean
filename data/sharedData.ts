@@ -50,7 +50,158 @@ export const updateMultimediaSettingsGlobal = (newSettings: any) => {
 };
 
 // --- 2. DATA SISWA & ORANG TUA (MASTER) ---
-export let studentsDataGlobal: any[] = [];
+export let studentsDataGlobal: any[] = [
+    {
+        id: 1,
+        nis: "202401001",
+        nama: "Aditya Pratama",
+        ttl: "Jakarta, 12 Maret 2017",
+        kelas: "1A",
+        tingkat: 1,
+        paralel: "A",
+        ayah: "Heri Pratama",
+        ibu: "Siti Aminah",
+        jobAyah: "Wiraswasta",
+        jobIbu: "Ibu Rumah Tangga",
+        username: "aditya24",
+        gender: "Laki-laki"
+    },
+    {
+        id: 2,
+        nis: "202401002",
+        nama: "Amanda Lestari",
+        ttl: "Bandung, 25 Juni 2017",
+        kelas: "1A",
+        tingkat: 1,
+        paralel: "A",
+        ayah: "Yusuf Lestari",
+        ibu: "Dewi Sartika",
+        jobAyah: "PNS",
+        jobIbu: "Guru",
+        username: "amanda24",
+        gender: "Perempuan"
+    },
+    {
+        id: 3,
+        nis: "202401003",
+        nama: "Budi Santoso",
+        ttl: "Surabaya, 10 Agustus 2017",
+        kelas: "1B",
+        tingkat: 1,
+        paralel: "B",
+        ayah: "Joko Santoso",
+        ibu: "Rini Astuti",
+        jobAyah: "Karyawan Swasta",
+        jobIbu: "Wiraswasta",
+        username: "budi24",
+        gender: "Laki-laki"
+    },
+    {
+        id: 4,
+        nis: "202402001",
+        nama: "Citra Kirana",
+        ttl: "Medan, 05 Februari 2016",
+        kelas: "2A",
+        tingkat: 2,
+        paralel: "A",
+        ayah: "Bambang Kirana",
+        ibu: "Megawati",
+        jobAyah: "TNI",
+        jobIbu: "Ibu Rumah Tangga",
+        username: "citra24",
+        gender: "Perempuan"
+    },
+    {
+        id: 5,
+        nis: "202402002",
+        nama: "Dedi Wijaya",
+        ttl: "Semarang, 19 September 2016",
+        kelas: "2B",
+        tingkat: 2,
+        paralel: "B",
+        ayah: "Hendra Wijaya",
+        ibu: "Kartika",
+        jobAyah: "Dokter",
+        jobIbu: "Dokter",
+        username: "dedi24",
+        gender: "Laki-laki"
+    },
+    {
+        id: 6,
+        nis: "202403001",
+        nama: "Eka Saputra",
+        ttl: "Yogyakarta, 30 November 2015",
+        kelas: "3A",
+        tingkat: 3,
+        paralel: "A",
+        ayah: "Supardi",
+        ibu: "Sri Wahyuni",
+        jobAyah: "Wiraswasta",
+        jobIbu: "Pedagang",
+        username: "eka24",
+        gender: "Laki-laki"
+    },
+    {
+        id: 7,
+        nis: "202403002",
+        nama: "Farhan Ramadhan",
+        ttl: "Makassar, 18 Juni 2015",
+        kelas: "3A",
+        tingkat: 3,
+        paralel: "A",
+        ayah: "Ahmad Ramadhan",
+        ibu: "Fatmawati",
+        jobAyah: "PNS",
+        jobIbu: "Ibu Rumah Tangga",
+        username: "farhan24",
+        gender: "Laki-laki"
+    },
+    {
+        id: 8,
+        nis: "202403003",
+        nama: "Gita Permata",
+        ttl: "Denpasar, 22 April 2015",
+        kelas: "3B",
+        tingkat: 3,
+        paralel: "B",
+        ayah: "Wayan Permata",
+        ibu: "Ketut Kasih",
+        jobAyah: "Karyawan Hotel",
+        jobIbu: "Wiraswasta",
+        username: "gita24",
+        gender: "Perempuan"
+    },
+    {
+        id: 9,
+        nis: "202403004",
+        nama: "Hadi Kusuma",
+        ttl: "Palembang, 09 Januari 2015",
+        kelas: "3B",
+        tingkat: 3,
+        paralel: "B",
+        ayah: "Roni Kusuma",
+        ibu: "Eliza",
+        jobAyah: "Buruh",
+        jobIbu: "Ibu Rumah Tangga",
+        username: "hadi24",
+        gender: "Laki-laki"
+    },
+    {
+        id: 10,
+        nis: "202403005",
+        nama: "Indah Cahyani",
+        ttl: "Balikpapan, 14 Oktober 2015",
+        kelas: "3B",
+        tingkat: 3,
+        paralel: "B",
+        ayah: "Gunawan Cahyani",
+        ibu: "Marlina",
+        jobAyah: "Arsitek",
+        jobIbu: "Desainer",
+        username: "indah24",
+        gender: "Perempuan"
+    }
+];
 
 export const addStudent = (student: any) => {
     studentsDataGlobal = [...studentsDataGlobal, student];
@@ -97,7 +248,14 @@ export const addTeacher = (teacher: any) => {
 };
 
 // --- 4. DATA KELAS ---
-export let classesDataGlobal: any[] = [];
+export let classesDataGlobal: any[] = [
+    { id: 1, nama: '1A', tingkat: 1, paralel: 'A' },
+    { id: 2, nama: '1B', tingkat: 1, paralel: 'B' },
+    { id: 3, nama: '2A', tingkat: 2, paralel: 'A' },
+    { id: 4, nama: '2B', tingkat: 2, paralel: 'B' },
+    { id: 5, nama: '3A', tingkat: 3, paralel: 'A' },
+    { id: 6, nama: '3B', tingkat: 3, paralel: 'B' }
+];
 
 
 // --- 5. DATA KEUANGAN & SPP ---

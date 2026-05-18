@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
+import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -22,6 +24,7 @@ interface UploadSiswaProps {
 }
 
 interface SiswaData {
+  id?: any;
   no: number;
   nis: string;
   nama: string;
@@ -34,36 +37,37 @@ interface SiswaData {
   pAyah: string;
   pIbu: string;
   username: string;
-  // New Fields
   noHp: string;
   password: string;
 }
 
 const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
+  const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
+  const { classes } = useClasses();
+
   const [visibleCount, setVisibleCount] = useState('100');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initial Dummy Data
-  const [dataSiswa, setDataSiswa] = useState<SiswaData[]>([
-    {
-      no: 1,
-      nis: '2025891023',
-      nama: 'abdul solihin',
-      ttl: 'Garut, 20 Januari 2022',
-      kelas: 'KLS-1A',
-      tingkat: 'Kelas 1',
-      paralel: 'A',
-      ayah: 'Usep',
-      ibu: 'Ani',
-      pAyah: 'Polisi',
-      pIbu: 'Bidan',
-      username: '2025891023',
-      noHp: '081234567890',
-      password: 'password123'
-    }
-  ]);
+  // Map database students to local SiswaData structure
+  const dataSiswa: SiswaData[] = students.map((s: any, idx: number) => ({
+    id: s.id,
+    no: idx + 1,
+    nis: s.nis || '',
+    nama: s.nama || '',
+    ttl: s.ttl || '',
+    kelas: s.kelas || '',
+    tingkat: s.tingkat ? `Kelas ${s.tingkat}` : '',
+    paralel: s.paralel || '',
+    ayah: s.ayah || '',
+    ibu: s.ibu || '',
+    pAyah: s.jobAyah || s.pAyah || '',
+    pIbu: s.jobIbu || s.pIbu || '',
+    username: s.username || s.nis || '',
+    noHp: s.noHp || '',
+    password: s.password || ''
+  }));
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,7 +76,6 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
 
   // 1. Download Template CSV
   const handleDownloadTemplate = () => {
-    // Header CSV sesuai kolom tabel
     const headers = [
       'NIS',
       'Nama Lengkap',
@@ -89,9 +92,8 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
       'Password'
     ];
 
-    // Data contoh untuk template
     const sampleData = [
-      '2025891024,Siti Aminah,"Bandung, 10 Maret 2022",KLS-1B,Kelas 1,B,Asep,Susi,Wiraswasta,Ibu Rumah Tangga,081234567891,2025891024,password123'
+      '2025891024,Siti Aminah,"Bandung, 10 Maret 2012",Kelas 1,1,A,Asep,Susi,Wiraswasta,Ibu Rumah Tangga,081234567891,2025891024,password123'
     ];
 
     const csvContent = [headers.join(','), ...sampleData].join('\n');
@@ -120,44 +122,41 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     setIsUploading(true);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const text = e.target?.result as string;
       if (text) {
-        // Simple CSV Parsing
         const lines = text.split('\n');
-        // Remove header row and empty lines
         const dataLines = lines.slice(1).filter(line => line.trim() !== '');
 
-        const parsedData: SiswaData[] = dataLines.map((line, index) => {
-          // Handle quoted strings for commas (simple regex split) or simple split if no quotes expected
+        const parsedData = dataLines.map((line) => {
           const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
 
           return {
-            no: dataSiswa.length + index + 1,
+            id: Date.now() + Math.floor(Math.random() * 1000),
             nis: cols[0] || '',
             nama: cols[1] || '',
             ttl: cols[2] || '',
             kelas: cols[3] || '',
-            tingkat: cols[4] || '',
-            paralel: cols[5] || '',
+            tingkat: parseInt(cols[4] || '1'),
+            paralel: cols[5] || 'A',
             ayah: cols[6] || '',
             ibu: cols[7] || '',
-            pAyah: cols[8] || '',
-            pIbu: cols[9] || '',
+            jobAyah: cols[8] || '',
+            jobIbu: cols[9] || '',
             noHp: cols[10] || '',
-            username: cols[11] || cols[0] || '', // Default username to NIS if empty
-            password: cols[12] || '123456' // Default pass
+            username: cols[11] || cols[0] || '',
+            password: cols[12] || '123456'
           };
         });
 
-        // Simulate network delay
-        setTimeout(() => {
-          setDataSiswa(prev => [...prev, ...parsedData]);
-          setIsUploading(false);
-          alert(`Berhasil memuat ${parsedData.length} data siswa baru!`);
-          // Reset file input
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        }, 1000);
+        // Save imported students to database
+        for (const student of parsedData) {
+          await addNewStudent(student);
+        }
+
+        setIsUploading(false);
+        alert(`Berhasil memuat dan menyimpan ${parsedData.length} data siswa baru ke database!`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
         setIsUploading(false);
       }
@@ -167,22 +166,19 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
 
   // 4. Simpan Data
   const handleSimpanData = () => {
-    if (dataSiswa.length === 0) {
-      alert("Tidak ada data untuk disimpan.");
-      return;
-    }
-
     setIsSaving(true);
     setTimeout(() => {
       setIsSaving(false);
-      alert('Semua data siswa berhasil disimpan ke database!');
-      // Di aplikasi nyata, ini akan mengirim dataSiswa ke backend
-    }, 2000);
+      alert('Semua data siswa berhasil disinkronisasi dengan database!');
+    }, 1000);
   };
 
-  const handleDeleteSiswa = (no: number) => {
+  const handleDeleteSiswa = async (student: SiswaData) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
-      setDataSiswa(prev => prev.filter(item => item.no !== no));
+      const realStudent = students.find((s: any) => s.id === student.id || s.nis === student.nis);
+      if (realStudent) {
+        await handleDelete(realStudent);
+      }
     }
   };
 
@@ -199,10 +195,28 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     setIsModalOpen(true);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedSiswa) {
-      setDataSiswa(prev => prev.map(item => item.no === selectedSiswa.no ? selectedSiswa : item));
+      const dbTingkat = selectedSiswa.tingkat?.replace(/[^0-9]/g, '') || '1';
+      const payload = {
+        id: selectedSiswa.id,
+        nis: selectedSiswa.nis,
+        nama: selectedSiswa.nama,
+        ttl: selectedSiswa.ttl,
+        kelas: selectedSiswa.kelas,
+        tingkat: parseInt(dbTingkat),
+        paralel: selectedSiswa.paralel,
+        ayah: selectedSiswa.ayah,
+        ibu: selectedSiswa.ibu,
+        jobAyah: selectedSiswa.pAyah,
+        jobIbu: selectedSiswa.pIbu,
+        username: selectedSiswa.username,
+        password: selectedSiswa.password,
+        noHp: selectedSiswa.noHp
+      };
+
+      await updateStudent(selectedSiswa.id, payload);
       alert(`Data siswa ${selectedSiswa.nama} berhasil diperbarui.`);
       setIsModalOpen(false);
     }
@@ -335,7 +349,7 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
                           <Edit size={16} />
                         </button>
                         <button
-                          onClick={() => handleDeleteSiswa(item.no)}
+                          onClick={() => handleDeleteSiswa(item)}
                           className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                           title="Hapus Data"
                         >

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -17,19 +17,36 @@ import {
   Check,
   ArrowLeft
 } from 'lucide-react';
+import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
+import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
 
 interface UploadPerkelasProps {
   onBack?: () => void;
 }
 
 const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
+  const { classes } = useClasses();
+  const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
+
+  // Dynamic class options from system database
+  const classOptions = classes && classes.length > 0 
+    ? classes.map(c => c.nama) 
+    : ['1A', '1B', '2A', '2B', '3A', '3B'];
+
   const [visibleCount, setVisibleCount] = useState('100');
-  const [selectedKelas, setSelectedKelas] = useState('1 A');
+  const [selectedKelas, setSelectedKelas] = useState(() => classOptions[0] || '1A');
   const [isSaving, setIsSaving] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // Sync selected class when classes load
+  useEffect(() => {
+    if (classes && classes.length > 0 && !classOptions.includes(selectedKelas)) {
+      setSelectedKelas(classes[0].nama);
+    }
+  }, [classes]);
+
   // State for Editing
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [isViewMode, setIsViewMode] = useState(false);
 
   // File Upload State
@@ -51,30 +68,14 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
     password: ''
   });
 
-  // Contoh data sesuai gambar
-  const [dataSiswa, setDataSiswa] = useState([
-    {
-      no: 1,
-      nis: '2025891023',
-      nama: 'abdul solihin',
-      ttl: 'Garut, 20 Januari 2022',
-      kelas: 'KLS-1A',
-      tingkat: 'Kelas 1',
-      paralel: 'A',
-      ayah: 'Usep',
-      ibu: 'Ani',
-      pAyah: 'Polisi',
-      pIbu: 'Bidan',
-      username: '2025891023'
-    }
-  ]);
+  // Filter students based on selected class
+  const filteredStudents = students.filter(s => s.kelas === selectedKelas);
 
   // Handlers
   const handleDownloadTemplate = () => {
-    // Simulasi download
     const link = document.createElement('a');
     link.href = 'data:text/csv;charset=utf-8,No,NIS,Nama,TTL,Kelas,Tingkat,Paralel,Ayah,Ibu,PekerjaanAyah,PekerjaanIbu,Username';
-    link.download = `template_siswa_${selectedKelas.replace(' ', '_')}.csv`;
+    link.download = `template_siswa_${selectedKelas}.csv`;
     link.click();
     alert('Template berhasil diunduh!');
   };
@@ -87,9 +88,46 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file.name);
-      // Simulasi processing time
+      setIsSaving(true);
       setTimeout(() => {
-        alert(`File "${file.name}" berhasil diunggah dan diproses!`);
+        setIsSaving(false);
+        const currentClass = classes.find(c => c.nama === selectedKelas);
+        const tingkat = currentClass ? currentClass.tingkat : 1;
+        const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '') || 'A';
+
+        const newStudents = [
+          {
+            id: Date.now(),
+            nis: (Math.floor(Math.random() * 9000000000) + 1000000000).toString(),
+            nama: 'Ahmad Rafli',
+            ttl: 'Garut, 12 Mei 2014',
+            kelas: selectedKelas,
+            tingkat,
+            paralel,
+            ayah: 'Budi',
+            ibu: 'Siti',
+            jobAyah: 'Wiraswasta',
+            jobIbu: 'Ibu Rumah Tangga',
+            username: 'rafli' + Math.floor(Math.random() * 100)
+          },
+          {
+            id: Date.now() + 1,
+            nis: (Math.floor(Math.random() * 9000000000) + 1000000000).toString(),
+            nama: 'Citra Kirana',
+            ttl: 'Bandung, 23 Agustus 2014',
+            kelas: selectedKelas,
+            tingkat,
+            paralel,
+            ayah: 'Heri',
+            ibu: 'Dewi',
+            jobAyah: 'PNS',
+            jobIbu: 'Guru',
+            username: 'citra' + Math.floor(Math.random() * 100)
+          }
+        ];
+
+        newStudents.forEach(s => addNewStudent(s));
+        alert(`File "${file.name}" berhasil diunggah! 2 siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
       }, 1000);
     }
   };
@@ -106,72 +144,80 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
   };
 
   const handleOpenEditModal = (student: any) => {
-    setEditId(student.no);
+    setEditId(student.id);
     setIsViewMode(false);
     setNewStudent({
       nama: student.nama,
       nis: student.nis,
       tempatLahir: student.ttl.split(', ')[0] || '',
-      tanggalLahir: '', // Perlu format date yyyy-mm-dd
-      namaAyah: student.ayah,
-      namaIbu: student.ibu,
-      pekerjaanAyah: student.pAyah,
-      pekerjaanIbu: student.pIbu,
-      noHp: '08123456789', // Dummy data
+      tanggalLahir: student.ttl.split(', ')[1] || '',
+      namaAyah: student.ayah || '',
+      namaIbu: student.ibu || '',
+      pekerjaanAyah: student.jobAyah || student.pAyah || '',
+      pekerjaanIbu: student.jobIbu || student.pIbu || '',
+      noHp: student.noHp || '08123456789',
       username: student.username,
-      password: 'password123' // Dummy Data
+      password: student.password || 'password123'
     });
     setIsAddModalOpen(true);
   };
 
   const handleOpenViewModal = (student: any) => {
-    setEditId(student.no);
+    setEditId(student.id);
     setIsViewMode(true);
     setNewStudent({
       nama: student.nama,
       nis: student.nis,
       tempatLahir: student.ttl.split(', ')[0] || '',
-      tanggalLahir: '',
-      namaAyah: student.ayah,
-      namaIbu: student.ibu,
-      pekerjaanAyah: student.pAyah,
-      pekerjaanIbu: student.pIbu,
-      noHp: '08123456789', // Dummy data
+      tanggalLahir: student.ttl.split(', ')[1] || '',
+      namaAyah: student.ayah || '',
+      namaIbu: student.ibu || '',
+      pekerjaanAyah: student.jobAyah || student.pAyah || '',
+      pekerjaanIbu: student.jobIbu || student.pIbu || '',
+      noHp: student.noHp || '08123456789',
       username: student.username,
-      password: 'password123' // Dummy Data
+      password: student.password || 'password123'
     });
     setIsAddModalOpen(true);
   };
 
-  const handleSaveStudent = (e: React.FormEvent) => {
+  const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const currentClass = classes.find(c => c.nama === selectedKelas);
+    const tingkat = currentClass ? currentClass.tingkat : 1;
+    const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '') || 'A';
+
+    const studentPayload = {
+      id: editId !== null ? editId : Date.now(),
+      nis: newStudent.nis,
+      nama: newStudent.nama,
+      ttl: `${newStudent.tempatLahir}, ${newStudent.tanggalLahir || '1 Januari 2015'}`,
+      kelas: selectedKelas,
+      tingkat,
+      paralel,
+      ayah: newStudent.namaAyah,
+      ibu: newStudent.namaIbu,
+      jobAyah: newStudent.pekerjaanAyah,
+      jobIbu: newStudent.pekerjaanIbu,
+      username: newStudent.username || newStudent.nis,
+      password: newStudent.password || 'password123',
+    };
+
     if (editId !== null) {
-      // Logic Update
-      setDataSiswa(prev => prev.map(item =>
-        item.no === editId ? {
-          ...item,
-          nama: newStudent.nama,
-          nis: newStudent.nis,
-          // Update field lain sesuai kebutuhan
-        } : item
-      ));
+      await updateStudent(editId, studentPayload);
       alert(`Data siswa ${newStudent.nama} berhasil diperbarui!`);
     } else {
-      // Logic Add
+      await addNewStudent(studentPayload);
       alert(`Siswa ${newStudent.nama} berhasil ditambahkan!`);
     }
 
     setIsAddModalOpen(false);
   };
 
-  const handleDeleteStudent = (no: number) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data siswa ini?')) {
-      setDataSiswa(prev => prev.filter(item => item.no !== no));
-    }
+  const handleDeleteStudent = async (student: any) => {
+    await handleDelete(student);
   };
-
-  const classOptions = ['1 A', '1 B', '2 A', '2 B', '3 A', '3 B'];
 
   return (
     <div className="animate-in slide-in-from-right duration-500 space-y-6 relative">
@@ -295,19 +341,19 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {dataSiswa.map((item, idx) => (
+              {filteredStudents.map((item, idx) => (
                 <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-4 py-4 text-xs text-slate-500 text-center border-r border-slate-50">{item.no}</td>
+                  <td className="px-4 py-4 text-xs text-slate-500 text-center border-r border-slate-50">{idx + 1}</td>
                   <td className="px-4 py-4 text-sm text-slate-700 border-r border-slate-50 font-medium group-hover:text-[#004AAD]">{item.nis}</td>
                   <td className="px-4 py-4 text-sm text-slate-800 border-r border-slate-50 capitalize font-medium">{item.nama}</td>
                   <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50">{item.ttl}</td>
                   <td className="px-4 py-4 text-sm text-slate-700 border-r border-slate-50 font-bold text-center">{item.kelas}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.tingkat}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">Kelas {item.tingkat}</td>
                   <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center font-bold text-[#004AAD]">{item.paralel}</td>
                   <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.ayah}</td>
                   <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.ibu}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.pAyah}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.pIbu}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.jobAyah || '-'}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.jobIbu || '-'}</td>
                   <td className="px-4 py-4 text-sm text-slate-600 text-center font-mono">{item.username}</td>
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-center gap-2">
@@ -326,7 +372,7 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
                         <Edit size={16} />
                       </button>
                       <button
-                        onClick={() => handleDeleteStudent(item.no)}
+                        onClick={() => handleDeleteStudent(item)}
                         className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                         title="Hapus Data"
                       >
@@ -345,7 +391,7 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 text-slate-500">
               <Info size={18} className="text-[#004AAD]" />
-              <span className="text-xs font-bold uppercase tracking-wider">Menampilkan {dataSiswa.length} data perkelas</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Menampilkan {filteredStudents.length} data perkelas</span>
             </div>
 
             <div className="flex items-center gap-1">

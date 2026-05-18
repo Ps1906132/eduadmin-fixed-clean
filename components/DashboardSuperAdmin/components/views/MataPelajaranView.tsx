@@ -13,6 +13,7 @@ interface MataPelajaranViewProps {
     setShowPlottingModal: (show: boolean) => void;
     handleEditItem: (item: any, type: string) => void;
     setActiveView: (view: string) => void;
+    handleDeleteSubject?: (id: number | string) => void;
 }
 
 const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
@@ -26,7 +27,8 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
     setShowSubjectModal,
     setShowPlottingModal,
     handleEditItem,
-    setActiveView
+    setActiveView,
+    handleDeleteSubject
 }) => {
     return (
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in slide-in-from-right flex flex-col">
@@ -121,7 +123,7 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
                                     <td className="p-4"><span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">{mapel.group}</span></td>
                                     <td className="p-4 flex justify-center gap-2">
                                         <button onClick={() => handleEditItem(mapel, 'Mata Pelajaran')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"><Edit size={16} /></button>
-                                        <button className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash2 size={16} /></button>
+                                        <button onClick={() => handleDeleteSubject && handleDeleteSubject(mapel.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash2 size={16} /></button>
                                     </td>
                                 </tr>
                             ))}

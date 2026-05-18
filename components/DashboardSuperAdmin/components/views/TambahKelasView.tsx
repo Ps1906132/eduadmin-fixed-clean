@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Plus, Trash2, Edit } from 'lucide-react';
 
 interface TambahKelasViewProps {
     setActiveView: (view: string) => void;
@@ -8,6 +8,8 @@ interface TambahKelasViewProps {
     teachers: any[];
     students: any[];
     setShowAddClassModal: (show: boolean) => void;
+    handleDeleteClass?: (id: string | number) => void;
+    handleEditClass?: (cls: any) => void;
 }
 
 const TambahKelasView: React.FC<TambahKelasViewProps> = ({
@@ -16,7 +18,9 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
     setClasses,
     teachers,
     students,
-    setShowAddClassModal
+    setShowAddClassModal,
+    handleDeleteClass,
+    handleEditClass
 }) => {
 
     const derivedClasses = useMemo(() => {
@@ -34,9 +38,11 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
         });
     }, [classes, teachers, students]);
 
-    const handleDeleteClass = (id: number) => {
-        if (confirm("Hapus kelas ini?")) {
-            setClasses(classes.filter(c => c.id !== id));
+    const handleDeleteClassLocal = (id: any) => {
+        if (handleDeleteClass) {
+            handleDeleteClass(id);
+        } else if (confirm("Hapus kelas ini?")) {
+            setClasses(classes.filter(c => c.id.toString() !== id.toString()));
         }
     };
 
@@ -57,7 +63,7 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
                             <th className="p-3 font-bold text-slate-700 border-r border-slate-100 text-sm">Nama Kelas</th>
                             <th className="p-3 font-bold text-slate-700 border-r border-slate-100 text-sm">Tingkat</th>
                             <th className="p-3 font-bold text-slate-700 border-r border-slate-100 text-sm">Paralel</th>
-                            <th className="p-3 text-center font-bold text-slate-700 text-sm w-20">Aksi</th>
+                            <th className="p-3 text-center font-bold text-slate-700 text-sm w-28">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,13 +74,24 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
                                 <td className="p-3 text-slate-600 border-r border-slate-50">{cls.tingkat}</td>
                                 <td className="p-3 text-slate-600 border-r border-slate-50">{cls.paralel}</td>
                                 <td className="p-3 text-center">
-                                    <button
-                                        onClick={() => handleDeleteClass(cls.id)}
-                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Hapus Kelas"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2">
+                                        {handleEditClass && (
+                                            <button
+                                                onClick={() => handleEditClass(cls)}
+                                                className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                title="Edit Kelas"
+                                            >
+                                                <Edit size={18} />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleDeleteClassLocal(cls.id)}
+                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Hapus Kelas"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}

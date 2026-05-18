@@ -11,7 +11,7 @@ export interface Class {
 
 export const useClasses = () => {
     const [classes, setClasses] = useState<Class[]>(() => {
-        const saved = localStorage.getItem('classes_data_v10');
+        const saved = localStorage.getItem('classes_data_v11');
         return saved ? JSON.parse(saved) : classesDataGlobal;
     });
     const [loading, setLoading] = useState(false);
@@ -35,7 +35,7 @@ export const useClasses = () => {
                             paralel: c.name.replace(/[0-9]/g, '') || 'A'
                         }));
                         setClasses(mappedData);
-                        localStorage.setItem('classes_data_v10', JSON.stringify(mappedData));
+                        localStorage.setItem('classes_data_v11', JSON.stringify(mappedData));
                     }
                 });
         } catch (err) {
@@ -52,7 +52,7 @@ export const useClasses = () => {
     // Save fallback to LocalStorage
     useEffect(() => {
         if (!loading) {
-            localStorage.setItem('classes_data_v10', JSON.stringify(classes));
+            localStorage.setItem('classes_data_v11', JSON.stringify(classes));
         }
     }, [classes, loading]);
 
@@ -77,11 +77,11 @@ export const useClasses = () => {
             // Sync ke D1 di background
             if (isDbConfigured()) {
                 try {
-                    const { data, error } = await db.from('classes').insert([{
+                    const { data, error } = await (db.from('classes').insert([{
                         name: nama,
                         grade_level: parseInt(tingkat),
                         is_active: true
-                    }]).select() as any;
+                    }]).select() as any);
 
                     if (error) {
                         console.warn('D1 sync gagal (offline mode), kelas disimpan lokal:', error);
@@ -112,7 +112,7 @@ export const useClasses = () => {
         // Sync ke D1 di background
         if (isDbConfigured()) {
             try {
-                const { error } = await db.from('classes').update({ is_active: false }).eq('id', id) as any;
+                const { error } = await (db.from('classes').update({ is_active: false }).eq('id', id) as any);
                 if (error) console.warn('D1 delete sync gagal:', error);
             } catch (err) {
                 console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);

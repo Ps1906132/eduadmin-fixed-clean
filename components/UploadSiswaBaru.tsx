@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
+import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -23,10 +25,23 @@ interface UploadSiswaBaruProps {
 }
 
 const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
+  const { classes } = useClasses();
+  const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
+
+  const listKelas1 = classes && classes.length > 0
+      ? classes.filter((c: any) => c.nama.startsWith('1') || c.tingkat === '1' || c.tingkat === 1).map((c: any) => c.nama)
+      : ['1 A', '1 B', '1 C'];
+
   const [visibleCount, setVisibleCount] = useState('100');
-  const [selectedKelas, setSelectedKelas] = useState('1 A');
+  const [selectedKelas, setSelectedKelas] = useState(() => listKelas1[0] || '1 A');
   const [isSaving, setIsSaving] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (listKelas1.length > 0 && !listKelas1.includes(selectedKelas)) {
+      setSelectedKelas(listKelas1[0]);
+    }
+  }, [listKelas1]);
 
   // State for Editing
   const [editId, setEditId] = useState<number | null>(null);
@@ -51,25 +66,11 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
     password: ''
   });
 
-  // Contoh data (dummy)
-  const [dataSiswa, setDataSiswa] = useState([
-    {
-      no: 1,
-      nis: '2025891023',
-      nama: 'abdul solihin',
-      ttl: 'Garut, 20 Januari 2022',
-      kelas: 'KLS-1A',
-      tingkat: 'Kelas 1',
-      paralel: 'A',
-      ayah: 'Usep',
-      ibu: 'Ani',
-      pAyah: 'Polisi',
-      pIbu: 'Bidan',
-      username: '2025891023'
-    }
-  ]);
-
-  const listKelas1 = ['1 A', '1 B', '1 C'];
+  const filteredStudents = students.filter((s: any) => {
+    const sClass = s.kelas?.replace(/\s+/g, '').toUpperCase();
+    const selClass = selectedKelas?.replace(/\s+/g, '').toUpperCase();
+    return sClass === selClass;
+  });
 
   // Handlers
   const handleDownloadTemplate = () => {
@@ -80,13 +81,32 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file.name);
-      setTimeout(() => {
-        alert(`File "${file.name}" berhasil diunggah!`);
-      }, 1000);
+      // Simulasikan parsing Excel dan tambahkan ke database
+      const simulatedNewStudents = [
+        {
+          id: Date.now(),
+          nis: `2025` + Math.floor(100000 + Math.random() * 900000),
+          nama: 'Siswa Impor Baru ' + (filteredStudents.length + 1),
+          ttl: 'Jakarta, 12 Juni 2015',
+          kelas: selectedKelas,
+          tingkat: 1,
+          paralel: selectedKelas.replace(/[0-9]/g, '').trim() || 'A',
+          ayah: 'Budi',
+          ibu: 'Siti',
+          jobAyah: 'Wiraswasta',
+          jobIbu: 'Ibu Rumah Tangga',
+          username: 'siswa.impor.' + Date.now(),
+          password: 'password123'
+        }
+      ];
+      for (const s of simulatedNewStudents) {
+        await addNewStudent(s);
+      }
+      alert(`File "${file.name}" berhasil diunggah! 1 siswa diimpor ke kelas ${selectedKelas}.`);
     }
   };
 
@@ -102,59 +122,78 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
   };
 
   const handleOpenEditModal = (student: any) => {
-    setEditId(student.no);
+    setEditId(student.id);
     setIsViewMode(false);
     setNewStudent({
       nama: student.nama,
       nis: student.nis,
-      tempatLahir: student.ttl.split(', ')[0] || '',
-      tanggalLahir: '',
-      namaAyah: student.ayah,
-      namaIbu: student.ibu,
-      pekerjaanAyah: student.pAyah,
-      pekerjaanIbu: student.pIbu,
-      noHp: '08123456789',
-      username: student.username,
-      password: 'password123'
+      tempatLahir: student.ttl?.split(', ')[0] || '',
+      tanggalLahir: student.ttl?.split(', ')[1] || '',
+      namaAyah: student.ayah || '',
+      namaIbu: student.ibu || '',
+      pekerjaanAyah: student.jobAyah || student.pAyah || '',
+      pekerjaanIbu: student.jobIbu || student.pIbu || '',
+      noHp: student.noHp || '08123456789',
+      username: student.username || student.nis,
+      password: student.password || 'password123'
     });
     setIsAddModalOpen(true);
   };
 
   const handleOpenViewModal = (student: any) => {
-    setEditId(student.no);
+    setEditId(student.id);
     setIsViewMode(true);
     setNewStudent({
       nama: student.nama,
       nis: student.nis,
-      tempatLahir: student.ttl.split(', ')[0] || '',
-      tanggalLahir: '',
-      namaAyah: student.ayah,
-      namaIbu: student.ibu,
-      pekerjaanAyah: student.pAyah,
-      pekerjaanIbu: student.pIbu,
-      noHp: '08123456789',
-      username: student.username,
-      password: 'password123'
+      tempatLahir: student.ttl?.split(', ')[0] || '',
+      tanggalLahir: student.ttl?.split(', ')[1] || '',
+      namaAyah: student.ayah || '',
+      namaIbu: student.ibu || '',
+      pekerjaanAyah: student.jobAyah || student.pAyah || '',
+      pekerjaanIbu: student.jobIbu || student.pIbu || '',
+      noHp: student.noHp || '08123456789',
+      username: student.username || student.nis,
+      password: student.password || 'password123'
     });
     setIsAddModalOpen(true);
   };
 
-  const handleSaveStudent = (e: React.FormEvent) => {
+  const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    const currentClass = classes.find(c => c.nama === selectedKelas);
+    const tingkat = currentClass ? currentClass.tingkat : 1;
+    const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '').trim() || 'A';
+
+    const studentPayload = {
+      id: editId !== null ? editId : Date.now(),
+      nis: newStudent.nis,
+      nama: newStudent.nama,
+      ttl: `${newStudent.tempatLahir}, ${newStudent.tanggalLahir || '1 Januari 2015'}`,
+      kelas: selectedKelas,
+      tingkat,
+      paralel,
+      ayah: newStudent.namaAyah,
+      ibu: newStudent.namaIbu,
+      jobAyah: newStudent.pekerjaanAyah,
+      jobIbu: newStudent.pekerjaanIbu,
+      username: newStudent.username || newStudent.nis,
+      password: newStudent.password || 'password123',
+    };
+
     if (editId !== null) {
-      setDataSiswa(prev => prev.map(item =>
-        item.no === editId ? { ...item, nama: newStudent.nama, nis: newStudent.nis } : item
-      ));
+      await updateStudent(editId, studentPayload);
       alert(`Data siswa ${newStudent.nama} berhasil diperbarui!`);
     } else {
+      await addNewStudent(studentPayload);
       alert(`Siswa ${newStudent.nama} berhasil ditambahkan!`);
     }
     setIsAddModalOpen(false);
   };
 
-  const handleDeleteStudent = (no: number) => {
+  const handleDeleteStudent = async (student: any) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus data siswa ini?')) {
-      setDataSiswa(prev => prev.filter(item => item.no !== no));
+      await handleDelete(student);
     }
   };
 
@@ -234,19 +273,19 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {dataSiswa.map((item, idx) => (
-                <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-4 py-4 text-xs text-slate-500 text-center border-r border-slate-50">{item.no}</td>
+              {filteredStudents.map((item: any, idx) => (
+                <tr key={item.id || idx} className="hover:bg-blue-50/30 transition-colors group">
+                  <td className="px-4 py-4 text-xs text-slate-500 text-center border-r border-slate-50">{idx + 1}</td>
                   <td className="px-4 py-4 text-sm text-slate-700 border-r border-slate-50 font-medium group-hover:text-[#004AAD]">{item.nis}</td>
                   <td className="px-4 py-4 text-sm text-slate-800 border-r border-slate-50 capitalize font-medium">{item.nama}</td>
                   <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50">{item.ttl}</td>
                   <td className="px-4 py-4 text-sm text-slate-700 border-r border-slate-50 font-bold text-center">{item.kelas}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.tingkat}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">Kelas {item.tingkat}</td>
                   <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center font-bold text-[#004AAD]">{item.paralel}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.ayah}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.ibu}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.pAyah}</td>
-                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.pIbu}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.ayah || '-'}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.ibu || '-'}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.jobAyah || item.pAyah || '-'}</td>
+                  <td className="px-4 py-4 text-xs text-slate-600 border-r border-slate-50 text-center">{item.jobIbu || item.pIbu || '-'}</td>
                   <td className="px-4 py-4 text-sm text-slate-600 text-center font-mono">{item.username}</td>
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-center gap-2">
@@ -256,7 +295,7 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
                       <button onClick={() => handleOpenEditModal(item)} className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all" title="Edit">
                         <Edit size={16} />
                       </button>
-                      <button onClick={() => handleDeleteStudent(item.no)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Hapus">
+                      <button onClick={() => handleDeleteStudent(item)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Hapus">
                         <Trash2 size={16} />
                       </button>
                     </div>

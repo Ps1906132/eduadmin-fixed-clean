@@ -18,9 +18,51 @@ import { studentsDataGlobal, teachersDataGlobal, classesDataGlobal } from '../..
 interface DashboardHomeProps {
     students: any[];
     setActiveView: (view: string) => void;
+    user?: any;
 }
 
-const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView }) => {
+const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView, user }) => {
+    const role = user?.role || user?.role_type || user?.roleCode || '';
+    const lowerRole = role.toLowerCase();
+
+    let quickAccessItems = [
+        { label: 'Input Nilai', icon: <BarChart2 size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'nilai' },
+        { label: 'Absensi Siswa', icon: <UserCheck size={24} />, color: 'bg-rose-50 text-rose-600', link: 'absen' },
+        { label: 'Jadwal Kelas', icon: <Calendar size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'jadwal' },
+        { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
+    ];
+
+    if (lowerRole.includes('kurikulum')) {
+        quickAccessItems = [
+            { label: 'Input Nilai', icon: <BarChart2 size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'nilai' },
+            { label: 'Jadwal Kelas', icon: <Calendar size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'jadwal' },
+            { label: 'Rapor Siswa', icon: <BookOpen size={24} />, color: 'bg-rose-50 text-rose-600', link: 'rapor' },
+            { label: 'Mata Pelajaran', icon: <School size={24} />, color: 'bg-amber-50 text-amber-600', link: 'tambah_mapel_view' },
+        ];
+    } else if (lowerRole.includes('tata usaha') || lowerRole.includes('keuangan')) {
+        quickAccessItems = [
+            { label: 'Kelola Keuangan', icon: <BarChart2 size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'keuangan' },
+            { label: 'Tagihan Siswa', icon: <Zap size={24} />, color: 'bg-amber-50 text-amber-600', link: 'keuangan' },
+            { label: 'Data Siswa', icon: <Users size={24} />, color: 'bg-blue-50 text-blue-600', link: 'data_siswa' },
+            { label: 'Laporan Keuangan', icon: <BookOpen size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'keuangan' },
+        ];
+    } else if (lowerRole.includes('multimedia')) {
+        quickAccessItems = [
+            { label: 'Multimedia Studio', icon: <Zap size={24} />, color: 'bg-purple-50 text-purple-600', link: 'multimedia' },
+            { label: 'Broadcast Sekolah', icon: <Megaphone size={24} />, color: 'bg-rose-50 text-rose-600', link: 'pengumuman' },
+            { label: 'Bimbingan Belajar', icon: <BookOpen size={24} />, color: 'bg-blue-50 text-blue-600', link: 'tutoring' },
+            { label: 'Identitas Sekolah', icon: <Info size={24} />, color: 'bg-slate-50 text-slate-600', link: 'settings' },
+        ];
+    } else {
+        // Admin / Operator Data / Default
+        quickAccessItems = [
+            { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
+            { label: 'Data Guru & Staff', icon: <UserCog size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'data_guru' },
+            { label: 'Kelas & Wali', icon: <School size={24} />, color: 'bg-orange-50 text-orange-600', link: 'tambah_kelas_view' },
+            { label: 'Pengaturan', icon: <Info size={24} />, color: 'bg-slate-50 text-slate-600', link: 'settings' },
+        ];
+    }
+
     return (
         <div className="animate-in fade-in space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -99,12 +141,7 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView }
                         <Zap className="text-amber-500" size={20} /> Akses Cepat
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
-                        {[
-                            { label: 'Input Nilai', icon: <BarChart2 size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'nilai' },
-                            { label: 'Absensi Siswa', icon: <UserCheck size={24} />, color: 'bg-rose-50 text-rose-600', link: 'absen' },
-                            { label: 'Jadwal Kelas', icon: <Calendar size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'jadwal' },
-                            { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
-                        ].map((item, idx) => (
+                        {quickAccessItems.map((item, idx) => (
                             <button key={idx} onClick={() => setActiveView(item.link)} className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border border-slate-100 hover:shadow-md cursor-pointer transition-all hover:bg-slate-50 group h-32">
                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.color} group-hover:scale-110 transition-transform`}>
                                     {item.icon}

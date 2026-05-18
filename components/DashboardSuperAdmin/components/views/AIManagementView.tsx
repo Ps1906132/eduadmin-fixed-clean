@@ -84,10 +84,10 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
 
   const handleAddProvider = async () => {
     try {
-      const { data, error } = await db
+      const { data, error } = await (db
         .from('ai_providers')
         .insert([providerForm])
-        .select();
+        .select() as any);
 
       if (error) throw error;
 
@@ -103,11 +103,10 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
     if (!editingProvider) return;
 
     try {
-      const { data, error } = await db
+      const { data, error } = await (db
         .from('ai_providers')
         .update(providerForm)
-        .eq('id', editingProvider.id)
-        .select();
+        .eq('id', editingProvider.id) as any);
 
       if (error) throw error;
 
@@ -121,10 +120,10 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
 
   const handleToggleProvider = async (providerId: string, isActive: boolean) => {
     try {
-      const { error } = await db
+      const { error } = await (db
         .from('ai_providers')
         .update({ is_active: !isActive })
-        .eq('id', providerId);
+        .eq('id', providerId) as any);
 
       if (error) throw error;
 
@@ -138,14 +137,14 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
 
   const handleAddApiKey = async () => {
     try {
-      const { data, error } = await db
+      const { data, error } = await (db
         .from('ai_api_keys')
         .insert([{
           provider_id: selectedProvider,
           api_key: keyForm.api_key,
           expires_at: keyForm.expires_at || null
         }])
-        .select();
+        .select() as any);
 
       if (error) throw error;
 
@@ -159,10 +158,10 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
 
   const handleToggleApiKey = async (keyId: string, isActive: boolean) => {
     try {
-      const { error } = await db
+      const { error } = await (db
         .from('ai_api_keys')
         .update({ is_active: !isActive })
-        .eq('id', keyId);
+        .eq('id', keyId) as any);
 
       if (error) throw error;
 
@@ -178,10 +177,10 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
     if (!confirm('Apakah Anda yakin ingin menghapus API key ini?')) return;
 
     try {
-      const { error } = await db
+      const { error } = await (db
         .from('ai_api_keys')
         .delete()
-        .eq('id', keyId);
+        .eq('id', keyId) as any);
 
       if (error) throw error;
 

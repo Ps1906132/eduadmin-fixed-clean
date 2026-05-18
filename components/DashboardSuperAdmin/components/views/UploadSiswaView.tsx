@@ -100,7 +100,7 @@ const UploadSiswaView: React.FC<UploadSiswaViewProps> = ({
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => handleViewStudent(siswa)}><Eye size={14} className="text-blue-400 cursor-pointer hover:text-blue-600" /></button>
                                             <button onClick={() => handleEditStudent(siswa)}><Edit size={14} className="text-green-400 cursor-pointer hover:text-green-600" /></button>
-                                            <button onClick={() => handleDelete(siswa.nama)}><Trash2 size={14} className="text-red-400 cursor-pointer hover:text-red-600" /></button>
+                                            <button onClick={() => handleDelete(siswa)}><Trash2 size={14} className="text-red-400 cursor-pointer hover:text-red-600" /></button>
                                         </div>
                                     </td>
                                 ) : (

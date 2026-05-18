@@ -165,15 +165,24 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [showGroupModal, setShowGroupModal] = useState(false);
     const [showSubjectModal, setShowSubjectModal] = useState(false);
     const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
-    const [positions, setPositions] = useState([
+    const [positions, setPositions] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('positions_data_v2');
+            if (saved) return JSON.parse(saved);
+        }
+        return [
+            { id: 1, nama: 'Kepala Sekolah', kategori: 'Struktural' },
+            { id: 2, nama: 'Wakil Kurikulum', kategori: 'Struktural' },
+            { id: 3, nama: 'Guru Kelas', kategori: 'Fungsional' },
+            { id: 4, nama: 'Guru Mata Pelajaran', kategori: 'Fungsional' },
+            { id: 5, nama: 'Staff Tata Usaha', kategori: 'Staff' },
+            { id: 6, nama: 'Operator Data', kategori: 'Teknis' },
+        ];
+    });
 
-        { id: 1, nama: 'Kepala Sekolah', kategori: 'Struktural' },
-        { id: 2, nama: 'Wakil Kurikulum', kategori: 'Struktural' },
-        { id: 3, nama: 'Guru Kelas', kategori: 'Fungsional' },
-        { id: 4, nama: 'Guru Mata Pelajaran', kategori: 'Fungsional' },
-        { id: 5, nama: 'Staff Tata Usaha', kategori: 'Staff' },
-        { id: 6, nama: 'Operator Data', kategori: 'Teknis' },
-    ]);
+    useEffect(() => {
+        localStorage.setItem('positions_data_v2', JSON.stringify(positions));
+    }, [positions]);
 
     // --- JADWAL STATE ---
     const [schedules, setSchedules] = useState<MasterSchedule[]>(() => {
@@ -834,9 +843,23 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
             : "Semua Tingkat";
         const group = (form.elements.namedItem('subjectGroup') as HTMLSelectElement).value;
 
-        setSubjects([...subjects, { id: Date.now(), name, code, level, group }]);
-        toast.success("Mata pelajaran berhasil ditambahkan!");
+        if (editItem && editType === 'Mata Pelajaran') {
+            setSubjects(subjects.map(s => s.id === editItem.id ? { ...s, name, code, level, group } : s));
+            toast.success("Mata pelajaran berhasil diperbarui!");
+        } else {
+            setSubjects([...subjects, { id: Date.now(), name, code, level, group }]);
+            toast.success("Mata pelajaran berhasil ditambahkan!");
+        }
         setShowSubjectModal(false);
+        setEditItem(null);
+        setEditType('');
+    };
+
+    const handleDeleteSubject = (id: number | string) => {
+        if (confirm("Apakah anda yakin ingin menghapus mata pelajaran ini?")) {
+            setSubjects(subjects.filter(s => s.id !== id));
+            toast.success("Mata pelajaran berhasil dihapus");
+        }
     };
 
     const handleDeleteGroup = (id: number | string) => {
@@ -893,20 +916,35 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
             return;
         }
 
-        const teacherToAdd = {
-            id: Date.now(),
-            nama: newTeacher.nama,
-            nip: newTeacher.nip,
-            jabatan: newTeacher.jabatan,
-            mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
-            wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
-            username: newTeacher.nama.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 100),
-            password: 'password123' // Default password
-        };
+        if (editItem && (editType === 'Teacher' || editType === 'Data Guru')) {
+            setTeachers(teachers.map(t => t.id === editItem.id ? {
+                ...t,
+                nama: newTeacher.nama,
+                nip: newTeacher.nip,
+                jabatan: newTeacher.jabatan,
+                mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
+                wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
+            } : t));
+            toast.success(`Guru ${newTeacher.nama} berhasil diperbarui!`);
+        } else {
+            const teacherToAdd = {
+                id: Date.now(),
+                nama: newTeacher.nama,
+                nip: newTeacher.nip,
+                jabatan: newTeacher.jabatan,
+                mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
+                wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
+                username: newTeacher.nama.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 100),
+                password: 'password123' // Default password
+            };
 
-        addTeacher(teacherToAdd);
-        toast.success(`Guru ${newTeacher.nama} berhasil ditambahkan!`);
+            addTeacher(teacherToAdd);
+            toast.success(`Guru ${newTeacher.nama} berhasil ditambahkan!`);
+        }
+
         setShowTeacherModal(false);
+        setEditItem(null);
+        setEditType('');
         setNewTeacher({ nama: '', nip: '', jabatan: 'Guru Mata Pelajaran', mapel: '', class: '' });
     };
 
@@ -921,9 +959,19 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         setEditItem(item);
         setEditType(type);
         if (type === 'Mata Pelajaran') {
-            // Implement logic to edit subject
-            toast(`Edit Mapel: ${item.name} (Fitur segera hadir)`, { icon: '🚧' });
-        } else if (type === 'Teacher') {
+            const levelStr = item.level || '';
+            if (levelStr === 'Semua Tingkat') {
+                setSelectedLevels(['Semua Tingkat']);
+            } else {
+                const matches = levelStr.match(/\d+/g);
+                if (matches) {
+                    setSelectedLevels(matches);
+                } else {
+                    setSelectedLevels([]);
+                }
+            }
+            setShowSubjectModal(true);
+        } else if (type === 'Teacher' || type === 'Data Guru') {
             setNewTeacher({
                 nama: item.nama,
                 nip: item.nip,
@@ -931,10 +979,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 mapel: item.mapel,
                 class: item.wali
             });
-            // We might need to handle ID tracking for update vs add
             setShowTeacherModal(true);
         } else if (type === 'Jabatan') {
-            // Logic for position
             setShowPositionModal(true);
         }
     };
@@ -1186,7 +1232,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* --- VIEW: DASHBOARD HOME --- */}
                     {activeView === 'dashboard' && (
-                        <DashboardHome students={students} setActiveView={setActiveView} />
+                        <DashboardHome students={students} setActiveView={setActiveView} user={user} />
                     )}
 
                     {/* --- VIEW: DATA SISWA & KELAS --- */}
@@ -1208,6 +1254,12 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             teachers={teachers}
                             students={students}
                             setShowAddClassModal={setShowAddClassModal}
+                            handleDeleteClass={handleDeleteClass}
+                            handleEditClass={(cls) => {
+                                setEditItem(cls);
+                                setEditType('Kelas');
+                                setShowAddClassModal(true);
+                            }}
                         />
                     )}
 
@@ -1276,6 +1328,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleSaveData={handleSaveData}
                             handleEditItem={handleEditItem}
                             handleDeleteTeacher={handleDeleteTeacher}
+                            classes={classes}
                         />
                     )}
 
@@ -1294,6 +1347,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             setShowPlottingModal={setShowPlottingModal}
                             handleEditItem={handleEditItem}
                             setActiveView={setActiveView}
+                            handleDeleteSubject={handleDeleteSubject}
                         />
                     )}
 
@@ -2869,8 +2923,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                                        <h3 className="font-bold text-lg text-slate-800">Input Kelas Baru</h3>
-                                        <button onClick={() => setShowAddClassModal(false)}><X size={24} className="text-slate-400 hover:text-red-500" /></button>
+                                        <h3 className="font-bold text-lg text-slate-800">{editItem && editType === 'Kelas' ? 'Edit Kelas' : 'Input Kelas Baru'}</h3>
+                                        <button onClick={() => { setShowAddClassModal(false); setEditItem(null); setEditType(''); }}><X size={24} className="text-slate-400 hover:text-red-500" /></button>
                                     </div>
 
 
@@ -2881,30 +2935,43 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         const tingkat = (form.elements.namedItem('tingkat') as HTMLSelectElement).value;
                                         const paralel = (form.elements.namedItem('paralel') as HTMLInputElement).value;
 
-                                        void handleAddClass(tingkat, paralel, customName).then(() => {
-                                            toast.success("Kelas berhasil ditambahkan");
-                                        });
+                                        if (editItem && editType === 'Kelas') {
+                                            setClasses(prev => prev.map(c => c.id.toString() === editItem.id.toString() ? {
+                                                ...c,
+                                                nama: customName || `${tingkat}${paralel}`,
+                                                tingkat: parseInt(tingkat),
+                                                paralel
+                                            } : c));
+                                            toast.success("Kelas berhasil diperbarui");
+                                        } else {
+                                            void handleAddClass(tingkat, paralel, customName).then(() => {
+                                                toast.success("Kelas berhasil ditambahkan");
+                                            });
+                                        }
+                                        setShowAddClassModal(false);
+                                        setEditItem(null);
+                                        setEditType('');
                                     }} className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Nama Kelas (Opsional)</label>
-                                            <input name="className" className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500" placeholder="Contoh: 1A" />
+                                            <input name="className" defaultValue={editItem && editType === 'Kelas' ? editItem.nama : ''} className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-colors outline-none focus:border-blue-500" placeholder="Contoh: 1A" />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Tingkat</label>
-                                                <select name="tingkat" className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
+                                                <select name="tingkat" defaultValue={editItem && editType === 'Kelas' ? editItem.tingkat : ''} className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
                                                     <option value="">Pilih</option>
                                                     {[1, 2, 3, 4, 5, 6].map(i => <option key={i} value={i}>{i}</option>)}
                                                 </select>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Paralel</label>
-                                                <input name="paralel" className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none" placeholder="Contoh: A" />
+                                                <input name="paralel" defaultValue={editItem && editType === 'Kelas' ? editItem.paralel : ''} className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none" placeholder="Contoh: A" />
                                             </div>
                                         </div>
 
-                                        <button type="submit" className="w-full py-4 mt-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Simpan Kelas</button>
+                                        <button type="submit" className="w-full py-4 mt-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">{editItem && editType === 'Kelas' ? 'Update Kelas' : 'Simpan Kelas'}</button>
                                     </form>
                                 </div>
                             </div>
@@ -3133,18 +3200,18 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg p-8">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                                        <h3 className="font-bold text-lg text-slate-800">Tambah Mata Pelajaran</h3>
-                                        <button onClick={() => setShowSubjectModal(false)}><X size={24} className="text-slate-400 hover:text-red-500" /></button>
+                                        <h3 className="font-bold text-lg text-slate-800">{editItem && editType === 'Mata Pelajaran' ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran'}</h3>
+                                        <button onClick={() => { setShowSubjectModal(false); setEditItem(null); setEditType(''); }}><X size={24} className="text-slate-400 hover:text-red-500" /></button>
                                     </div>
 
                                     <form onSubmit={confirmAddSubject} className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Nama Mata Pelajaran</label>
-                                            <input name="subjectName" required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors" placeholder="Contoh: Matematika" />
+                                            <input name="subjectName" defaultValue={editItem && editType === 'Mata Pelajaran' ? editItem.name : ''} required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors" placeholder="Contoh: Matematika" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Kode</label>
-                                            <input name="subjectCode" required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors" placeholder="Contoh: MP-101" />
+                                            <input name="subjectCode" defaultValue={editItem && editType === 'Mata Pelajaran' ? editItem.code : ''} required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors" placeholder="Contoh: MP-101" />
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
@@ -3189,7 +3256,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Kelompok</label>
-                                                <select name="subjectGroup" className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer">
+                                                <select name="subjectGroup" defaultValue={editItem && editType === 'Mata Pelajaran' ? editItem.group : ''} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer">
                                                     {subjectGroups.map(g => (
                                                         <option key={g.id} value={g.name}>{g.name}</option>
                                                     ))}
@@ -3198,8 +3265,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         </div>
 
                                         <div className="flex gap-4 mt-8">
-                                            <button type="button" onClick={() => setShowSubjectModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">Batal</button>
-                                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Simpan</button>
+                                            <button type="button" onClick={() => { setShowSubjectModal(false); setEditItem(null); setEditType(''); }} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">Batal</button>
+                                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">{editItem && editType === 'Mata Pelajaran' ? 'Simpan Perubahan' : 'Simpan'}</button>
                                         </div>
                                     </form>
                                 </div>
@@ -3331,8 +3398,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                                        <h3 className="font-bold text-lg text-slate-800">Tambah Guru & Staff Baru</h3>
-                                        <button onClick={() => setShowTeacherModal(false)}><X size={24} className="text-slate-400 hover:text-red-500" /></button>
+                                        <h3 className="font-bold text-lg text-slate-800">{editItem && (editType === 'Teacher' || editType === 'Data Guru') ? 'Edit Guru & Staff' : 'Tambah Guru & Staff Baru'}</h3>
+                                        <button onClick={() => { setShowTeacherModal(false); setEditItem(null); setEditType(''); }}><X size={24} className="text-slate-400 hover:text-red-500" /></button>
                                     </div>
                                     <form onSubmit={(e) => { e.preventDefault(); handleSaveTeacher(); }} className="space-y-4">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

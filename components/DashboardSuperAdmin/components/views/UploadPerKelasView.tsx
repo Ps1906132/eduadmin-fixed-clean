@@ -21,13 +21,26 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
     handleUploadClick,
     handleSaveData,
     students,
+    classes,
     handleAddStudent,
     handleViewStudent,
     handleEditStudent,
     handleDelete,
     user
 }) => {
-    const [selectedClass, setSelectedClass] = useState('1A');
+    const classOptions = classes && classes.length > 0
+        ? classes.map((c: any) => c.nama)
+        : ['1A', '1B', '2A', '2B', '3A', '3B'];
+
+    const [selectedClass, setSelectedClass] = useState(() => {
+        return classOptions[0] || '1A';
+    });
+
+    React.useEffect(() => {
+        if (classes && classes.length > 0 && !classOptions.includes(selectedClass)) {
+            setSelectedClass(classes[0].nama);
+        }
+    }, [classes]);
 
     const role = user?.role || user?.role_type || user?.roleCode;
     const lowerRole = role?.toLowerCase();
@@ -54,13 +67,9 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
                             onChange={(e) => setSelectedClass(e.target.value)}
                             className="bg-transparent font-bold text-slate-800 outline-none w-32 cursor-pointer"
                         >
-                            <option value="1A">1A</option>
-                            <option value="1B">1B</option>
-                            <option value="2">2</option>
-                            <option value="3A">3A</option>
-                            <option value="4A">4A</option>
-                            <option value="5A">5A</option>
-                            <option value="6B">6B</option>
+                            {classOptions.map((cls) => (
+                                <option key={cls} value={cls}>{cls}</option>
+                            ))}
                         </select>
                     </div>
                     {isAdmin && (
@@ -128,7 +137,7 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => handleViewStudent(siswa)}><Eye size={14} className="text-blue-400 cursor-pointer hover:text-blue-600" /></button>
                                             <button onClick={() => handleEditStudent(siswa)}><Edit size={14} className="text-green-400 cursor-pointer hover:text-green-600" /></button>
-                                            <button onClick={() => handleDelete(siswa.nama)}><Trash2 size={14} className="text-red-400 cursor-pointer hover:text-red-600" /></button>
+                                            <button onClick={() => handleDelete(siswa)}><Trash2 size={14} className="text-red-400 cursor-pointer hover:text-red-600" /></button>
                                         </div>
                                     </td>
                                 ) : (

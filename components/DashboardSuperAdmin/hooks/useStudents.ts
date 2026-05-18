@@ -23,7 +23,7 @@ export interface Student {
 
 export const useStudents = () => {
     const [students, setStudents] = useState<Student[]>(() => {
-        const saved = localStorage.getItem('students_data_v10');
+        const saved = localStorage.getItem('students_data_v11');
         return saved ? JSON.parse(saved) : studentsDataGlobal;
     });
     const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ export const useStudents = () => {
                         status: s.status
                     }));
                     setStudents(mappedData);
-                    localStorage.setItem('students_data_v10', JSON.stringify(mappedData));
+                    localStorage.setItem('students_data_v11', JSON.stringify(mappedData));
                 }
             });
         } catch (err) {
@@ -72,7 +72,7 @@ export const useStudents = () => {
 
     useEffect(() => {
         if (!loading) {
-            localStorage.setItem('students_data_v10', JSON.stringify(students));
+            localStorage.setItem('students_data_v11', JSON.stringify(students));
         }
     }, [students, loading]);
 
@@ -86,14 +86,14 @@ export const useStudents = () => {
         // Sync ke D1 di background (jika tersedia)
         if (isDbConfigured()) {
             try {
-                const { data, error } = await db.from('students').insert([{
+                const { data, error } = await (db.from('students').insert([{
                     id: student.id.toString(),
                     nis: student.nis,
                     full_name: student.nama,
                     parent_name: student.ayah,
                     gender: student.gender as any,
                     status: 'active'
-                }]).select() as any;
+                }]).select() as any);
 
                 if (error) {
                     console.warn('D1 sync gagal (offline mode), data disimpan lokal:', error);
@@ -123,7 +123,7 @@ export const useStudents = () => {
                 if (updates.ayah) dbUpdates.parent_name = updates.ayah;
                 if (updates.gender) dbUpdates.gender = updates.gender;
 
-                const { error } = await db.from('students').update(dbUpdates).eq('id', id) as any;
+                const { error } = await (db.from('students').update(dbUpdates).eq('id', id) as any);
                 if (error) console.warn('D1 update sync gagal:', error);
             } catch (err) {
                 console.warn('D1 tidak tersedia, update disimpan lokal saja:', err);
@@ -178,7 +178,7 @@ export const useStudents = () => {
             // Sync ke D1 di background
             if (isDbConfigured()) {
                 try {
-                    const { error } = await db.from('students').delete().eq('id', id) as any;
+                    const { error } = await (db.from('students').delete().eq('id', id) as any);
                     if (error) console.warn('D1 delete sync gagal:', error);
                 } catch (err) {
                     console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
