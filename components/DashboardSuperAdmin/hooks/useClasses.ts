@@ -27,7 +27,7 @@ export const useClasses = () => {
                 .then(({ data, error }: any) => {
                     if (error) throw error;
 
-                    if (data && data.length > 0) {
+                    if (data) {
                         const mappedData: Class[] = (data as { id: number; name: string; grade_level: number }[]).map(c => ({
                             id: c.id,
                             nama: c.name,

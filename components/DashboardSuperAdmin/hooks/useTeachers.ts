@@ -30,7 +30,7 @@ export const useTeachers = () => {
             db.from('staff').select('*').then(({ data, error }: any) => {
                 if (error) throw error;
 
-                if (data && data.length > 0) {
+                if (data) {
                     const mappedData: Teacher[] = data.map((s: any) => ({
                         id: s.id,
                         nip: s.employee_number,

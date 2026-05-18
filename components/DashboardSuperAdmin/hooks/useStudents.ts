@@ -37,7 +37,7 @@ export const useStudents = () => {
             db.from('students').select('*').then(({ data, error }: any) => {
                 if (error) throw error;
 
-                if (data && data.length > 0) {
+                if (data) {
                     type SbStudent = { id: string; nis: string; full_name: string; birth_place?: string; birth_date?: string; parent_name?: string; gender: string; status: string; class_id?: string };
                     const mappedData: Student[] = (data as SbStudent[]).map(s => ({
                         id: s.id,
