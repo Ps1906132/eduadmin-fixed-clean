@@ -1,7 +1,6 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-/// <reference types="vitest" />
 
 // CATATAN KEAMANAN:
 // GEMINI_API_KEY diakses di client melalui prefix VITE_ (lihat .env.example).

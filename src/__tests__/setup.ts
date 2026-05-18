@@ -5,6 +5,7 @@
  * Menyediakan global mocks untuk localStorage agar test RBAC berjalan di environment jsdom.
  */
 
+import { beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Mock localStorage (tersedia via jsdom, pastikan bersih setiap test)
