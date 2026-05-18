@@ -118,7 +118,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
         // Simulate network delay
         setTimeout(async () => {
             // 1. Check for Student/Parent Login
-            const localStudents = localStorage.getItem('students_data_v10');
+            const localStudents = localStorage.getItem('students_data_v11');
             const studentsSource = localStudents ? JSON.parse(localStudents) : studentsDataGlobal;
 
             const studentAccount = studentsSource.find((s: any) => s.nis === username || s.username === username);
@@ -128,7 +128,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                 const isValid = await verifyPassword(password, studentAccount.nis);
 
                 if (isValid) {
-                    const localClasses = localStorage.getItem('classes_data_v10');
+                    const localClasses = localStorage.getItem('classes_data_v11');
                     const classesSource = localClasses ? JSON.parse(localClasses) : classesDataGlobal;
                     const classInfo = classesSource.find((c: any) => c.nama === studentAccount.kelas);
                     const waliName = classInfo ? classInfo.wali : "Guru Wali";
@@ -148,7 +148,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
             }
 
             // 2. Check for Staff/Teacher Login
-            const localTeachers = localStorage.getItem('teachers_data_v10');
+            const localTeachers = localStorage.getItem('teachers_data_v11');
             const teachersSource = localTeachers ? JSON.parse(localTeachers) : teachersDataGlobal;
 
             const teacherAccount = teachersSource.find((t: any) =>

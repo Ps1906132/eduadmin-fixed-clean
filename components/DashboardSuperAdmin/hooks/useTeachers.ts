@@ -16,7 +16,7 @@ export interface Teacher {
 
 export const useTeachers = () => {
     const [teachers, setTeachers] = useState<Teacher[]>(() => {
-        const saved = localStorage.getItem('teachers_data_v10');
+        const saved = localStorage.getItem('teachers_data_v11');
         return saved ? JSON.parse(saved) : teachersDataGlobal;
     });
     const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ export const useTeachers = () => {
                         password: '-'
                     }));
                     setTeachers(mappedData);
-                    localStorage.setItem('teachers_data_v10', JSON.stringify(mappedData));
+                    localStorage.setItem('teachers_data_v11', JSON.stringify(mappedData));
                 }
             });
         } catch (err) {
@@ -58,7 +58,7 @@ export const useTeachers = () => {
 
     useEffect(() => {
         if (!loading) {
-            localStorage.setItem('teachers_data_v10', JSON.stringify(teachers));
+            localStorage.setItem('teachers_data_v11', JSON.stringify(teachers));
         }
     }, [teachers, loading]);
 

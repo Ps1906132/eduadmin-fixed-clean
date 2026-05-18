@@ -234,7 +234,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [showPlottingModal, setShowPlottingModal] = useState(false);
     const [showPositionModal, setShowPositionModal] = useState(false);
     const { teachers, setTeachers, addTeacher } = useTeachers();
-    const [newTeacher, setNewTeacher] = useState({ nama: '', nip: '', jabatan: 'Guru Mata Pelajaran', mapel: '', class: '' });
+    const [newTeacher, setNewTeacher] = useState({ nama: '', nip: '', jabatan: 'Guru Mata Pelajaran', mapel: '', class: '', username: '', password: '' });
     const [showTeacherModal, setShowTeacherModal] = useState(false);
 
     const { classes, setClasses, showAddClassModal, setShowAddClassModal, handleAddClass, handleDeleteClass } = useClasses();
@@ -907,6 +907,16 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     }
 
     const handleAddTeacher = () => {
+        const generatedUsername = 'guru' + Math.floor(100 + Math.random() * 900);
+        setNewTeacher({
+            nama: '',
+            nip: '',
+            jabatan: 'Guru Mata Pelajaran',
+            mapel: '',
+            class: '',
+            username: generatedUsername,
+            password: 'password123'
+        });
         setShowTeacherModal(true);
     };
 
@@ -924,6 +934,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 jabatan: newTeacher.jabatan,
                 mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
                 wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
+                username: newTeacher.username || t.username,
+                password: newTeacher.password || t.password,
             } : t));
             toast.success(`Guru ${newTeacher.nama} berhasil diperbarui!`);
         } else {
@@ -934,8 +946,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 jabatan: newTeacher.jabatan,
                 mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
                 wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
-                username: newTeacher.nama.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 100),
-                password: 'password123' // Default password
+                username: newTeacher.username || (newTeacher.nama.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 100)),
+                password: newTeacher.password || 'password123'
             };
 
             addTeacher(teacherToAdd);
@@ -945,7 +957,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         setShowTeacherModal(false);
         setEditItem(null);
         setEditType('');
-        setNewTeacher({ nama: '', nip: '', jabatan: 'Guru Mata Pelajaran', mapel: '', class: '' });
+        setNewTeacher({ nama: '', nip: '', jabatan: 'Guru Mata Pelajaran', mapel: '', class: '', username: '', password: '' });
     };
 
     const handleDeleteTeacher = (id: number) => {
@@ -977,7 +989,9 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 nip: item.nip,
                 jabatan: item.jabatan,
                 mapel: item.mapel,
-                class: item.wali
+                class: item.wali,
+                username: item.username || '',
+                password: item.password || ''
             });
             setShowTeacherModal(true);
         } else if (type === 'Jabatan') {
@@ -3453,10 +3467,33 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                             </div>
                                         </div>
 
-                                        {/* Username/Password removed - auto generated */}
-                                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4 text-sm text-blue-800">
-                                            <p><strong>Info:</strong> Username dan Password akan dibuat otomatis oleh sistem.</p>
-                                        </div>
+                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                             <div>
+                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Username</label>
+                                                 <input
+                                                     value={newTeacher.username}
+                                                     onChange={(e) => setNewTeacher({ ...newTeacher, username: e.target.value })}
+                                                     required
+                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors"
+                                                     placeholder="Username untuk Login"
+                                                 />
+                                             </div>
+                                             <div>
+                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password</label>
+                                                 <input
+                                                     type="text"
+                                                     value={newTeacher.password}
+                                                     onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
+                                                     required
+                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors"
+                                                     placeholder="Password untuk Login"
+                                                 />
+                                             </div>
+                                         </div>
+
+                                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4 text-sm text-blue-800">
+                                             <p><strong>Info:</strong> Username dan Password di atas akan digunakan guru ini untuk masuk ke Sistem Informasi Manajemen (EduAdmin).</p>
+                                         </div>
 
 
 

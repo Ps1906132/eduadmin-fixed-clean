@@ -17,7 +17,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
     // Fetch Classes for Dropdown
     const [classesList] = useState<any[]>(() => {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('classes_data_v10');
+            const saved = localStorage.getItem('classes_data_v11');
             if (saved) return JSON.parse(saved);
         }
         return [
@@ -33,7 +33,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
     // --- REAL DATA FETCHING ---
     const [students] = useState<any[]>(() => {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('students_data_v10');
+            const saved = localStorage.getItem('students_data_v11');
             if (saved) return JSON.parse(saved);
         }
         return [];
