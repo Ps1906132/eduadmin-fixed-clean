@@ -30,10 +30,10 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
 }) => {
     const classOptions = classes && classes.length > 0
         ? classes.map((c: any) => c.nama)
-        : ['1A', '1B', '2A', '2B', '3A', '3B'];
+        : [];
 
     const [selectedClass, setSelectedClass] = useState(() => {
-        return classOptions[0] || '1A';
+        return classOptions[0] || '';
     });
 
     React.useEffect(() => {
@@ -67,9 +67,13 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
                             onChange={(e) => setSelectedClass(e.target.value)}
                             className="bg-transparent font-bold text-slate-800 outline-none w-32 cursor-pointer"
                         >
-                            {classOptions.map((cls) => (
-                                <option key={cls} value={cls}>{cls}</option>
-                            ))}
+                            {classOptions.length > 0 ? (
+                                classOptions.map((cls) => (
+                                    <option key={cls} value={cls}>{cls}</option>
+                                ))
+                            ) : (
+                                <option disabled value="">Kosong</option>
+                            )}
                         </select>
                     </div>
                     {isAdmin && (

@@ -30,7 +30,7 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
   const listKelas1 = classes && classes.length > 0
       ? classes.filter((c: any) => c.nama.startsWith('1') || c.tingkat === '1' || c.tingkat === 1).map((c: any) => c.nama)
-      : ['1 A', '1 B', '1 C'];
+      : [];
 
   const [visibleCount, setVisibleCount] = useState('100');
   const [selectedKelas, setSelectedKelas] = useState(() => listKelas1[0] || '1 A');
@@ -83,31 +83,54 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file.name);
-      // Simulasikan parsing Excel dan tambahkan ke database
-      const simulatedNewStudents = [
-        {
-          id: Date.now(),
-          nis: `2025` + Math.floor(100000 + Math.random() * 900000),
-          nama: 'Siswa Impor Baru ' + (filteredStudents.length + 1),
-          ttl: 'Jakarta, 12 Juni 2015',
+    if (!file) return;
+
+    setUploadedFile(file.name);
+
+    const currentClass = classes.find((c: any) => c.nama === selectedKelas);
+    const tingkat = currentClass ? currentClass.tingkat : 1;
+    const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9\s]/g, '') || 'A';
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      const dataLines = lines.slice(1); // skip header
+
+      if (dataLines.length === 0) {
+        alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
+        return;
+      }
+
+      const parsedStudents = dataLines.map((line) => {
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+        return {
+          id: Date.now() + Math.floor(Math.random() * 100000),
+          nis: cols[0] || '',
+          nama: cols[1] || '',
+          ttl: cols[2] || '',
           kelas: selectedKelas,
-          tingkat: 1,
-          paralel: selectedKelas.replace(/[0-9]/g, '').trim() || 'A',
-          ayah: 'Budi',
-          ibu: 'Siti',
-          jobAyah: 'Wiraswasta',
-          jobIbu: 'Ibu Rumah Tangga',
-          username: 'siswa.impor.' + Date.now(),
-          password: 'password123'
-        }
-      ];
-      for (const s of simulatedNewStudents) {
+          tingkat,
+          paralel,
+          ayah: cols[3] || '',
+          ibu: cols[4] || '',
+          jobAyah: cols[5] || '',
+          jobIbu: cols[6] || '',
+          noHp: cols[7] || '',
+          username: cols[8] || cols[0] || '',
+          password: cols[9] || '123456'
+        };
+      }).filter(s => s.nis && s.nama);
+
+      for (const s of parsedStudents) {
         await addNewStudent(s);
       }
-      alert(`File "${file.name}" berhasil diunggah! 1 siswa diimpor ke kelas ${selectedKelas}.`);
-    }
+      alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
   };
 
   const handleOpenAddModal = () => {

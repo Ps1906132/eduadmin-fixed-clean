@@ -2880,7 +2880,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                             {tutoringMaterials.map(m => (
                                                                 <tr key={m.id} className="hover:bg-slate-50 transition-colors">
                                                                     <td className="p-4">
-                                                                        <div className="font-bold text-slate-700">Ahmad Fauzi</div>
+                                                                        <div className="font-bold text-slate-700">{tutoringTeachers.find((t: any) => t.id === m.teacherId)?.name || m.teacherName || '-'}</div>
                                                                         <div className="text-xs text-slate-500">{m.subjectName}</div>
                                                                     </td>
                                                                     <td className="p-4">

@@ -105,14 +105,26 @@ const App: React.FC = () => {
 
   const studentsDataByClass: Record<string, { no: number; nis: string; nama: string; gender: string }[]> = {};
   students.forEach((s: { kelas: string; nis: string; nama: string; gender?: string }) => {
-    const className = s.kelas;
-    if (!studentsDataByClass[className]) studentsDataByClass[className] = [];
-    studentsDataByClass[className].push({
-      no: studentsDataByClass[className].length + 1,
+    const rawKey = s.kelas; // e.g. '1A'
+    const displayKey = isNaN(parseInt((s.kelas || '')[0])) ? s.kelas : `Kelas ${s.kelas}`; // e.g. 'Kelas 1A'
+
+    const entry = {
+      no: 0, // will be set below
       nis: s.nis,
       nama: s.nama,
       gender: s.gender || 'L'
-    });
+    };
+
+    // Index by raw key (used by DashboardSuperAdmin internal views)
+    if (!studentsDataByClass[rawKey]) studentsDataByClass[rawKey] = [];
+    entry.no = studentsDataByClass[rawKey].length + 1;
+    studentsDataByClass[rawKey].push({ ...entry });
+
+    // Also index by display key (used by KelasWali.tsx via kelasData.nama)
+    if (displayKey !== rawKey) {
+      if (!studentsDataByClass[displayKey]) studentsDataByClass[displayKey] = [];
+      studentsDataByClass[displayKey].push({ ...entry, no: studentsDataByClass[displayKey].length + 1 });
+    }
   });
 
   const handleLogin = (role: string, user: any) => {

@@ -74,33 +74,82 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
         }
 
         try {
-            // ATTEMPT D1 DB LOGIN
-            const res = await db.from('profiles').select('*').eq('email', username).single();
+            // ATTEMPT D1 DB LOGIN — cari berdasarkan email ATAU username
+            let profileData: any = null;
 
-            if (res.data) {
-                const profile = res.data;
+            // 1. Coba login via kolom 'email' (admin/profile terdaftar di D1)
+            const resEmail = await db.from('profiles').select('*').eq('email', username).single();
+            if (resEmail.data) profileData = resEmail.data;
 
-                // Securely verify password using bcrypt
-                const isValid = await verifyPassword(password, profile.password_hash || profile.password);
+            // 2. Jika tidak ditemukan via email, coba via teachers_data_v11 di localStorage
+            // Ini menangani guru yang ditambahkan via panel admin (disimpan lokal, bukan ke D1 profiles)
+            if (!profileData) {
+                const localTeachers = localStorage.getItem('teachers_data_v11');
+                const teachersSource = localTeachers ? JSON.parse(localTeachers) : teachersDataGlobal;
+                const matchedTeacher = teachersSource.find((t: any) =>
+                    t.username === username || t.user === username
+                );
 
+                if (matchedTeacher) {
+                    const isValid = await verifyPassword(password, matchedTeacher.password);
+                    if (isValid) {
+                        // Peta jabatan → roleCode (lengkap & case-insensitive)
+                        const jabatan = (matchedTeacher.role || matchedTeacher.jabatan || '').toLowerCase();
+                        let roleCode = 'gm'; // Default: Guru Mata Pelajaran
+                        if (jabatan.includes('kepala sekolah')) roleCode = 'ks';
+                        else if (jabatan.includes('wali kelas') || jabatan.includes('guru kelas')) roleCode = 'wk';
+                        else if (jabatan.includes('bimbel') || jabatan.includes('guru bimbel')) roleCode = 'gb';
+                        else if (jabatan.includes('wakil kurikulum') || jabatan.includes('kurikulum')) roleCode = 'admin';
+                        else if (jabatan.includes('tata usaha') || jabatan.includes('staff tu')) roleCode = 'admin';
+                        else if (jabatan.includes('operator')) roleCode = 'admin';
+                        else if (jabatan.includes('multimedia')) roleCode = 'admin';
+                        else if (jabatan.includes('keuangan')) roleCode = 'admin';
+                        else if (jabatan === 'admin' || jabatan === 'super admin') roleCode = 'admin';
+
+                        onLogin(roleCode, {
+                            id: matchedTeacher.id,
+                            nama: matchedTeacher.nama,
+                            role: matchedTeacher.jabatan || matchedTeacher.role,
+                            nip: matchedTeacher.nip,
+                            mapel: matchedTeacher.mapel,
+                            kelas: matchedTeacher.kelas || matchedTeacher.wali,
+                            avatar: matchedTeacher.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+                        });
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+            }
+
+            // 3. Jika ditemukan di D1 profiles, verifikasi password
+            if (profileData) {
+                const isValid = await verifyPassword(password, profileData.password_hash || profileData.password);
                 if (isValid) {
-                    onLogin(profile.role, {
-                        id: profile.id,
-                        nama: profile.full_name,
-                        email: profile.email,
-                        role: profile.role,
-                        avatar: profile.avatar_url || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+                    // Peta role D1 → roleCode (pastikan Kepala Sekolah dan lainnya benar)
+                    const rawRole = (profileData.role || '').toLowerCase();
+                    let mappedRole = profileData.role;
+                    if (rawRole === 'kepala sekolah' || rawRole === 'ks') mappedRole = 'ks';
+                    else if (rawRole === 'wali kelas' || rawRole === 'guru kelas' || rawRole === 'wk') mappedRole = 'wk';
+                    else if (rawRole === 'guru bimbel' || rawRole === 'gb') mappedRole = 'gb';
+                    else if (rawRole === 'guru mata pelajaran' || rawRole === 'gm') mappedRole = 'gm';
+                    else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator data', 'wakil kurikulum', 'staff tata usaha'].includes(rawRole)) mappedRole = 'admin';
+
+                    onLogin(mappedRole, {
+                        id: profileData.id,
+                        nama: profileData.full_name,
+                        email: profileData.email,
+                        role: profileData.role,
+                        avatar: profileData.avatar_url || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
                     });
                     setIsLoading(false);
                     return;
                 }
             }
 
-            // If DB login fails or no user found, try legacy fallback
+            // 4. Tidak ditemukan di manapun → coba legacy (dev) atau tampilkan error
             handleLegacyLogin();
         } catch (err: any) {
             console.error("Login error:", err);
-            setError(getErrorMessage(err));
             handleLegacyLogin();
         }
     };

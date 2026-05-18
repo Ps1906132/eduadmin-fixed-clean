@@ -29,9 +29,9 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
   const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
 
   // Dynamic class options from system database
-  const classOptions = classes && classes.length > 0 
-    ? classes.map(c => c.nama) 
-    : ['1A', '1B', '2A', '2B', '3A', '3B'];
+  const classOptions = classes && classes.length > 0
+    ? classes.map(c => c.nama)
+    : [];
 
   const [visibleCount, setVisibleCount] = useState('100');
   const [selectedKelas, setSelectedKelas] = useState(() => classOptions[0] || '1A');
@@ -84,52 +84,60 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file.name);
-      setIsSaving(true);
-      setTimeout(() => {
+    if (!file) return;
+
+    setUploadedFile(file.name);
+    setIsSaving(true);
+
+    const currentClass = classes.find((c: any) => c.nama === selectedKelas);
+    const tingkat = currentClass ? currentClass.tingkat : 1;
+    const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '') || 'A';
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const text = ev.target?.result as string;
+      if (!text) { setIsSaving(false); return; }
+
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      const dataLines = lines.slice(1); // skip header
+
+      if (dataLines.length === 0) {
         setIsSaving(false);
-        const currentClass = classes.find(c => c.nama === selectedKelas);
-        const tingkat = currentClass ? currentClass.tingkat : 1;
-        const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '') || 'A';
+        alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
+        return;
+      }
 
-        const newStudents = [
-          {
-            id: Date.now(),
-            nis: (Math.floor(Math.random() * 9000000000) + 1000000000).toString(),
-            nama: 'Ahmad Rafli',
-            ttl: 'Garut, 12 Mei 2014',
-            kelas: selectedKelas,
-            tingkat,
-            paralel,
-            ayah: 'Budi',
-            ibu: 'Siti',
-            jobAyah: 'Wiraswasta',
-            jobIbu: 'Ibu Rumah Tangga',
-            username: 'rafli' + Math.floor(Math.random() * 100)
-          },
-          {
-            id: Date.now() + 1,
-            nis: (Math.floor(Math.random() * 9000000000) + 1000000000).toString(),
-            nama: 'Citra Kirana',
-            ttl: 'Bandung, 23 Agustus 2014',
-            kelas: selectedKelas,
-            tingkat,
-            paralel,
-            ayah: 'Heri',
-            ibu: 'Dewi',
-            jobAyah: 'PNS',
-            jobIbu: 'Guru',
-            username: 'citra' + Math.floor(Math.random() * 100)
-          }
-        ];
+      const parsedStudents = dataLines.map((line) => {
+        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+        return {
+          id: Date.now() + Math.floor(Math.random() * 100000),
+          nis: cols[0] || '',
+          nama: cols[1] || '',
+          ttl: cols[2] || '',
+          kelas: selectedKelas,
+          tingkat,
+          paralel,
+          ayah: cols[3] || '',
+          ibu: cols[4] || '',
+          jobAyah: cols[5] || '',
+          jobIbu: cols[6] || '',
+          noHp: cols[7] || '',
+          username: cols[8] || cols[0] || '',
+          password: cols[9] || '123456'
+        };
+      }).filter(s => s.nis && s.nama);
 
-        newStudents.forEach(s => addNewStudent(s));
-        alert(`File "${file.name}" berhasil diunggah! 2 siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
-      }, 1000);
-    }
+      for (const s of parsedStudents) {
+        await addNewStudent(s);
+      }
+
+      setIsSaving(false);
+      alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa berhasil diimpor ke kelas ${selectedKelas}.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
   };
 
   const handleOpenAddModal = () => {
