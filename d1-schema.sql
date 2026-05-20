@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     full_name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'ot', -- 'admin', 'ks', 'gm', 'wk', 'gb', 'ot'
     avatar_url TEXT,
+    password_hash TEXT, -- Storing hashed password securely
     is_active INTEGER DEFAULT 1, -- 0 for false, 1 for true
     created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
