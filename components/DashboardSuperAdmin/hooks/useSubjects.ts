@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { subjectsDataGlobal } from '../../../data/sharedData';
-import { db, isConfigured as isDbConfigured } from '../../../src/lib/db';
 
 export interface SubjectGroup {
     id: string | number;
@@ -24,7 +23,8 @@ const initialSubjectGroups: SubjectGroup[] = [
 
 export const useSubjects = () => {
     const [loading, setLoading] = useState(false);
-    const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>(() => {
+    
+    const [subjectGroups, _setSubjectGroups] = useState<SubjectGroup[]>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('subject_groups_v10');
             if (saved) return JSON.parse(saved);
@@ -32,7 +32,7 @@ export const useSubjects = () => {
         return initialSubjectGroups;
     });
 
-    const [subjects, setSubjects] = useState<Subject[]>(() => {
+    const [subjects, _setSubjects] = useState<Subject[]>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('subjects_data_v10');
             if (saved) return JSON.parse(saved);
@@ -40,40 +40,44 @@ export const useSubjects = () => {
         return subjectsDataGlobal;
     });
 
+    // Fetch from D1
     const fetchSubjects = useCallback(async () => {
-        if (!isDbConfigured()) return;
-
         setLoading(true);
         try {
-            const groupsPromise = new Promise((resolve) => {
-                db.from('subject_groups').select('*').then(resolve);
-            });
-            const subjectsPromise = new Promise((resolve) => {
-                db.from('subjects').select('*').then(resolve);
-            });
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
 
-            const [groupsRes, subjectsRes]: any = await Promise.all([groupsPromise, subjectsPromise]);
+            const [groupsRes, subjectsRes] = await Promise.all([
+                fetch('/api/subject_groups', { headers }),
+                fetch('/api/subjects', { headers })
+            ]);
 
-            if (groupsRes.data && groupsRes.data.length > 0) {
-                const mappedGroups = (groupsRes.data as { id: number; name: string }[]).map(g => ({
-                    id: g.id,
-                    name: g.name
-                }));
-                setSubjectGroups(mappedGroups);
-                localStorage.setItem('subject_groups_v10', JSON.stringify(mappedGroups));
+            if (groupsRes.ok) {
+                const groupsData = await groupsRes.json();
+                if (Array.isArray(groupsData) && groupsData.length > 0) {
+                    const mappedGroups: SubjectGroup[] = groupsData.map(g => ({
+                        id: g.id ? (isNaN(Number(g.id)) ? g.id : Number(g.id)) : Date.now(),
+                        name: g.name
+                    }));
+                    _setSubjectGroups(mappedGroups);
+                    localStorage.setItem('subject_groups_v10', JSON.stringify(mappedGroups));
+                }
             }
 
-            if (subjectsRes.data && subjectsRes.data.length > 0) {
-                type SbSubject2 = { id: string; name: string; code: string; group_id: string };
-                const mappedSubjects = (subjectsRes.data as SbSubject2[]).map(s => ({
-                    id: s.id,
-                    name: s.name,
-                    code: s.code,
-                    level: 'Kelas 1',
-                    group: 'Umum' // Joins not handled in simple bridge yet
-                }));
-                setSubjects(mappedSubjects as any);
-                localStorage.setItem('subjects_data_v10', JSON.stringify(mappedSubjects));
+            if (subjectsRes.ok) {
+                const subjectsData = await subjectsRes.json();
+                if (Array.isArray(subjectsData) && subjectsData.length > 0) {
+                    const mappedSubjects: Subject[] = subjectsData.map(s => ({
+                        id: s.id ? (isNaN(Number(s.id)) ? s.id : Number(s.id)) : Date.now(),
+                        name: s.name,
+                        code: s.code,
+                        level: s.description || 'Kelas 1',
+                        group: s.group_id || 'Umum',
+                        color: s.color || undefined
+                    }));
+                    _setSubjects(mappedSubjects);
+                    localStorage.setItem('subjects_data_v10', JSON.stringify(mappedSubjects));
+                }
             }
         } catch (err) {
             console.error('Error fetching subjects from D1:', err);
@@ -86,17 +90,143 @@ export const useSubjects = () => {
         fetchSubjects();
     }, [fetchSubjects]);
 
-    useEffect(() => {
-        if (!loading) {
-            localStorage.setItem('subject_groups_v10', JSON.stringify(subjectGroups));
-        }
-    }, [subjectGroups, loading]);
+    // Background sync to Cloudflare D1 (Subject Groups)
+    const syncSubjectGroups = async (prev: SubjectGroup[], next: SubjectGroup[]) => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
 
-    useEffect(() => {
-        if (!loading) {
-            localStorage.setItem('subjects_data_v10', JSON.stringify(subjects));
+        try {
+            const currentIds = new Set(prev.map(g => g.id.toString()));
+            const nextIds = new Set(next.map(g => g.id.toString()));
+
+            // 1. Handle Deleted
+            const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
+            for (const id of deletedIds) {
+                await fetch(`/api/subject_groups?id=eq.${id}`, { method: 'DELETE', headers });
+            }
+
+            // 2. Handle Inserted
+            const inserted = next.filter(g => !currentIds.has(g.id.toString()));
+            for (const item of inserted) {
+                await fetch('/api/subject_groups', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: item.id.toString(),
+                        name: item.name,
+                        description: 'Group'
+                    })
+                });
+            }
+
+            // 3. Handle Updated
+            const prevMap = new Map(prev.map(g => [g.id.toString(), g]));
+            for (const item of next) {
+                const idStr = item.id.toString();
+                const current = prevMap.get(idStr);
+                if (current && current.name !== item.name) {
+                    await fetch(`/api/subject_groups?id=eq.${idStr}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify({
+                            name: item.name
+                        })
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Failed to sync subject groups with D1:', err);
         }
-    }, [subjects, loading]);
+    };
+
+    // Background sync to Cloudflare D1 (Subjects)
+    const syncSubjects = async (prev: Subject[], next: Subject[]) => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        try {
+            const currentIds = new Set(prev.map(s => s.id.toString()));
+            const nextIds = new Set(next.map(s => s.id.toString()));
+
+            // 1. Handle Deleted
+            const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
+            for (const id of deletedIds) {
+                await fetch(`/api/subjects?id=eq.${id}`, { method: 'DELETE', headers });
+            }
+
+            // 2. Handle Inserted
+            const inserted = next.filter(s => !currentIds.has(s.id.toString()));
+            for (const item of inserted) {
+                await fetch('/api/subjects', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: item.id.toString(),
+                        code: item.code || `SBJ-${Date.now()}`,
+                        name: item.name,
+                        group_id: item.group,
+                        description: item.level || 'Kelas 1',
+                        is_active: 1
+                    })
+                });
+            }
+
+            // 3. Handle Updated
+            const prevMap = new Map(prev.map(s => [s.id.toString(), s]));
+            for (const item of next) {
+                const idStr = item.id.toString();
+                const current = prevMap.get(idStr);
+                if (current) {
+                    const hasChanged =
+                        current.name !== item.name ||
+                        current.code !== item.code ||
+                        current.group !== item.group ||
+                        current.level !== item.level;
+
+                    if (hasChanged) {
+                        await fetch(`/api/subjects?id=eq.${idStr}`, {
+                            method: 'PATCH',
+                            headers,
+                            body: JSON.stringify({
+                                code: item.code,
+                                name: item.name,
+                                group_id: item.group,
+                                description: item.level
+                            })
+                        });
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Failed to sync subjects with D1:', err);
+        }
+    };
+
+    const setSubjectGroups = useCallback((val: SubjectGroup[] | ((prev: SubjectGroup[]) => SubjectGroup[])) => {
+        _setSubjectGroups(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            localStorage.setItem('subject_groups_v10', JSON.stringify(next));
+            syncSubjectGroups(prev, next);
+            return next;
+        });
+    }, []);
+
+    const setSubjects = useCallback((val: Subject[] | ((prev: Subject[]) => Subject[])) => {
+        _setSubjects(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            localStorage.setItem('subjects_data_v10', JSON.stringify(next));
+            syncSubjects(prev, next);
+            return next;
+        });
+    }, []);
 
     return {
         subjectGroups,

@@ -131,6 +131,173 @@ CREATE TABLE IF NOT EXISTS schedules (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+
+-- =========================================
+-- 4. GRADES & EVALUATION
+-- =========================================
+CREATE TABLE IF NOT EXISTS grades (
+    id TEXT PRIMARY KEY,
+    student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
+    subject_id TEXT REFERENCES subjects(id) ON DELETE CASCADE,
+    class_id TEXT REFERENCES classes(id) ON DELETE CASCADE,
+    academic_year_id TEXT REFERENCES academic_years(id) ON DELETE CASCADE,
+    semester INTEGER NOT NULL CHECK (semester IN (1, 2)),
+    score REAL NOT NULL,
+    type TEXT NOT NULL, -- e.g., 'PTS', 'PAS', 'Sumatif'
+    notes TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- =========================================
+-- A. KEUANGAN
+-- =========================================
+-- Tagihan siswa
+CREATE TABLE IF NOT EXISTS student_bills (
+  id TEXT PRIMARY KEY,
+  student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
+  payment_name TEXT NOT NULL,   -- e.g. 'SPP Januari 2025'
+  amount REAL NOT NULL,
+  period TEXT,                  -- e.g. '2025-01'
+  due_date TEXT,
+  status TEXT DEFAULT 'unpaid', -- 'unpaid','paid','partial','overdue'
+  class TEXT,
+  type TEXT,                    -- 'BULANAN','SEKALI','TAHUNAN'
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Transaksi pembayaran
+CREATE TABLE IF NOT EXISTS payment_transactions (
+  id TEXT PRIMARY KEY,
+  bill_id TEXT REFERENCES student_bills(id) ON DELETE SET NULL,
+  student_id TEXT REFERENCES students(id) ON DELETE CASCADE,
+  amount REAL NOT NULL,
+  payment_date TEXT NOT NULL,
+  method TEXT DEFAULT 'cash',   -- 'cash','transfer','qris'
+  notes TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Pengeluaran sekolah
+CREATE TABLE IF NOT EXISTS expenses (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT,
+  amount REAL NOT NULL,
+  proof TEXT,                   -- URL bukti/kwitansi
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- B. TABUNGAN
+-- =========================================
+-- Akun tabungan siswa
+CREATE TABLE IF NOT EXISTS savings_accounts (
+  id TEXT PRIMARY KEY,
+  student_id TEXT UNIQUE REFERENCES students(id) ON DELETE CASCADE,
+  balance REAL DEFAULT 0,
+  last_transaction_date TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Riwayat transaksi tabungan
+CREATE TABLE IF NOT EXISTS savings_transactions (
+  id TEXT PRIMARY KEY,
+  account_id TEXT REFERENCES savings_accounts(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('deposit','withdrawal')),
+  amount REAL NOT NULL,
+  date TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- C. KONTEN & PENGUMUMAN
+-- =========================================
+-- Pengumuman sekolah
+CREATE TABLE IF NOT EXISTS announcements (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT,
+  target TEXT DEFAULT 'all',    -- 'all','guru','siswa','ot'
+  target_class TEXT,
+  content TEXT NOT NULL,
+  publish_date TEXT,
+  end_date TEXT,
+  status TEXT DEFAULT 'Draft',  -- 'Draft','Terbit'
+  is_pinned INTEGER DEFAULT 0,
+  viewers INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Broadcast / multimedia channel
+CREATE TABLE IF NOT EXISTS broadcasts (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'Edukasi',
+  status TEXT DEFAULT 'Draft',
+  date TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Pengaturan multimedia
+CREATE TABLE IF NOT EXISTS multimedia_settings (
+  id TEXT PRIMARY KEY DEFAULT 'singleton',
+  name TEXT,
+  autoplay INTEGER DEFAULT 1,
+  mode TEXT DEFAULT 'manual',
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- D. PENGATURAN & OPERASIONAL
+-- =========================================
+-- Pengaturan sekolah (singleton)
+CREATE TABLE IF NOT EXISTS school_settings (
+  id TEXT PRIMARY KEY DEFAULT 'singleton',
+  school_name TEXT,
+  academic_year TEXT,
+  address TEXT,
+  phone TEXT,
+  logo_url TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Riwayat kenaikan kelas
+CREATE TABLE IF NOT EXISTS promotion_history (
+  id TEXT PRIMARY KEY,
+  academic_year TEXT NOT NULL,
+  promoted_count INTEGER DEFAULT 0,
+  date TEXT DEFAULT CURRENT_TIMESTAMP,
+  notes TEXT
+);
+
+-- Kelas bimbingan belajar
+CREATE TABLE IF NOT EXISTS tutoring_classes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  teacher_id TEXT REFERENCES staff(id) ON DELETE SET NULL,
+  subject TEXT,
+  schedule TEXT,
+  room TEXT,
+  status TEXT DEFAULT 'Aktif',
+  description TEXT,
+  sessions TEXT DEFAULT '[]',
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Periode jam pelajaran
+CREATE TABLE IF NOT EXISTS schedule_periods (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,    -- e.g. 'Jam ke-1'
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =========================================
 -- 15. AI PROVIDERS & API KEYS MANAGEMENT
 -- =========================================

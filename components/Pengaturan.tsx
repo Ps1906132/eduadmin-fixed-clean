@@ -23,9 +23,145 @@ import {
     FileText,
     RefreshCw,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Database
 } from 'lucide-react';
 import { schoolSettingsGlobal } from '../data/sharedData';
+import { migrateLocalStorageToD1 } from '../src/lib/migrateToD1';
+
+const D1MigratorView: React.FC = () => {
+    const [isMigrating, setIsMigrating] = useState(false);
+    const [migrationResult, setMigrationResult] = useState<any>(null);
+
+    const handleStartMigration = async () => {
+        setIsMigrating(true);
+        const toastId = toast.loading('Melakukan migrasi data dari LocalStorage ke Cloudflare D1...');
+        try {
+            const result = await migrateLocalStorageToD1();
+            setIsMigrating(false);
+            setMigrationResult(result);
+            if (result.success) {
+                toast.success(result.message, { id: toastId });
+            } else {
+                toast.error(result.message, { id: toastId });
+            }
+        } catch (error: any) {
+            setIsMigrating(false);
+            toast.error(`Terjadi kesalahan sistem: ${error.message || error}`, { id: toastId });
+        }
+    };
+
+    return (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div>
+                <h3 className="text-xl font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
+                    <Database className="text-blue-600 animate-pulse" /> Migrasi Database Cloudflare D1
+                </h3>
+                
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl p-6 mb-6">
+                    <div className="flex gap-4">
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-blue-200 text-blue-600 flex-shrink-0 shadow-sm">
+                            <Database size={24} />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-slate-800 text-lg mb-1">Pindahkan Data ke Cloudflare D1</h4>
+                            <p className="text-slate-600 text-sm leading-relaxed">
+                                Fitur ini akan membaca seluruh data yang tersimpan di browser Anda (LocalStorage) meliputi:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-slate-600 mt-2 space-y-1">
+                                <li>Data Guru dan Profil Akun</li>
+                                <li>Data Kelas dan Walinya</li>
+                                <li>Data Siswa Aktif</li>
+                                <li>Data Tagihan Keuangan & Pengeluaran Sekolah</li>
+                            </ul>
+                            <p className="text-slate-600 text-sm mt-3 leading-relaxed">
+                                Seluruh data tersebut akan disinkronkan langsung ke basis data terpusat Cloudflare D1 SQLite.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {!migrationResult && (
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-slate-200 rounded-3xl text-center">
+                        <AlertCircle className="text-amber-500 mb-3" size={32} />
+                        <h5 className="font-bold text-slate-700 mb-1">Perhatian Sebelum Migrasi</h5>
+                        <p className="text-slate-500 text-xs max-w-md mb-6 leading-relaxed">
+                            Pastikan Anda memiliki koneksi internet yang stabil selama proses migrasi berlangsung. Proses ini tidak akan menghapus data lokal di browser Anda.
+                        </p>
+                        <button
+                            onClick={handleStartMigration}
+                            disabled={isMigrating}
+                            className={`px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all flex items-center gap-3 ${
+                                isMigrating ? 'opacity-70 cursor-not-allowed' : 'hover:scale-[1.02]'
+                            }`}
+                        >
+                            <RefreshCw size={18} className={isMigrating ? 'animate-spin' : ''} />
+                            {isMigrating ? 'Sedang Memindahkan Data...' : 'Mulai Migrasi Data Sekarang'}
+                        </button>
+                    </div>
+                )}
+
+                {migrationResult && (
+                    <div className={`p-6 border rounded-3xl animate-in zoom-in-95 duration-300 ${
+                        migrationResult.success ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'
+                    }`}>
+                        <div className="flex items-start gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                migrationResult.success ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-red-500 text-white shadow-lg shadow-red-100'
+                            }`}>
+                                {migrationResult.success ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={`font-bold text-lg ${migrationResult.success ? 'text-emerald-800' : 'text-red-800'}`}>
+                                    {migrationResult.success ? 'Migrasi Berhasil!' : 'Migrasi Gagal'}
+                                </h4>
+                                <p className={`text-sm mt-1 font-medium ${migrationResult.success ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {migrationResult.message}
+                                </p>
+
+                                {migrationResult.success && migrationResult.details && (
+                                    <div className="mt-4 bg-white/65 border border-emerald-100/50 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        <div className="p-3 bg-white rounded-xl border border-emerald-50 shadow-sm text-center">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Profil User</p>
+                                            <p className="text-2xl font-bold text-slate-800 mt-1">{migrationResult.details.profiles}</p>
+                                        </div>
+                                        <div className="p-3 bg-white rounded-xl border border-emerald-50 shadow-sm text-center">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Guru/Staff</p>
+                                            <p className="text-2xl font-bold text-slate-800 mt-1">{migrationResult.details.staff}</p>
+                                        </div>
+                                        <div className="p-3 bg-white rounded-xl border border-emerald-50 shadow-sm text-center">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Kelas</p>
+                                            <p className="text-2xl font-bold text-slate-800 mt-1">{migrationResult.details.classes}</p>
+                                        </div>
+                                        <div className="p-3 bg-white rounded-xl border border-emerald-50 shadow-sm text-center">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Siswa</p>
+                                            <p className="text-2xl font-bold text-slate-800 mt-1">{migrationResult.details.students}</p>
+                                        </div>
+                                        <div className="p-3 bg-white rounded-xl border border-emerald-50 shadow-sm text-center">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tagihan SPP</p>
+                                            <p className="text-2xl font-bold text-slate-800 mt-1">{migrationResult.details.bills}</p>
+                                        </div>
+                                        <div className="p-3 bg-white rounded-xl border border-emerald-50 shadow-sm text-center">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pengeluaran</p>
+                                            <p className="text-2xl font-bold text-slate-800 mt-1">{migrationResult.details.expenses}</p>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <button
+                                    onClick={() => setMigrationResult(null)}
+                                    className="mt-6 px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-colors"
+                                >
+                                    Ulangi Migrasi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 interface PengaturanProps {
     schoolSettings: any;
@@ -570,6 +706,9 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                     </div>
                 );
 
+            case 'migrasi':
+                return <D1MigratorView />;
+
             default:
                 return null;
         }
@@ -583,6 +722,7 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                     { id: 'profil', label: 'Profil Sekolah', icon: <School size={18} /> },
                     { id: 'admin', label: 'Akun Administrator', icon: <UserCog size={18} /> },
                     { id: 'keamanan', label: 'Keamanan Akun', icon: <Shield size={18} /> },
+                    { id: 'migrasi', label: 'Migrasi Database D1', icon: <RefreshCw size={18} /> },
                     { id: 'riwayat', label: 'Riwayat Perubahan', icon: <History size={18} /> },
                 ].map((item) => (
                     <button

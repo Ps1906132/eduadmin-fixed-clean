@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 
 interface RapotSiswaProps {
     onBack: () => void;
@@ -7,6 +8,7 @@ interface RapotSiswaProps {
 }
 
 const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
+    const { classes } = useClasses();
     const [selectedClass, setSelectedClass] = useState(user?.studentClass || '1A');
     const [selectedSemester, setSelectedSemester] = useState('Semester 1');
     const [rapotType, setRapotType] = useState<'diknas' | 'yayasan'>('diknas');
@@ -158,18 +160,10 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                                 onChange={(e) => setSelectedClass(e.target.value)}
                                 className="w-full appearance-none bg-white border border-slate-300 text-slate-700 py-2 px-4 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                             >
-                                <option>1A</option>
-                                <option>1B</option>
-                                <option>2A</option>
-                                <option>2B</option>
-                                <option>3A</option>
-                                <option>3B</option>
-                                <option>4A</option>
-                                <option>4B</option>
-                                <option>5A</option>
-                                <option>5B</option>
-                                <option>6A</option>
-                                <option>6B</option>
+                                <option value="">- Pilih Kelas -</option>
+                                {classes && classes.map((c: any) => (
+                                    <option key={c.id} value={c.nama}>{c.nama}</option>
+                                ))}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                         </div>

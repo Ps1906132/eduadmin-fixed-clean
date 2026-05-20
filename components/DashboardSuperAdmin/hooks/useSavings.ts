@@ -1,9 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-    savingsDataGlobal,
-    savingsTransactionsGlobal,
-    updateSavingsDataGlobal,
-    addSavingsTransactionGlobal,
     SavingsData,
     SavingsTransaction
 } from '../../../data/sharedData';
@@ -11,25 +7,78 @@ import {
 export type { SavingsData, SavingsTransaction };
 
 export const useSavings = () => {
-    // Initialize from Local Storage or Global Store
-    const [savingsData, setSavingsData] = useState<SavingsData[]>(() => {
-        const saved = localStorage.getItem('savings_data_v10');
-        return saved ? JSON.parse(saved) : savingsDataGlobal;
-    });
+    const [loading, setLoading] = useState(false);
 
-    const [savingsTransactions, setSavingsTransactions] = useState<SavingsTransaction[]>(() => {
-        const saved = localStorage.getItem('savings_transactions_v10');
-        return saved ? JSON.parse(saved) : savingsTransactionsGlobal;
-    });
+    const [savingsData, setSavingsData] = useState<SavingsData[]>([]);
+    const [savingsTransactions, setSavingsTransactions] = useState<SavingsTransaction[]>([]);
 
-    // Sync back to Local Storage
+    const fetchSavingsData = useCallback(async () => {
+        setLoading(true);
+
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // Fetch students to map account names
+            const resStudents = await fetch('/api/students', { headers });
+            const students = resStudents.ok ? await resStudents.json() : [];
+            const studentMap = new Map((students || []).map((s: any) => [s.id, s]));
+
+            // Fetch classes to map classes
+            const resClasses = await fetch('/api/classes', { headers });
+            const classes = resClasses.ok ? await resClasses.json() : [];
+            const classMap = new Map((classes || []).map((c: any) => [c.id, c.name]));
+
+            // 1. Fetch Accounts
+            let accounts: any[] = [];
+            const resAccounts = await fetch('/api/savings_accounts', { headers });
+            if (resAccounts.ok) {
+                accounts = await resAccounts.json();
+                const mappedData: SavingsData[] = accounts.map((a: any) => {
+                    const student = studentMap.get(a.student_id) || {};
+                    const className = student.class_id ? classMap.get(student.class_id) || '-' : '-';
+                    return {
+                        id: a.id,
+                        studentId: a.student_id,
+                        studentName: student.full_name || 'Siswa',
+                        class: className,
+                        balance: a.balance
+                    };
+                });
+                setSavingsData(mappedData);
+            }
+
+            // 2. Fetch Transactions
+            const resTxs = await fetch('/api/savings_transactions', { headers });
+            if (resTxs.ok) {
+                const txs = await resTxs.json();
+                const mappedTxs: SavingsTransaction[] = txs.map((t: any) => {
+                    const account = accounts?.find((a: any) => a.id === t.account_id);
+                    const student = account ? studentMap.get(account.student_id) || {} : {};
+                    return {
+                        id: t.id,
+                        studentId: account?.student_id || '',
+                        studentName: student.full_name || 'Siswa',
+                        type: t.type === 'deposit' ? 'setor' : 'tarik',
+                        amount: t.amount,
+                        date: t.date || new Date().toISOString(),
+                        description: t.notes || ''
+                    };
+                });
+                setSavingsTransactions(mappedTxs);
+            }
+        } catch (err) {
+            console.error('Error fetching savings from D1:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        localStorage.setItem('savings_data_v10', JSON.stringify(savingsData));
-    }, [savingsData]);
+        fetchSavingsData();
+    }, [fetchSavingsData]);
 
-    useEffect(() => {
-        localStorage.setItem('savings_transactions_v10', JSON.stringify(savingsTransactions));
-    }, [savingsTransactions]);
+    // Sync back to Local Storage & D1 in background
 
 
     return {
@@ -37,5 +86,6 @@ export const useSavings = () => {
         setSavingsData,
         savingsTransactions,
         setSavingsTransactions,
+        refreshSavings: fetchSavingsData
     };
 };

@@ -41,8 +41,18 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
     const lowerRole = role?.toLowerCase();
     const isKurikulum = !role || lowerRole === 'kurikulum' || lowerRole === 'kepala sekolah';
 
+    // --- LOCAL DATABASE STATES ---
+    const [classes] = useState<any[]>(() => {
+        const saved = localStorage.getItem('classes_data_v11');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [students] = useState<any[]>(() => {
+        const saved = localStorage.getItem('students_data_v11');
+        return saved ? JSON.parse(saved) : [];
+    });
+
     // --- STATE FILTER ---
-    const [selectedClass, setSelectedClass] = useState(classesDataGlobal[0]?.nama || '1A');
+    const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '1A');
     const [selectedSubject, setSelectedSubject] = useState('Matematika');
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
 
@@ -58,8 +68,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
     const [masterDescriptions, setMasterDescriptions] = useState<any[]>([]);
 
     // --- SUBJECTS DATA ---
-    const subjects: string[] = localStorage.getItem('subjects_data_v2')
-        ? JSON.parse(localStorage.getItem('subjects_data_v2')!).map((s: { name: string }) => s.name)
+    const subjects: string[] = localStorage.getItem('subjects_data_v10')
+        ? JSON.parse(localStorage.getItem('subjects_data_v10')!).map((s: { name: string }) => s.name)
         : ["Matematika", "B. Indonesia", "IPA", "IPS"];
 
     // --- INITIALIZE DATA ---
@@ -77,7 +87,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
             return;
         }
 
-        const classStudents = studentsDataGlobal.filter(s => s.kelas === selectedClass);
+        const classStudents = students.filter(s => s.kelas === selectedClass);
 
         // Initial empty state (0) instead of random mock
         const initialGrades: GradeRow[] = classStudents.map(s => ({
@@ -280,7 +290,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                         onChange={(e) => setSelectedClass(e.target.value)}
                                         className="appearance-none bg-transparent font-bold text-slate-700 outline-none text-sm cursor-pointer pr-6 w-20"
                                     >
-                                        {classesDataGlobal.map(c => <option key={c.id} value={c.nama} className="text-slate-800">{c.nama}</option>)}
+                                        {classes.map(c => <option key={c.id} value={c.nama} className="text-slate-800">{c.nama}</option>)}
                                     </select>
                                     <ChevronDown size={14} className="absolute right-0 top-1 text-slate-400 pointer-events-none" />
                                 </div>

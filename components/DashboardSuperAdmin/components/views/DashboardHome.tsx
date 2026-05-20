@@ -63,6 +63,16 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView, 
         ];
     }
 
+    const teachersCount = React.useMemo(() => {
+        const saved = localStorage.getItem('teachers_data_v11');
+        return saved ? JSON.parse(saved).length : 0;
+    }, []);
+
+    const classesCount = React.useMemo(() => {
+        const saved = localStorage.getItem('classes_data_v11');
+        return saved ? JSON.parse(saved).length : 0;
+    }, []);
+
     return (
         <div className="animate-in fade-in space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -85,7 +95,7 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView, 
                         <div className="p-1.5 bg-white rounded-lg shadow-sm text-indigo-500 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors"><UserCog size={18} /></div>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{teachersDataGlobal?.length || 0}</span>
+                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{teachersCount}</span>
                         <p className="text-xs text-slate-400 mb-1 font-medium">Pengajar</p>
                     </div>
                 </div>
@@ -97,7 +107,7 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView, 
                         <div className="p-1.5 bg-white rounded-lg shadow-sm text-orange-500 group-hover:text-orange-600 group-hover:bg-orange-50 transition-colors"><School size={18} /></div>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{classesDataGlobal?.length || 0}</span>
+                        <span className="text-3xl font-bold text-slate-800 tracking-tight">{classesCount}</span>
                         <p className="text-xs text-slate-400 mb-1 font-medium">Rombel</p>
                     </div>
                 </div>

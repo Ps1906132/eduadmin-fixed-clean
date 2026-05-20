@@ -4,7 +4,11 @@ import {
     LogOut, User, Bell, Printer, Download, ChevronRight,
     Users, TrendingUp, Calendar, CheckSquare
 } from 'lucide-react';
-import { announcementDataGlobal, schoolSettingsGlobal, studentsDataGlobal, teachersDataGlobal, classesDataGlobal } from '../data/sharedData';
+import { schoolSettingsGlobal } from '../data/sharedData';
+import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
+import { useTeachers } from './DashboardSuperAdmin/hooks/useTeachers';
+import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
+import { useAnnouncements } from './DashboardSuperAdmin/hooks/useAnnouncements';
 
 // Import Existing Components for Reusability
 import AlQuranSiswa from './AlQuranSiswa';
@@ -20,14 +24,15 @@ interface DashboardKepalaSekolahProps {
 const DashboardKepalaSekolah: React.FC<DashboardKepalaSekolahProps> = ({ user, onLogout, schoolName }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeView, setActiveView] = useState('dashboard');
-    const [announcements, setAnnouncements] = useState(announcementDataGlobal);
+    const { students } = useStudents();
+    const { teachers } = useTeachers();
+    const { classes } = useClasses();
+    const { announcements } = useAnnouncements();
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        const dataTimer = setInterval(() => setAnnouncements([...announcementDataGlobal]), 2000); // Sync Data
         return () => {
             clearInterval(timer);
-            clearInterval(dataTimer);
         };
     }, []);
 
@@ -119,11 +124,11 @@ const DashboardKepalaSekolah: React.FC<DashboardKepalaSekolahProps> = ({ user, o
                                         <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><Users size={24} /></div>
                                         <div>
                                             <p className="text-xs text-slate-500 font-bold uppercase">Total Siswa</p>
-                                            <h3 className="text-2xl font-bold text-slate-800">{studentsDataGlobal.length}</h3>
+                                            <h3 className="text-2xl font-bold text-slate-800">{students.length}</h3>
                                         </div>
                                     </div>
                                     <div className="mt-4 pt-4 border-t border-slate-50 text-xs text-green-600 font-bold flex items-center gap-1">
-                                        <TrendingUp size={12} /> {studentsDataGlobal.length} Siswa aktif
+                                        <TrendingUp size={12} /> {students.length} Siswa aktif
                                     </div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -131,11 +136,11 @@ const DashboardKepalaSekolah: React.FC<DashboardKepalaSekolahProps> = ({ user, o
                                         <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center"><Users size={24} /></div>
                                         <div>
                                             <p className="text-xs text-slate-500 font-bold uppercase">Total Guru</p>
-                                            <h3 className="text-2xl font-bold text-slate-800">{teachersDataGlobal.length}</h3>
+                                            <h3 className="text-2xl font-bold text-slate-800">{teachers.length}</h3>
                                         </div>
                                     </div>
                                     <div className="mt-4 pt-4 border-t border-slate-50 text-xs text-slate-500 font-bold flex items-center gap-1">
-                                        <CheckSquare size={12} /> {classesDataGlobal.length} Rombel Terdata
+                                        <CheckSquare size={12} /> {classes.length} Rombel Terdata
                                     </div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">

@@ -32,7 +32,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
 }) => {
     const classOptions = classes && classes.length > 0
         ? classes.map((c: any) => c.nama)
-        : ['1A', '1B', '2A', '2B', '3A', '3B'];
+        : [];
 
     const handlePrintSingleCard = (guru: any) => {
         const savedSettings = localStorage.getItem('school_settings_v10');
@@ -529,10 +529,14 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 <td className="p-4">
                                     <select
                                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 outline-none focus:border-green-500 cursor-pointer"
-                                        defaultValue={guru.jabatan}
+                                        value={guru.jabatan}
                                         onChange={(e) => {
                                             const newTeachers = [...teachers];
-                                            newTeachers[i].jabatan = e.target.value;
+                                            newTeachers[i] = {
+                                                ...newTeachers[i],
+                                                jabatan: e.target.value,
+                                                role: e.target.value, // mirror jabatan → role agar Login.tsx bisa baca
+                                            };
                                             setTeachers(newTeachers);
                                         }}
                                     >
@@ -545,7 +549,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 {/* DROPDOWN WALI KELAS */}
                                 <td className="p-4 hover:bg-slate-50">
                                     <select className="w-full bg-transparent border-none outline-none text-slate-700 font-bold cursor-pointer disabled:opacity-30"
-                                        defaultValue={guru.wali}
+                                        value={guru.wali || '-'}
                                         disabled={['Kepala Sekolah', 'Staff Tata Usaha', 'Operator Data'].includes(guru.jabatan)}
                                         onChange={(e) => {
                                             const newTeachers = [...teachers];

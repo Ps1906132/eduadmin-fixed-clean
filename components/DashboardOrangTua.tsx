@@ -11,7 +11,6 @@ import {
     Book,
     Tv,
     Bot,
-    Gamepad2,
     Bell,
     Home,
     User,
@@ -32,10 +31,8 @@ import LatihanSoalSiswa from './LatihanSoalSiswa';
 import AlQuranSiswa from './AlQuranSiswa';
 import ChannelSekolahSiswa from './ChannelSekolahSiswa';
 import BelajarAISiswa from './BelajarAISiswa';
-import GameEdukasiSiswa from './GameEdukasiSiswa';
 import ProfilAkun from './ProfilAkun';
 import NotifikasiSiswa from './NotifikasiSiswa';
-import PerpustakaanSiswa from './PerpustakaanSiswa';
 
 interface DashboardOrangTuaProps {
     user: any;
@@ -49,7 +46,7 @@ import { announcementDataGlobal } from '../data/sharedData';
 
 const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, schoolName = "SD IT EduAdmin" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'hasil' | 'absen' | 'bayar' | 'tabungan' | 'bimbingan' | 'latihan' | 'quran' | 'channel' | 'ai' | 'game' | 'perpus' | 'profile' | 'notifikasi'>('home');
+    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'hasil' | 'absen' | 'bayar' | 'tabungan' | 'bimbingan' | 'latihan' | 'quran' | 'channel' | 'ai' | 'profile' | 'notifikasi'>('home');
 
     // Sync Announcements
     const [announcements, setAnnouncements] = useState(announcementDataGlobal);
@@ -81,8 +78,6 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
         { id: 'channel', label: 'Channel Sekolah', icon: <Tv size={24} />, color: 'bg-red-600' },
         { id: 'ai', label: 'Belajar AI', icon: <Bot size={24} />, color: 'bg-cyan-500' },
-        { id: 'perpus', label: 'Perpustakaan', icon: <BookOpen size={24} />, color: 'bg-amber-500' },
-        { id: 'game', label: 'Game Edukasi', icon: <Gamepad2 size={24} />, color: 'bg-purple-500' },
     ];
 
     return (
@@ -161,8 +156,6 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                                                 else if (item.id === 'quran') setActiveView('quran');
                                                 else if (item.id === 'channel') setActiveView('channel');
                                                 else if (item.id === 'ai') setActiveView('ai');
-                                                else if (item.id === 'game') setActiveView('game');
-                                                else if (item.id === 'perpus') setActiveView('perpus');
                                             }}
                                             className="flex flex-col items-center gap-3 group w-full"
                                         >
@@ -203,10 +196,6 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                             <ProfilAkun user={user} onLogout={onLogout} onBack={() => setActiveView('home')} />
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
-                        ) : activeView === 'game' ? (
-                            <GameEdukasiSiswa onBack={() => setActiveView('home')} />
-                        ) : activeView === 'perpus' ? (
-                            <PerpustakaanSiswa onBack={() => setActiveView('home')} />
                         ) : null}
                     </div>
 

@@ -129,13 +129,19 @@ export async function sendToGemini(message: string, history: GeminiMessage[] = [
       }
     ];
 
+    const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     // Panggil Backend Proxy (functions/api/gemini.ts)
     // Ini lebih aman karena API Key dikelola di server
     const response = await fetch('/api/gemini', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({ contents })
     });
 

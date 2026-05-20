@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { initialFinanceDataGlobal, schoolSettingsGlobal } from '../../../data/sharedData';
+import { useState, useEffect, useCallback } from 'react';
+import { schoolSettingsGlobal } from '../../../data/sharedData';
 
 export interface CashAccount {
     id: number;
@@ -32,7 +32,7 @@ export interface StudentBill {
 }
 
 export interface Expense {
-    id: number;
+    id: number | string;
     date: string;
     description: string;
     category: string;
@@ -44,46 +44,88 @@ const initialPaymentTypes: PaymentType[] = [];
 
 export const useFinance = () => {
     const [financialYear, setFinancialYear] = useState(schoolSettingsGlobal.academicYear || '2025/2026');
+    const [loading, setLoading] = useState(false);
 
-    // Initialize from LocalStorage or Fallback
-    const [cashAccounts, setCashAccounts] = useState<CashAccount[]>(() => {
-        const saved = localStorage.getItem('finance_cash_accounts_v10');
-        return saved ? JSON.parse(saved) : initialFinanceDataGlobal.cashAccounts;
-    });
-
+    // State diisi oleh fetchFinanceData() saat mount
+    const [cashAccounts, setCashAccounts] = useState<CashAccount[]>([]);
     const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>(initialPaymentTypes);
+    const [studentBills, setStudentBills] = useState<StudentBill[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
 
-    const [studentBills, setStudentBills] = useState<StudentBill[]>(() => {
-        const saved = localStorage.getItem('finance_student_bills_v10');
-        return saved ? JSON.parse(saved) : initialFinanceDataGlobal.studentBills;
-    });
+    const fetchFinanceData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
 
-    const [expenses, setExpenses] = useState<Expense[]>(() => {
-        const saved = localStorage.getItem('finance_expenses_v10');
-        return saved ? JSON.parse(saved) : initialFinanceDataGlobal.expenses;
-    });
+            // Fetch students to map bills
+            const resStudents = await fetch('/api/students', { headers });
+            const students = resStudents.ok ? await resStudents.json() : [];
+            const studentMap = new Map((students || []).map((s: any) => [s.id, s]));
 
-    const [paymentHistory, setPaymentHistory] = useState<any[]>(() => {
-        const saved = localStorage.getItem('payments_data_v10');
-        return saved ? JSON.parse(saved) : [];
-    });
+            // Fetch classes to map classes
+            const resClasses = await fetch('/api/classes', { headers });
+            const classes = resClasses.ok ? await resClasses.json() : [];
+            const classMap = new Map((classes || []).map((c: any) => [c.id, c.name]));
 
-    // Auto-save effects
+            // 1. Fetch Bills
+            const resBills = await fetch('/api/student_bills', { headers });
+            if (resBills.ok) {
+                const dbBills = await resBills.json();
+                const mappedBills: StudentBill[] = dbBills.map((b: any) => {
+                    const student = studentMap.get(b.student_id) || {};
+                    const className = student.class_id ? classMap.get(student.class_id) || '-' : '-';
+                    return {
+                        id: b.id,
+                        studentId: b.student_id,
+                        studentName: student.full_name || 'Siswa',
+                        class: className,
+                        paymentName: b.payment_name || 'SPP',
+                        amount: b.amount,
+                        period: b.period || '2025-01',
+                        status: b.status === 'paid' ? 'Lunas' : 'Belum Lunas',
+                        dueDate: b.due_date,
+                        type: b.type
+                    };
+                });
+                setStudentBills(mappedBills);
+            }
+
+            // 2. Fetch Expenses
+            const resExpenses = await fetch('/api/expenses', { headers });
+            if (resExpenses.ok) {
+                const dbExpenses = await resExpenses.json();
+                const mappedExpenses: Expense[] = dbExpenses.map((e: any) => ({
+                    id: e.id,
+                    date: e.date,
+                    description: e.description || '',
+                    category: e.category,
+                    amount: e.amount,
+                    proof: e.proof || ''
+                }));
+                setExpenses(mappedExpenses);
+            }
+
+            // 3. Fetch Payments Transactions
+            const resPayments = await fetch('/api/payment_transactions', { headers });
+            if (resPayments.ok) {
+                const dbPayments = await resPayments.json();
+                setPaymentHistory(dbPayments);
+            }
+        } catch (err) {
+            console.error('Error fetching finance data from D1:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
-        localStorage.setItem('finance_cash_accounts_v10', JSON.stringify(cashAccounts));
-    }, [cashAccounts]);
+        fetchFinanceData();
+    }, [fetchFinanceData]);
 
-    useEffect(() => {
-        localStorage.setItem('finance_student_bills_v10', JSON.stringify(studentBills));
-    }, [studentBills]);
+    // Auto-save & background sync effects
 
-    useEffect(() => {
-        localStorage.setItem('finance_expenses_v10', JSON.stringify(expenses));
-    }, [expenses]);
-
-    useEffect(() => {
-        localStorage.setItem('payments_data_v10', JSON.stringify(paymentHistory));
-    }, [paymentHistory]);
 
     return {
         financialYear,
@@ -98,5 +140,6 @@ export const useFinance = () => {
         setExpenses,
         paymentHistory,
         setPaymentHistory,
+        refreshFinance: fetchFinanceData
     };
 };

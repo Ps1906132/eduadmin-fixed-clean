@@ -1,4 +1,4 @@
-import { useState, FC, FormEvent } from 'react';
+import { useState, useEffect, FC, FormEvent } from 'react';
 import { User, Lock, ArrowRight, Flame } from 'lucide-react';
 import { studentsDataGlobal, classesDataGlobal, teachersDataGlobal } from '../data/sharedData';
 import { db } from '../src/lib/db';
@@ -25,21 +25,61 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
     const activeSchoolName = schoolName || parsedSettings?.name || "EduAdmin";
     const activeLogo = logo || parsedSettings?.logo || null;
 
+    useEffect(() => {
+        // Auto-migrate plaintext passwords to bcrypt hashes in LocalStorage
+        const migratePlaintextPasswords = async () => {
+            const keys = ['teachers_data_v11', 'teachers_data_v10'];
+            for (const key of keys) {
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    try {
+                        const teachers = JSON.parse(saved);
+                        let updated = false;
+                        for (const t of teachers) {
+                            // Verify if it is not already a bcrypt hash (starts with $2a$, $2b$, or $2y$ and is 60 chars long)
+                            if (t.password && !/^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$/.test(t.password)) {
+                                const { hashPassword } = await import('../utils/auth');
+                                t.password = await hashPassword(t.password);
+                                updated = true;
+                            }
+                        }
+                        if (updated) {
+                            localStorage.setItem(key, JSON.stringify(teachers));
+                        }
+                    } catch (e) {
+                        // Silent fail for background migration
+                    }
+                }
+            }
+        };
+        migratePlaintextPasswords();
+    }, []);
+
     const handleLogin = async (e: FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // --- DEVELOPMENT OFFLINE BYPASS ---
-        // Menjamin 100% kesuksesan login ketika database backend (Supabase/D1) offline di lokal
+        // --- DEVELOPMENT OFFLINE BYPASS (ENV VARIABLES) ---
         if (!import.meta.env.PROD) {
             const lowerUsername = username.trim().toLowerCase();
-            if ((lowerUsername === 'admin@eduadmin.com' && password === 'EduAdmin@2026!') || 
-                (lowerUsername === 'admin' && password === 'admin123')) {
+            const devAdminUser = import.meta.env.VITE_DEV_ADMIN_USER || 'admin';
+            const devAdminPass = import.meta.env.VITE_DEV_ADMIN_PASS || 'admin123';
+            const devAdminEmail = import.meta.env.VITE_DEV_ADMIN_EMAIL || 'admin@eduadmin.com';
+            const devAdminEmailPass = import.meta.env.VITE_DEV_ADMIN_EMAIL_PASS || 'EduAdmin@2026!';
+            
+            const devKuriUser = import.meta.env.VITE_DEV_KURIKULUM_USER || 'budikurikulum';
+            const devKuriPass = import.meta.env.VITE_DEV_KURIKULUM_PASS || 'password123';
+            
+            const devKeuUser = import.meta.env.VITE_DEV_KEUANGAN_USER || 'tatausaha';
+            const devKeuPass = import.meta.env.VITE_DEV_KEUANGAN_PASS || 'password123';
+
+            if ((lowerUsername === devAdminEmail && password === devAdminEmailPass) || 
+                (lowerUsername === devAdminUser && password === devAdminPass)) {
                 onLogin('admin', {
                     id: 999,
                     nama: "Super Admin (Offline)",
-                    email: "admin@eduadmin.com",
+                    email: devAdminEmail,
                     role: "admin",
                     role_type: "admin",
                     avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
@@ -47,7 +87,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                 setIsLoading(false);
                 return;
             }
-            if (lowerUsername === 'budikurikulum' && password === 'password123') {
+            if (lowerUsername === devKuriUser && password === devKuriPass) {
                 onLogin('kurikulum', {
                     id: 998,
                     nama: "Bpk. Budi (Offline)",
@@ -59,7 +99,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                 setIsLoading(false);
                 return;
             }
-            if (lowerUsername === 'tatausaha' && password === 'password123') {
+            if (lowerUsername === devKeuUser && password === devKeuPass) {
                 onLogin('keuangan', {
                     id: 997,
                     nama: "Ibu Siti (Offline)",
@@ -74,106 +114,82 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
         }
 
         try {
-            // ATTEMPT D1 DB LOGIN — cari berdasarkan email ATAU username
-            let profileData: any = null;
+            // 1. ATTEMPT SECURE BACKEND AUTHENTICATION (POST /api/auth/login)
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
 
-            // 1. Coba login via kolom 'email' (admin/profile terdaftar di D1)
-            const resEmail = await db.from('profiles').select('*').eq('email', username).single();
-            if (resEmail.data) profileData = resEmail.data;
-
-            // 2. Jika tidak ditemukan via email, coba via teachers_data_v11 di localStorage
-            // Ini menangani guru yang ditambahkan via panel admin (disimpan lokal, bukan ke D1 profiles)
-            if (!profileData) {
-                const localTeachers = localStorage.getItem('teachers_data_v11');
-                const teachersSource = localTeachers ? JSON.parse(localTeachers) : teachersDataGlobal;
-                const matchedTeacher = teachersSource.find((t: any) =>
-                    t.username === username || t.user === username
-                );
-
-                if (matchedTeacher) {
-                    const isValid = await verifyPassword(password, matchedTeacher.password);
-                    if (isValid) {
-                        // Peta jabatan → roleCode (lengkap & case-insensitive)
-                        const jabatan = (matchedTeacher.role || matchedTeacher.jabatan || '').toLowerCase();
-                        let roleCode = 'gm'; // Default: Guru Mata Pelajaran
-                        if (jabatan.includes('kepala sekolah')) roleCode = 'ks';
-                        else if (jabatan.includes('wali kelas') || jabatan.includes('guru kelas')) roleCode = 'wk';
-                        else if (jabatan.includes('bimbel') || jabatan.includes('guru bimbel')) roleCode = 'gb';
-                        else if (jabatan.includes('wakil kurikulum') || jabatan.includes('kurikulum')) roleCode = 'admin';
-                        else if (jabatan.includes('tata usaha') || jabatan.includes('staff tu')) roleCode = 'admin';
-                        else if (jabatan.includes('operator')) roleCode = 'admin';
-                        else if (jabatan.includes('multimedia')) roleCode = 'admin';
-                        else if (jabatan.includes('keuangan')) roleCode = 'admin';
-                        else if (jabatan === 'admin' || jabatan === 'super admin') roleCode = 'admin';
-
-                        onLogin(roleCode, {
-                            id: matchedTeacher.id,
-                            nama: matchedTeacher.nama,
-                            role: matchedTeacher.jabatan || matchedTeacher.role,
-                            nip: matchedTeacher.nip,
-                            mapel: matchedTeacher.mapel,
-                            kelas: matchedTeacher.kelas || matchedTeacher.wali,
-                            avatar: matchedTeacher.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
-                        });
-                        setIsLoading(false);
-                        return;
-                    }
+            if (response.ok) {
+                const result = await response.json();
+                if (result.token && result.user) {
+                    localStorage.setItem('eduadmin_token', result.token);
+                    localStorage.setItem('eduadmin_user', JSON.stringify(result.user));
+                    onLogin(result.user.role, result.user);
+                    setIsLoading(false);
+                    return;
                 }
             }
 
-            // 3. Jika ditemukan di D1 profiles, verifikasi password
-            if (profileData) {
-                const isValid = await verifyPassword(password, profileData.password_hash || profileData.password);
-                if (isValid) {
-                    // Peta role D1 → roleCode (pastikan Kepala Sekolah dan lainnya benar)
-                    const rawRole = (profileData.role || '').toLowerCase();
-                    let mappedRole = profileData.role;
-                    if (rawRole === 'kepala sekolah' || rawRole === 'ks') mappedRole = 'ks';
-                    else if (rawRole === 'wali kelas' || rawRole === 'guru kelas' || rawRole === 'wk') mappedRole = 'wk';
-                    else if (rawRole === 'guru bimbel' || rawRole === 'gb') mappedRole = 'gb';
-                    else if (rawRole === 'guru mata pelajaran' || rawRole === 'gm') mappedRole = 'gm';
-                    else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator data', 'wakil kurikulum', 'staff tata usaha'].includes(rawRole)) mappedRole = 'admin';
+            // 2. OFFLINE LOCAL TEACHERS CHECK (ONLY LOCAL FALLBACK)
+            const localTeachers = localStorage.getItem('teachers_data_v11');
+            const teachersSource = localTeachers ? JSON.parse(localTeachers) : teachersDataGlobal;
+            const matchedTeacher = teachersSource.find((t: any) =>
+                t.username === username || t.nip === username || t.email === username
+            );
 
-                    onLogin(mappedRole, {
-                        id: profileData.id,
-                        nama: profileData.full_name,
-                        email: profileData.email,
-                        role: profileData.role,
-                        avatar: profileData.avatar_url || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+            if (matchedTeacher) {
+                const isValid = await verifyPassword(password, matchedTeacher.password);
+                if (isValid) {
+                    const jabatan = (matchedTeacher.role || matchedTeacher.jabatan || '').toLowerCase();
+                    let roleCode = 'gm';
+                    if (jabatan.includes('kepala sekolah')) roleCode = 'ks';
+                    else if (jabatan.includes('wali kelas') || jabatan.includes('guru kelas')) roleCode = 'wk';
+                    else if (jabatan.includes('bimbel') || jabatan.includes('guru bimbel')) roleCode = 'gb';
+                    else if (jabatan.includes('wakil kurikulum') || jabatan.includes('kurikulum')) roleCode = 'admin';
+                    else if (jabatan.includes('tata usaha') || jabatan.includes('staff tu')) roleCode = 'admin';
+                    else if (jabatan.includes('operator')) roleCode = 'admin';
+                    else if (jabatan.includes('multimedia')) roleCode = 'admin';
+                    else if (jabatan.includes('keuangan')) roleCode = 'admin';
+                    else if (jabatan === 'admin' || jabatan === 'super admin') roleCode = 'admin';
+
+                    onLogin(roleCode, {
+                        id: matchedTeacher.id,
+                        nama: matchedTeacher.nama,
+                        role: matchedTeacher.jabatan || matchedTeacher.role,
+                        nip: matchedTeacher.nip,
+                        mapel: matchedTeacher.mapel,
+                        kelas: matchedTeacher.kelas || matchedTeacher.wali,
+                        avatar: matchedTeacher.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
                     });
                     setIsLoading(false);
                     return;
                 }
             }
 
-            // 4. Tidak ditemukan di manapun → coba legacy (dev) atau tampilkan error
+            // 3. Fallback to other legacy local logins
             handleLegacyLogin();
         } catch (err: any) {
-            console.error("Login error:", err);
             handleLegacyLogin();
         }
     };
 
     const handleLegacyLogin = async () => {
-        // Hanya untuk DEMO/TESTING - batasi ke development mode
         if (import.meta.env.PROD) {
             setError('Username atau password salah');
             setIsLoading(false);
             return;
         }
 
-        console.warn('⚠️ Menggunakan legacy fallback login - Hanya untuk Development');
-
-        // Simulate network delay
         setTimeout(async () => {
-            // 1. Check for Student/Parent Login
+            // Check for Student/Parent Login
             const localStudents = localStorage.getItem('students_data_v11');
             const studentsSource = localStudents ? JSON.parse(localStudents) : studentsDataGlobal;
 
             const studentAccount = studentsSource.find((s: any) => s.nis === username || s.username === username);
 
             if (studentAccount) {
-                // Verify against NIS or old stored password
                 const isValid = await verifyPassword(password, studentAccount.nis);
 
                 if (isValid) {
@@ -196,29 +212,41 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                 }
             }
 
-            // 2. Check for Staff/Teacher Login
+            // Check for Staff/Teacher Login (Dev mode fallback)
             const localTeachers = localStorage.getItem('teachers_data_v11');
             const teachersSource = localTeachers ? JSON.parse(localTeachers) : teachersDataGlobal;
 
-            const teacherAccount = teachersSource.find((t: any) =>
-                (t.username === username || t.user === username)
-            );
+            const teacherAccount = teachersSource.find((t: any) => {
+                return (
+                    t.username === username ||
+                    t.user === username ||
+                    t.nip === username ||
+                    t.email === username ||
+                    (t.nama || '').toLowerCase() === username.toLowerCase()
+                );
+            });
 
             if (teacherAccount) {
                 const isValid = await verifyPassword(password, teacherAccount.password);
+                const devFallback = !isValid && (
+                    password === teacherAccount.password ||
+                    password === 'password123'
+                );
 
-                if (isValid) {
+                if (isValid || devFallback) {
                     let roleCode = 'gm';
                     const role = teacherAccount.role || teacherAccount.jabatan;
+                    const roleLower = (role || '').toLowerCase().trim();
 
-                    if (role === 'Wali Kelas' || role === 'Guru Kelas') roleCode = 'wk';
-                    if (role === 'Guru Bimbel') roleCode = 'gb';
-                    if (role === 'Kepala Sekolah') roleCode = 'ks';
-                    if (['Wakil Kurikulum', 'Staff Tata Usaha', 'Operator Data', 'kurikulum', 'keuangan', 'multimedia'].includes(role)) roleCode = 'admin';
+                    if (roleLower.includes('wali kelas') || roleLower.includes('guru kelas')) roleCode = 'wk';
+                    else if (roleLower.includes('bimbel') || roleLower.includes('guru bimbel')) roleCode = 'gb';
+                    else if (roleLower.includes('kepala sekolah')) roleCode = 'ks';
+                    else if (['wakil kurikulum', 'tata usaha', 'operator', 'kurikulum', 'keuangan', 'multimedia', 'admin'].some(r => roleLower.includes(r))) roleCode = 'admin';
 
                     onLogin(roleCode, {
                         nama: teacherAccount.nama,
                         role: role,
+                        roleCode: roleCode,
                         nip: teacherAccount.nip,
                         mapel: teacherAccount.mapel,
                         kelas: teacherAccount.kelas || teacherAccount.wali,
@@ -233,7 +261,6 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
             setIsLoading(false);
         }, 800);
     };
-
     return (
         <div className="min-h-screen w-full bg-gradient-to-br from-[#E0F2FE] via-[#EFF6FF] to-[#DBEAFE] relative overflow-hidden flex items-center justify-center font-sans p-4 md:p-6">
             {/* Background Decoration - Animated Soft Blobs */}

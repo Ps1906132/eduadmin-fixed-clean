@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { classesDataGlobal } from '../../../data/sharedData';
-import { db, isConfigured as isDbConfigured } from '../../../src/lib/db';
 
 export interface Class {
     id: string | number;
@@ -10,34 +9,31 @@ export interface Class {
 }
 
 export const useClasses = () => {
-    const [classes, setClasses] = useState<Class[]>(() => {
-        const saved = localStorage.getItem('classes_data_v11');
-        return saved ? JSON.parse(saved) : classesDataGlobal;
-    });
+    const [classes, setClasses] = useState<Class[]>([]);
     const [loading, setLoading] = useState(false);
+    const [showAddClassModal, setShowAddClassModal] = useState(false);
 
     // Fetch from D1
     const fetchClasses = useCallback(async () => {
-        if (!isDbConfigured()) return;
-
         setLoading(true);
         try {
-            db.from('classes')
-                .select('*')
-                .then(({ data, error }: any) => {
-                    if (error) throw error;
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
 
-                    if (data) {
-                        const mappedData: Class[] = (data as { id: number; name: string; grade_level: number }[]).map(c => ({
-                            id: c.id,
-                            nama: c.name,
-                            tingkat: c.grade_level,
-                            paralel: c.name.replace(/[0-9]/g, '') || 'A'
-                        }));
-                        setClasses(mappedData);
-                        localStorage.setItem('classes_data_v11', JSON.stringify(mappedData));
-                    }
-                });
+            const res = await fetch('/api/classes', { headers });
+            if (!res.ok) throw new Error('Gagal mengambil data kelas');
+
+            const data = await res.json();
+            if (data && Array.isArray(data)) {
+                const mappedData: Class[] = (data as any[]).map(c => ({
+                    id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) : Date.now(),
+                    nama: c.name,
+                    tingkat: c.grade_level,
+                    paralel: c.name.replace(/[0-9]/g, '') || 'A'
+                }));
+                setClasses(mappedData);
+                localStorage.setItem('classes_data_v11', JSON.stringify(mappedData));
+            }
         } catch (err) {
             console.error('Error fetching classes:', err);
         } finally {
@@ -49,53 +45,46 @@ export const useClasses = () => {
         fetchClasses();
     }, [fetchClasses]);
 
-    // Save fallback to LocalStorage
-    useEffect(() => {
-        if (!loading) {
-            localStorage.setItem('classes_data_v11', JSON.stringify(classes));
-        }
-    }, [classes, loading]);
-
-    const [showAddClassModal, setShowAddClassModal] = useState(false);
-
     const handleAddClass = async (tingkat: string, paralel: string, customName?: string) => {
         const nama = customName || `${tingkat}${paralel}`;
         if (tingkat && paralel) {
+            const tempId = Date.now();
             const newClass = {
-                id: Date.now(),
+                id: tempId,
                 nama,
                 tingkat: parseInt(tingkat),
                 paralel
             };
 
-            // BUG FIX: Update state lokal DULU (offline-first)
-            // Sebelumnya: isDbConfigured() selalu true → coba D1 → gagal dalam .then()
-            // → throw tidak tertangkap → setClasses tidak pernah dipanggil → kelas tidak muncul
+            // Optimistic UI update
             setClasses(prev => [...prev, newClass]);
             setShowAddClassModal(false);
 
-            // Sync ke D1 di background
-            if (isDbConfigured()) {
-                try {
-                    const { data, error } = await (db.from('classes').insert([{
+            // Sync to D1 in background
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                const res = await fetch('/api/classes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
                         name: nama,
                         grade_level: parseInt(tingkat),
-                        is_active: true
-                    }]).select() as any);
+                        is_active: 1
+                    })
+                });
 
-                    if (error) {
-                        console.warn('D1 sync gagal (offline mode), kelas disimpan lokal:', error);
-                        return true;
-                    }
-                    // Jika D1 beri ID baru, update state
-                    if (data?.[0]?.id && data[0].id !== newClass.id) {
-                        setClasses(prev => prev.map(c =>
-                            c.id === newClass.id ? { ...c, id: data[0].id } : c
-                        ));
-                    }
-                } catch (err) {
-                    console.warn('D1 tidak tersedia, kelas disimpan lokal saja:', err);
+                if (!res.ok) {
+                    console.warn('D1 sync gagal (offline mode), kelas disimpan lokal:', await res.text());
+                    return true;
                 }
+                
+                // Fetch to get database assigned IDs
+                fetchClasses();
+            } catch (err) {
+                console.warn('D1 tidak tersedia, kelas disimpan lokal saja:', err);
             }
 
             return true;
@@ -106,17 +95,21 @@ export const useClasses = () => {
     const handleDeleteClass = async (id: string | number) => {
         if (!confirm("Hapus kelas ini?")) return;
 
-        // BUG FIX: Hapus dari state lokal dulu (offline-first)
+        // Optimistic UI update
         setClasses(prev => prev.filter(c => c.id !== id));
 
-        // Sync ke D1 di background
-        if (isDbConfigured()) {
-            try {
-                const { error } = await (db.from('classes').delete().eq('id', id) as any);
-                if (error) console.warn('D1 delete sync gagal:', error);
-            } catch (err) {
-                console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
+        // Sync to D1
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const res = await fetch(`/api/classes?id=eq.${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                console.warn('D1 delete sync gagal:', await res.text());
             }
+        } catch (err) {
+            console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
         }
     };
 

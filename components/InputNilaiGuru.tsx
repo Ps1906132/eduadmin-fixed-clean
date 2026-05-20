@@ -37,7 +37,7 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
         if (saved) {
             setGradesData(JSON.parse(saved));
         } else {
-            const studentsRaw = localStorage.getItem('students_data_v2');
+            const studentsRaw = localStorage.getItem('students_data_v11');
             const allStudents = studentsRaw ? JSON.parse(studentsRaw) : [];
             const classStudents = allStudents.filter((s: any) => s.kelas === selectedClass);
 
@@ -125,11 +125,11 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
                                 onChange={(e) => setSelectedClass(e.target.value)}
                                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer appearance-none"
                             >
-                                {localStorage.getItem('classes_data_v2')
-                                    ? JSON.parse(localStorage.getItem('classes_data_v2')!).map((c: any) => (
+                                {localStorage.getItem('classes_data_v11')
+                                    ? JSON.parse(localStorage.getItem('classes_data_v11')!).map((c: any) => (
                                         <option key={c.id} value={c.nama}>{c.nama}</option>
                                     ))
-                                    : <option>1A</option>}
+                                    : <option value="">Tidak ada kelas</option>}
                             </select>
                         )}
                     </div>
@@ -140,8 +140,8 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
                             onChange={(e) => setSelectedMapel(e.target.value)}
                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer appearance-none"
                         >
-                            {localStorage.getItem('subjects_data_v2')
-                                ? JSON.parse(localStorage.getItem('subjects_data_v2')!).map((s: any) => (
+                            {localStorage.getItem('subjects_data_v10')
+                                ? JSON.parse(localStorage.getItem('subjects_data_v10')!).map((s: any) => (
                                     <option key={s.id} value={s.name}>{s.name}</option>
                                 ))
                                 : ["Matematika", "B. Indonesia", "IPA", "IPS"].map(s => <option key={s} value={s}>{s}</option>)}

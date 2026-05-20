@@ -51,7 +51,25 @@ const App: React.FC = () => {
 
   // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState('');
+  // --- UTILS ---
+  const mapRoleToCode = (role: string) => {
+    const r = (role || '').toLowerCase();
+    if (r.includes('kepala sekolah')) return 'ks';
+    if (r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
+    if (r.includes('bimbel')) return 'gb';
+    if (['kurikulum', 'keuangan', 'multimedia', 'admin', 'tata usaha'].some(x => r.includes(x))) return 'admin';
+    return 'gm';
+  };
+
+  const [userRole, setUserRole] = useState(() => {
+    const saved = localStorage.getItem('eduadmin_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.roleCode) return parsed.roleCode;
+      if (parsed.role) return mapRoleToCode(parsed.role);
+    }
+    return '';
+  });
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   // --- PERSISTENT SESSION CHECK ---
@@ -60,13 +78,62 @@ const App: React.FC = () => {
       const { data: { user } } = await auth.getUser();
 
       if (user) {
-        setUserRole(user.roleCode || user.role);
+        setUserRole(user.roleCode || mapRoleToCode(user.role) || '');
         setCurrentUser(user);
         setIsLoggedIn(true);
       }
     };
 
     checkSession();
+  }, []);
+
+  // --- HAPUS DATA DEMO BUATAN AI (SEKALI JALAN) ---
+  useEffect(() => {
+    const CLEANUP_VERSION = 'cleanup_v4'; // naikkan versi ini jika perlu jalankan ulang
+    if (localStorage.getItem(CLEANUP_VERSION)) return; // sudah pernah dibersihkan
+
+    // Demo NIS siswa buatan AI
+    const AI_STUDENT_NIS = ['202401001','202401002','202401003','202402001','202402002','202403001','202403002','202403003','202403004','202403005'];
+    // Demo username guru buatan AI
+    const AI_TEACHER_USERNAMES = ['adminmultimedia', 'budikurikulum', 'tatausaha', 'kepsek', 'admin'];
+    // Demo nama kelas buatan AI
+    const AI_CLASS_NAMES = ['1A','1B','2','2A','2B','3A','3B','4A','5A','6B'];
+
+    // Bersihkan siswa demo
+    const rawStudents = localStorage.getItem('students_data_v11');
+    if (rawStudents) {
+      const students = JSON.parse(rawStudents);
+      const cleaned = students.filter((s: any) => !AI_STUDENT_NIS.includes(s.nis));
+      if (cleaned.length !== students.length) {
+        localStorage.setItem('students_data_v11', JSON.stringify(cleaned));
+        console.info(`[Cleanup] Dihapus ${students.length - cleaned.length} siswa demo dari localStorage.`);
+      }
+    }
+
+    // Bersihkan guru demo
+    const rawTeachers = localStorage.getItem('teachers_data_v11');
+    if (rawTeachers) {
+      const teachers = JSON.parse(rawTeachers);
+      const cleaned = teachers.filter((t: any) => !AI_TEACHER_USERNAMES.includes(t.username));
+      if (cleaned.length !== teachers.length) {
+        localStorage.setItem('teachers_data_v11', JSON.stringify(cleaned));
+        console.info(`[Cleanup] Dihapus ${teachers.length - cleaned.length} guru demo dari localStorage.`);
+      }
+    }
+
+    // Bersihkan kelas demo
+    const rawClasses = localStorage.getItem('classes_data_v11');
+    if (rawClasses) {
+      const classes = JSON.parse(rawClasses);
+      const cleaned = classes.filter((c: any) => !AI_CLASS_NAMES.includes(c.nama));
+      if (cleaned.length !== classes.length) {
+        localStorage.setItem('classes_data_v11', JSON.stringify(cleaned));
+        console.info(`[Cleanup] Dihapus ${classes.length - cleaned.length} kelas demo dari localStorage.`);
+      }
+    }
+
+    localStorage.setItem(CLEANUP_VERSION, 'done');
+    console.info('[Cleanup] Pembersihan data demo AI selesai.');
   }, []);
 
   // --- INTEGRATED DATA HOOKS ---

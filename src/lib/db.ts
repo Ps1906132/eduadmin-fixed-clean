@@ -43,7 +43,12 @@ export const db = {
     const execute = async () => {
       try {
         const url = buildUrl(table, selectColumns, filters, orderCol ? { column: orderCol, ascending: orderAsc } : undefined, limitVal);
-        const response = await fetch(url);
+        const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await fetch(url, { headers });
         
         const contentType = response.headers.get('content-type');
         if (!response.ok) {
@@ -124,9 +129,14 @@ export const db = {
        */
       insert: (values: any | any[]) => {
         const payload = Array.isArray(values) ? values : [values];
+        const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
         const promise = fetch(`${API_BASE}/${table}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify(payload)
         }).then(async res => {
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -143,30 +153,45 @@ export const db = {
        * Update data in a table
        */
       update: (values: any) => ({
-        eq: (column: string, value: any) => wrap(
-          fetch(`${API_BASE}/${table}?${column}=eq.${value}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(values)
-          }).then(async res => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return { data: await res.json(), error: null };
-          }).catch(error => ({ data: null, error }))
-        )
+        eq: (column: string, value: any) => {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          return wrap(
+            fetch(`${API_BASE}/${table}?${column}=eq.${value}`, {
+              method: 'PATCH',
+              headers,
+              body: JSON.stringify(values)
+            }).then(async res => {
+              if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+              return { data: await res.json(), error: null };
+            }).catch(error => ({ data: null, error }))
+          );
+        }
       }),
 
       /**
        * Delete from a table
        */
       delete: () => ({
-        eq: (column: string, value: any) => wrap(
-          fetch(`${API_BASE}/${table}?${column}=eq.${value}`, {
-            method: 'DELETE'
-          }).then(async res => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return { data: await res.json(), error: null };
-          }).catch(error => ({ data: null, error }))
-        )
+        eq: (column: string, value: any) => {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+          const headers: Record<string, string> = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          return wrap(
+            fetch(`${API_BASE}/${table}?${column}=eq.${value}`, {
+              method: 'DELETE',
+              headers
+            }).then(async res => {
+              if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+              return { data: await res.json(), error: null };
+            }).catch(error => ({ data: null, error }))
+          );
+        }
       })
     };
   }
@@ -183,6 +208,7 @@ export const auth = {
   },
   signOut: async () => {
     localStorage.removeItem('eduadmin_user');
+    localStorage.removeItem('eduadmin_token');
     return { error: null };
   }
 };

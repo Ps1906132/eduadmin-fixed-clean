@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { teachersDataGlobal } from '../../../data/sharedData';
-import { db, isConfigured as isDbConfigured } from '../../../src/lib/db';
+import { hashPassword } from '../../../utils/auth';
 
 export interface Teacher {
     id: string | number;
@@ -12,39 +12,50 @@ export interface Teacher {
     username: string;
     password: string;
     avatar?: string;
+    role?: string;
 }
 
 export const useTeachers = () => {
-    const [teachers, setTeachers] = useState<Teacher[]>(() => {
-        const saved = localStorage.getItem('teachers_data_v11');
-        return saved ? JSON.parse(saved) : teachersDataGlobal;
-    });
+    const [teachers, _setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchTeachers = useCallback(async () => {
-        if (!isDbConfigured()) return;
-
         setLoading(true);
         try {
-            // Simple fetch from staff table
-            db.from('staff').select('*').then(({ data, error }: any) => {
-                if (error) throw error;
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
 
-                if (data) {
-                    const mappedData: Teacher[] = data.map((s: any) => ({
-                        id: s.id,
-                        nip: s.employee_number,
-                        nama: 'Staff User', // Profiles join not handled in simple bridge yet
-                        jabatan: s.position,
-                        mapel: '-',
-                        wali: '-',
-                        username: s.employee_number,
-                        password: '-'
-                    }));
-                    setTeachers(mappedData);
-                    localStorage.setItem('teachers_data_v11', JSON.stringify(mappedData));
-                }
-            });
+            const profRes = await fetch('/api/profiles', { headers });
+            if (!profRes.ok) throw new Error('Gagal mengambil data profil');
+            const profiles = await profRes.json();
+
+            const staffRes = await fetch('/api/staff', { headers });
+            if (!staffRes.ok) throw new Error('Gagal mengambil data staff');
+            const staff = await staffRes.json();
+
+            if (profiles && staff) {
+                const staffMap = new Map((staff as any[]).map((s: any) => [s.profile_id?.toString(), s]));
+                
+                const mappedData: Teacher[] = (profiles as any[])
+                    .filter((p: any) => ['ks', 'wk', 'gb', 'gm', 'admin'].includes(p.role))
+                    .map((p: any) => {
+                        const s = staffMap.get(p.id?.toString()) || {};
+                        return {
+                            id: p.id ? (isNaN(Number(p.id)) ? p.id : Number(p.id)) : Date.now(),
+                            nama: p.full_name,
+                            nip: s.employee_number || p.email?.split('@')[0] || `NIP-${p.id}`,
+                            jabatan: s.position || (p.role === 'ks' ? 'Kepala Sekolah' : 'Guru'),
+                            mapel: s.department || '-',
+                            wali: '-', // Wali is resolved via class assignments in DB
+                            username: p.email ? p.email.split('@')[0] : p.full_name.toLowerCase().replace(/\s+/g, ''),
+                            password: p.password_hash || 'password123',
+                            role: p.role
+                        };
+                    });
+
+                _setTeachers(mappedData);
+                localStorage.setItem('teachers_data_v11', JSON.stringify(mappedData));
+            }
         } catch (err) {
             console.error('Error fetching teachers from D1:', err);
         } finally {
@@ -56,15 +67,133 @@ export const useTeachers = () => {
         fetchTeachers();
     }, [fetchTeachers]);
 
-    useEffect(() => {
-        if (!loading) {
-            localStorage.setItem('teachers_data_v11', JSON.stringify(teachers));
+    // Handle updates and sync to Cloudflare D1
+    const syncChanges = async (prev: Teacher[], nextList: Teacher[]) => {
+        localStorage.setItem('teachers_data_v11', JSON.stringify(nextList));
+
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        try {
+            const currentIds = new Set(prev.map(t => t.id.toString()));
+            const nextIds = new Set(nextList.map(t => t.id.toString()));
+
+            // 1. Handle Deleted:
+            const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
+            for (const id of deletedIds) {
+                await fetch(`/api/staff?profile_id=eq.${id}`, { method: 'DELETE', headers });
+                await fetch(`/api/profiles?id=eq.${id}`, { method: 'DELETE', headers });
+            }
+
+            // 2. Handle Inserted:
+            const inserted = nextList.filter(t => !currentIds.has(t.id.toString()));
+            for (const teacher of inserted) {
+                const profileId = teacher.id.toString();
+                const email = teacher.username + '@eduadmin.com';
+                const rawRole = (teacher.role || teacher.jabatan || 'gm').toLowerCase();
+                let role = 'gm';
+                if (rawRole.includes('kepala sekolah')) role = 'ks';
+                else if (rawRole.includes('wali kelas') || rawRole.includes('guru kelas')) role = 'wk';
+                else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel')) role = 'gb';
+                else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator'].some(r => rawRole.includes(r))) role = 'admin';
+
+                const passwordPlain = teacher.password || 'password123';
+                const passwordHash = /^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$/.test(passwordPlain)
+                    ? passwordPlain
+                    : await hashPassword(passwordPlain);
+
+                await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: profileId,
+                        email,
+                        full_name: teacher.nama,
+                        role,
+                        password_hash: passwordHash,
+                        is_active: 1
+                    })
+                });
+
+                await fetch('/api/staff', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: profileId,
+                        profile_id: profileId,
+                        employee_number: teacher.nip,
+                        position: teacher.jabatan,
+                        department: teacher.mapel || 'Umum',
+                        is_active: 1
+                    })
+                });
+            }
+
+            // 3. Handle Updated:
+            const prevMap = new Map(prev.map(t => [t.id.toString(), t]));
+            for (const teacher of nextList) {
+                const idStr = teacher.id.toString();
+                const current = prevMap.get(idStr);
+                if (current) {
+                    const hasChanged =
+                        current.nama !== teacher.nama ||
+                        current.nip !== teacher.nip ||
+                        current.jabatan !== teacher.jabatan ||
+                        current.mapel !== teacher.mapel ||
+                        current.username !== teacher.username ||
+                        current.role !== teacher.role ||
+                        current.password !== teacher.password ||
+                        current.wali !== teacher.wali;
+
+                    if (hasChanged) {
+                        const email = teacher.username + '@eduadmin.com';
+                        const rawRole = (teacher.role || teacher.jabatan || 'gm').toLowerCase();
+                        let role = 'gm';
+                        if (rawRole.includes('kepala sekolah')) role = 'ks';
+                        else if (rawRole.includes('wali kelas') || rawRole.includes('guru kelas')) role = 'wk';
+                        else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel')) role = 'gb';
+                        else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator'].some(r => rawRole.includes(r))) role = 'admin';
+
+                        await fetch(`/api/profiles?id=eq.${idStr}`, {
+                            method: 'PATCH',
+                            headers,
+                            body: JSON.stringify({
+                                full_name: teacher.nama,
+                                role
+                            })
+                        });
+
+                        await fetch(`/api/staff?profile_id=eq.${idStr}`, {
+                            method: 'PATCH',
+                            headers,
+                            body: JSON.stringify({
+                                employee_number: teacher.nip,
+                                position: teacher.jabatan,
+                                department: teacher.mapel
+                            })
+                        });
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Error syncing teacher changes to D1:', err);
         }
-    }, [teachers, loading]);
+    };
+
+    const setTeachers = useCallback((value: React.SetStateAction<Teacher[]>) => {
+        _setTeachers(prev => {
+            const nextList = typeof value === 'function' ? (value as Function)(prev) : value;
+            syncChanges(prev, nextList);
+            return nextList;
+        });
+    }, []);
 
     const addTeacher = async (newTeacher: Teacher) => {
         setTeachers(prev => [newTeacher, ...prev]);
-        // Supabase implementation would require creating a profile first, then staff record
     };
 
     return {

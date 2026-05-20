@@ -19,8 +19,22 @@ interface RaporViewProps {
 }
 
 const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
+    // --- LOCAL DATABASE STATES ---
+    const [classes] = useState<any[]>(() => {
+        const saved = localStorage.getItem('classes_data_v11');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [students] = useState<any[]>(() => {
+        const saved = localStorage.getItem('students_data_v11');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [teachers] = useState<any[]>(() => {
+        const saved = localStorage.getItem('teachers_data_v11');
+        return saved ? JSON.parse(saved) : [];
+    });
+
     // State
-    const [selectedClass, setSelectedClass] = useState(classesDataGlobal.length > 0 ? classesDataGlobal[0].nama : '');
+    const [selectedClass, setSelectedClass] = useState(classes.length > 0 ? classes[0].nama : '');
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
     const [selectedStudentId, setSelectedStudentId] = useState<number | string>('');
     const [raporType, setRaporType] = useState<'resmi' | 'yayasan'>('resmi');
@@ -45,10 +59,10 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
 
     // --- REAL DATA INTEGRATION ---
     const getRealReportData = () => {
-        const student = studentsDataGlobal.find(s => s.id === selectedStudentId);
+        const student = students.find(s => s.id === selectedStudentId);
         if (!student) return null;
 
-        const subjectListRaw = localStorage.getItem('subjects_data_v2');
+        const subjectListRaw = localStorage.getItem('subjects_data_v10');
         const subjectsData = subjectListRaw ? JSON.parse(subjectListRaw) : [];
 
         const subjectsWithGrades = subjectsData.map((sub: any) => {
@@ -235,7 +249,7 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
                                     onChange={(e) => setSelectedClass(e.target.value)}
                                     className="bg-transparent font-bold text-slate-700 outline-none text-sm cursor-pointer"
                                 >
-                                    {classesDataGlobal.map(c => (
+                                    {classes.map(c => (
                                         <option key={c.id} value={c.nama} className="text-slate-800">{c.nama}</option>
                                     ))}
                                 </select>
@@ -248,7 +262,7 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
                                     className="bg-transparent font-bold text-emerald-600 outline-none text-sm min-w-[150px] cursor-pointer"
                                 >
                                     <option value="" className="text-slate-800">-- Pilih Siswa --</option>
-                                    {studentsDataGlobal
+                                    {students
                                         .filter(s => s.kelas === selectedClass)
                                         .map(s => (
                                             <option key={s.id} value={s.id} className="text-slate-800">{s.nama}</option>
@@ -559,10 +573,10 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
                             <div className="w-[200px]">
                                 <p className="mb-20">Wali Kelas</p>
                                 <p className="font-bold underline uppercase">
-                                    {classesDataGlobal.find(c => c.nama === selectedClass)?.wali || "SITI AMINAH, S.Pd"}
+                                    {classes.find(c => c.nama === selectedClass)?.wali || "SITI AMINAH, S.Pd"}
                                 </p>
                                 <p>NIP/NKTAM. {
-                                    teachersDataGlobal.find(t => t.nama === (classesDataGlobal.find(c => c.nama === selectedClass)?.wali))?.nip || "-"
+                                    teachers.find(t => t.nama === (classes.find(c => c.nama === selectedClass)?.wali))?.nip || "-"
                                 }</p>
                             </div>
                         </div>

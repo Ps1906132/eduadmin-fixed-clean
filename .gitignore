@@ -33,3 +33,9 @@ build/
 
 # OS
 Thumbs.db
+
+# Wrangler cache
+.wrangler/
+
+# Temporary extraction files
+extracted_doc_text.txt

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { studentsDataGlobal, addStudent as addStudentToShared } from '../../../data/sharedData';
-import { db, isConfigured as isDbConfigured } from '../../../src/lib/db';
+import { addStudent as addStudentToShared } from '../../../data/sharedData';
 
 export interface Student {
     id: string | number;
@@ -22,43 +21,39 @@ export interface Student {
 }
 
 export const useStudents = () => {
-    const [students, setStudents] = useState<Student[]>(() => {
-        const saved = localStorage.getItem('students_data_v11');
-        return saved ? JSON.parse(saved) : studentsDataGlobal;
-    });
+    const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchStudents = useCallback(async () => {
-        if (!isDbConfigured()) return;
-
         setLoading(true);
         try {
-            // Simple fetch from students table
-            db.from('students').select('*').then(({ data, error }: any) => {
-                if (error) throw error;
-
-                if (data) {
-                    type SbStudent = { id: string; nis: string; full_name: string; birth_place?: string; birth_date?: string; parent_name?: string; gender: string; status: string; class_id?: string };
-                    const mappedData: Student[] = (data as SbStudent[]).map(s => ({
-                        id: s.id,
-                        nis: s.nis,
-                        nama: s.full_name,
-                        ttl: `${s.birth_place || '-'}, ${s.birth_date || '-'}`,
-                        kelas: '-', // Requires class join or separate fetch
-                        tingkat: 1,
-                        paralel: '',
-                        ayah: s.parent_name || '-',
-                        ibu: '-',
-                        jobAyah: '-',
-                        jobIbu: '-',
-                        username: s.nis,
-                        gender: s.gender,
-                        status: s.status
-                    }));
-                    setStudents(mappedData);
-                    localStorage.setItem('students_data_v11', JSON.stringify(mappedData));
-                }
+            const token = localStorage.getItem('eduadmin_token');
+            const res = await fetch('/api/students', {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (!res.ok) throw new Error('Gagal mengambil data siswa');
+            
+            const data = await res.json();
+            if (data && Array.isArray(data)) {
+                type SbStudent = { id: string; nis: string; full_name: string; birth_place?: string; birth_date?: string; parent_name?: string; gender: string; status: string; class_id?: string };
+                const mappedData: Student[] = (data as SbStudent[]).map(s => ({
+                    id: s.id,
+                    nis: s.nis,
+                    nama: s.full_name,
+                    ttl: `${s.birth_place || '-'}, ${s.birth_date || '-'}`,
+                    kelas: '-', // Requires class join or separate fetch
+                    tingkat: 1,
+                    paralel: '',
+                    ayah: s.parent_name || '-',
+                    ibu: '-',
+                    jobAyah: '-',
+                    jobIbu: '-',
+                    username: s.nis,
+                    gender: s.gender,
+                    status: s.status
+                }));
+                setStudents(mappedData);
+            }
         } catch (err) {
             console.error('Error fetching students:', err);
         } finally {
@@ -70,65 +65,55 @@ export const useStudents = () => {
         fetchStudents();
     }, [fetchStudents]);
 
-    useEffect(() => {
-        if (!loading) {
-            localStorage.setItem('students_data_v11', JSON.stringify(students));
-        }
-    }, [students, loading]);
+
 
     const addNewStudent = async (student: Student) => {
-        // BUG FIX: Offline-first — update state DULU, baru sync ke D1
-        // Sebelumnya: isDbConfigured() selalu true → coba D1 → gagal dalam .then()
-        // → throw tidak tertangkap → setStudents tidak pernah dipanggil
+        // Optimistic update — update UI dulu
         setStudents(prev => [...prev, student]);
         addStudentToShared(student);
 
-        // Sync ke D1 di background (jika tersedia)
-        if (isDbConfigured()) {
-            try {
-                const { data, error } = await (db.from('students').insert([{
+        // Sync ke D1 via API
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const res = await fetch('/api/students', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
                     id: student.id.toString(),
                     nis: student.nis,
                     full_name: student.nama,
                     parent_name: student.ayah,
-                    gender: student.gender as any,
+                    gender: student.gender || null,
                     status: 'active'
-                }]).select() as any);
-
-                if (error) {
-                    console.warn('D1 sync gagal (offline mode), data disimpan lokal:', error);
-                    return;
-                }
-                // Jika D1 beri ID baru, update state
-                if (data?.[0]?.id && data[0].id !== student.id) {
-                    setStudents(prev => prev.map(s =>
-                        s.id === student.id ? { ...s, id: data[0].id } : s
-                    ));
-                }
-            } catch (err) {
-                console.warn('D1 tidak tersedia, data disimpan lokal saja:', err);
-            }
+                })
+            });
+            if (!res.ok) console.warn('D1 sync tambah siswa gagal:', await res.text());
+        } catch (err) {
+            console.warn('Gagal sync ke D1:', err);
         }
     };
 
     const updateStudent = async (id: string | number, updates: Partial<Student>) => {
         const idStr = id.toString();
-        // BUG FIX: Update state lokal dulu
+        // Optimistic update — update UI dulu
         setStudents(prev => prev.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s));
 
-        if (isDbConfigured()) {
-            try {
-                const dbUpdates: any = {};
-                if (updates.nama) dbUpdates.full_name = updates.nama;
-                if (updates.nis) dbUpdates.nis = updates.nis;
-                if (updates.ayah) dbUpdates.parent_name = updates.ayah;
-                if (updates.gender) dbUpdates.gender = updates.gender;
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const dbUpdates: any = {};
+            if (updates.nama) dbUpdates.full_name = updates.nama;
+            if (updates.nis) dbUpdates.nis = updates.nis;
+            if (updates.ayah) dbUpdates.parent_name = updates.ayah;
+            if (updates.gender) dbUpdates.gender = updates.gender;
 
-                const { error } = await (db.from('students').update(dbUpdates).eq('id', idStr) as any);
-                if (error) console.warn('D1 update sync gagal:', error);
-            } catch (err) {
-                console.warn('D1 tidak tersedia, update disimpan lokal saja:', err);
-            }
+            const res = await fetch(`/api/students/${idStr}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(dbUpdates)
+            });
+            if (!res.ok) console.warn('D1 update siswa gagal:', await res.text());
+        } catch (err) {
+            console.warn('Gagal sync update ke D1:', err);
         }
     };
 
@@ -174,17 +159,18 @@ export const useStudents = () => {
         const name = student.nama;
         if (confirm(`Apakah Anda yakin ingin menghapus data ${name}?`)) {
             const targetIdStr = id.toString();
-            // BUG FIX: Hapus dari state lokal dulu (offline-first) dengan string comparison
+            // Optimistic update — hapus dari UI dulu
             setStudents(prev => prev.filter(s => s.id.toString() !== targetIdStr));
 
-            // Sync ke D1 di background
-            if (isDbConfigured()) {
-                try {
-                    const { error } = await (db.from('students').delete().eq('id', targetIdStr) as any);
-                    if (error) console.warn('D1 delete sync gagal:', error);
-                } catch (err) {
-                    console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
-                }
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                const res = await fetch(`/api/students/${targetIdStr}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) console.warn('D1 delete siswa gagal:', await res.text());
+            } catch (err) {
+                console.warn('Gagal sync hapus ke D1:', err);
             }
         }
     };
