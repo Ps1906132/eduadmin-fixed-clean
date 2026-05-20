@@ -233,13 +233,20 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
         const colRes = await env.DB.prepare("PRAGMA table_info(profiles)").all();
         profilesColumns = colRes.results.map((r: any) => r.name);
         
-        const adminRes = await env.DB.prepare("SELECT role, is_active, password_hash, password FROM profiles WHERE email = 'admin@eduadmin.com'").all();
+        const hasHashCol = profilesColumns.includes('password_hash');
+        const hasPassCol = profilesColumns.includes('password');
+        
+        const selectCols = ['role', 'is_active'];
+        if (hasHashCol) selectCols.push('password_hash');
+        if (hasPassCol) selectCols.push('password');
+        
+        const adminRes = await env.DB.prepare(`SELECT ${selectCols.join(', ')} FROM profiles WHERE email = 'admin@eduadmin.com'`).all();
         if (adminRes.results && adminRes.results.length > 0) {
           adminExists = true;
           const adminObj = adminRes.results[0] as any;
           adminRole = adminObj.role;
           adminActive = adminObj.is_active;
-          adminPasswordHashSet = !!(adminObj.password_hash || adminObj.password);
+          adminPasswordHashSet = !!((hasHashCol && adminObj.password_hash) || (hasPassCol && adminObj.password));
         }
       }
       
