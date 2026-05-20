@@ -213,6 +213,60 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
     return new Response('Not found', { status: 404 });
   }
 
+  // Handle Diagnostics
+  if (table === 'diagnostic') {
+    try {
+      const dbCheck = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+      const tables = dbCheck.results.map((r: any) => r.name);
+      
+      let profilesCount = 0;
+      let profilesColumns: string[] = [];
+      let adminExists = false;
+      let adminRole = null;
+      let adminActive = null;
+      let adminPasswordHashSet = false;
+      
+      if (tables.includes('profiles')) {
+        const countRes = await env.DB.prepare("SELECT COUNT(*) as count FROM profiles").first();
+        profilesCount = (countRes as any)?.count || 0;
+        
+        const colRes = await env.DB.prepare("PRAGMA table_info(profiles)").all();
+        profilesColumns = colRes.results.map((r: any) => r.name);
+        
+        const adminRes = await env.DB.prepare("SELECT role, is_active, password_hash, password FROM profiles WHERE email = 'admin@eduadmin.com'").all();
+        if (adminRes.results && adminRes.results.length > 0) {
+          adminExists = true;
+          const adminObj = adminRes.results[0] as any;
+          adminRole = adminObj.role;
+          adminActive = adminObj.is_active;
+          adminPasswordHashSet = !!(adminObj.password_hash || adminObj.password);
+        }
+      }
+      
+      return new Response(JSON.stringify({
+        status: 'success',
+        tables,
+        profiles: {
+          exists: tables.includes('profiles'),
+          count: profilesCount,
+          columns: profilesColumns,
+          adminExists,
+          adminRole,
+          adminActive,
+          adminPasswordHashSet
+        }
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ status: 'error', message: e.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+
   // 2. WHITELIST VALIDATION: Table name check
   if (!ALLOWED_TABLES.includes(table)) {
     return new Response(JSON.stringify({ error: `Table '${table}' is not whitelisted` }), {
