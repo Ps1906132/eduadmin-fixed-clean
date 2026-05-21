@@ -36,6 +36,24 @@ export const useClasses = () => {
             }
         } catch (err) {
             console.error('Error fetching classes:', err);
+            
+            // Fallback: Try to load from localStorage
+            try {
+                const cachedData = localStorage.getItem('classes_data_v11');
+                if (cachedData) {
+                    const parsedData = JSON.parse(cachedData);
+                    if (Array.isArray(parsedData)) {
+                        setClasses(parsedData);
+                        console.warn('Menggunakan data kelas dari cache lokal');
+                        return;
+                    }
+                }
+            } catch (cacheErr) {
+                console.error('Error loading from cache:', cacheErr);
+            }
+            
+            // If both API and cache fail, use empty array
+            setClasses([]);
         } finally {
             setLoading(false);
         }
@@ -57,7 +75,12 @@ export const useClasses = () => {
             };
 
             // Optimistic UI update
-            setClasses(prev => [...prev, newClass]);
+            const updatedClasses = [...classes, newClass];
+            setClasses(updatedClasses);
+            
+            // Update localStorage immediately
+            localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
+            
             setShowAddClassModal(false);
 
             // Sync to D1 in background
@@ -96,21 +119,40 @@ export const useClasses = () => {
     const handleDeleteClass = async (id: string | number) => {
         if (!confirm("Hapus kelas ini?")) return;
 
+        // Store original data for rollback in case of error
+        const originalClasses = classes;
+        
         // Optimistic UI update
-        setClasses(prev => prev.filter(c => c.id !== id));
+        const updatedClasses = classes.filter(c => c.id !== id);
+        setClasses(updatedClasses);
 
-        // Sync to D1
+        // Sync to D1 and localStorage
         try {
             const token = localStorage.getItem('eduadmin_token');
             const res = await fetch(`/api/classes?id=eq.${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            
             if (!res.ok) {
-                console.warn('D1 delete sync gagal:', await res.text());
+                const errorMsg = await res.text();
+                console.error('D1 delete sync gagal:', errorMsg);
+                // Rollback on API failure
+                setClasses(originalClasses);
+                alert('Gagal menghapus kelas. Silakan coba lagi.');
+                return;
             }
+            
+            // SUCCESS: Update localStorage dengan data terbaru
+            localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
+            
+            // Refetch from D1 to ensure consistency
+            fetchClasses();
         } catch (err) {
-            console.warn('D1 tidak tersedia, hapus disimpan lokal saja:', err);
+            console.error('D1 tidak tersedia, rollback data:', err);
+            // Restore original data if error occurs
+            setClasses(originalClasses);
+            alert('Gagal menghapus kelas. Periksa koneksi internet Anda.');
         }
     };
 
