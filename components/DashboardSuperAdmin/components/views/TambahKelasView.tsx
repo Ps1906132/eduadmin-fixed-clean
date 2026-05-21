@@ -23,6 +23,7 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
     handleEditClass
 }) => {
     const [visibleCount, setVisibleCount] = useState<number>(20);
+    const [deletingId, setDeletingId] = useState<string | number | null>(null);
 
     const derivedClasses = useMemo(() => {
         return classes.map(cls => {
@@ -47,11 +48,26 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
         return sortedClasses.slice(0, visibleCount);
     }, [sortedClasses, visibleCount]);
 
-    const handleDeleteClassLocal = (id: any) => {
-        if (handleDeleteClass) {
-            handleDeleteClass(id);
-        } else if (confirm("Hapus kelas ini?")) {
-            setClasses(classes.filter(c => c.id.toString() !== id.toString()));
+    const handleDeleteClassLocal = async (id: any) => {
+        // Prevent double-click
+        if (deletingId === id) return;
+        
+        setDeletingId(id);
+        try {
+            if (handleDeleteClass) {
+                // handleDeleteClass sudah include confirmation dialog
+                await handleDeleteClass(id);
+            } else {
+                // Fallback jika handleDeleteClass tidak ada
+                if (confirm("Hapus kelas ini?")) {
+                    const updatedClasses = classes.filter(c => c.id.toString() !== id.toString());
+                    setClasses(updatedClasses);
+                    // Update localStorage jika tidak ada handleDeleteClass
+                    localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
+                }
+            }
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -100,7 +116,8 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
                                                 )}
                                                 <button
                                                     onClick={() => handleDeleteClassLocal(cls.id)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    disabled={deletingId === cls.id}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     title="Hapus Kelas"
                                                 >
                                                     <Trash2 size={18} />

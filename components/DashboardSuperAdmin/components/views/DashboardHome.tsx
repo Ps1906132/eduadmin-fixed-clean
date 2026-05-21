@@ -17,11 +17,13 @@ import { studentsDataGlobal, teachersDataGlobal, classesDataGlobal } from '../..
 
 interface DashboardHomeProps {
     students: any[];
+    classes?: any[];
+    teachers?: any[];
     setActiveView: (view: string) => void;
     user?: any;
 }
 
-const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView, user }) => {
+const DashboardHome: React.FC<DashboardHomeProps> = ({ students, classes, teachers, setActiveView, user }) => {
     const role = user?.role || user?.role_type || user?.roleCode || '';
     const lowerRole = role.toLowerCase();
 
@@ -64,14 +66,20 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, setActiveView, 
     }
 
     const teachersCount = React.useMemo(() => {
+        if (teachers && Array.isArray(teachers)) {
+            return teachers.length;
+        }
         const saved = localStorage.getItem('teachers_data_v11');
         return saved ? JSON.parse(saved).length : 0;
-    }, []);
+    }, [teachers]);
 
     const classesCount = React.useMemo(() => {
+        if (classes && Array.isArray(classes)) {
+            return classes.length;
+        }
         const saved = localStorage.getItem('classes_data_v11');
         return saved ? JSON.parse(saved).length : 0;
-    }, []);
+    }, [classes]);
 
     return (
         <div className="animate-in fade-in space-y-4">

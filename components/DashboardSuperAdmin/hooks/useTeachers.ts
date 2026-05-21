@@ -69,6 +69,7 @@ export const useTeachers = () => {
 
     // Handle updates and sync to Cloudflare D1
     const syncChanges = async (prev: Teacher[], nextList: Teacher[]) => {
+        // ✅ PERSIST to localStorage immediately
         localStorage.setItem('teachers_data_v11', JSON.stringify(nextList));
 
         const token = localStorage.getItem('eduadmin_token');
@@ -85,8 +86,9 @@ export const useTeachers = () => {
             // 1. Handle Deleted:
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
-                await fetch(`/api/staff?profile_id=eq.${id}`, { method: 'DELETE', headers });
-                await fetch(`/api/profiles?id=eq.${id}`, { method: 'DELETE', headers });
+                const res1 = await fetch(`/api/staff?profile_id=eq.${id}`, { method: 'DELETE', headers });
+                const res2 = await fetch(`/api/profiles?id=eq.${id}`, { method: 'DELETE', headers });
+                if (!res1.ok || !res2.ok) throw new Error(`Failed to delete teacher ${id}`);
             }
 
             // 2. Handle Inserted:
@@ -106,7 +108,7 @@ export const useTeachers = () => {
                     ? passwordPlain
                     : await hashPassword(passwordPlain);
 
-                await fetch('/api/profiles', {
+                const res1 = await fetch('/api/profiles', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -118,8 +120,9 @@ export const useTeachers = () => {
                         is_active: 1
                     })
                 });
+                if (!res1.ok) throw new Error(`Failed to create profile for ${teacher.nama}`);
 
-                await fetch('/api/staff', {
+                const res2 = await fetch('/api/staff', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -131,6 +134,7 @@ export const useTeachers = () => {
                         is_active: 1
                     })
                 });
+                if (!res2.ok) throw new Error(`Failed to create staff record for ${teacher.nama}`);
             }
 
             // 3. Handle Updated:
@@ -158,7 +162,7 @@ export const useTeachers = () => {
                         else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel')) role = 'gb';
                         else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator'].some(r => rawRole.includes(r))) role = 'admin';
 
-                        await fetch(`/api/profiles?id=eq.${idStr}`, {
+                        const res1 = await fetch(`/api/profiles?id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
@@ -166,8 +170,9 @@ export const useTeachers = () => {
                                 role
                             })
                         });
+                        if (!res1.ok) throw new Error(`Failed to update profile for ${teacher.nama}`);
 
-                        await fetch(`/api/staff?profile_id=eq.${idStr}`, {
+                        const res2 = await fetch(`/api/staff?profile_id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
@@ -176,11 +181,16 @@ export const useTeachers = () => {
                                 department: teacher.mapel
                             })
                         });
+                        if (!res2.ok) throw new Error(`Failed to update staff record for ${teacher.nama}`);
                     }
                 }
             }
         } catch (err) {
+            // ✅ ROLLBACK: Restore previous state and localStorage on error
             console.error('Error syncing teacher changes to D1:', err);
+            _setTeachers(prev);  // ← Restore state
+            localStorage.setItem('teachers_data_v11', JSON.stringify(prev));  // ← Restore localStorage
+            alert(`Gagal menyimpan data guru: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 

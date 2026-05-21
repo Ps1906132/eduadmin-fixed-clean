@@ -60,14 +60,15 @@ export const useTutoring = () => {
             // 1. Handle Deleted
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
-                await fetch(`/api/tutoring_classes?id=eq.${id}`, { method: 'DELETE', headers });
+                const res = await fetch(`/api/tutoring_classes?id=eq.${id}`, { method: 'DELETE', headers });
+                if (!res.ok) throw new Error(`Failed to delete tutoring class ${id}`);
             }
 
             // 2. Handle Inserted
             const inserted = next.filter(c => !currentIds.has(c.id.toString()));
             for (const item of inserted) {
                 const computedSubject = item.title.includes('-') ? item.title.split('-')[0].trim() : 'Bimbel';
-                await fetch('/api/tutoring_classes', {
+                const res = await fetch('/api/tutoring_classes', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -83,6 +84,7 @@ export const useTutoring = () => {
                         is_active: 1
                     })
                 });
+                if (!res.ok) throw new Error(`Failed to create tutoring class ${item.title}`);
             }
 
             // 3. Handle Updated
@@ -102,7 +104,7 @@ export const useTutoring = () => {
 
                     if (hasChanged) {
                         const computedSubject = item.title.includes('-') ? item.title.split('-')[0].trim() : 'Bimbel';
-                        await fetch(`/api/tutoring_classes?id=eq.${idStr}`, {
+                        const res = await fetch(`/api/tutoring_classes?id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
@@ -116,11 +118,16 @@ export const useTutoring = () => {
                                 sessions: JSON.stringify(item.sessions || [])
                             })
                         });
+                        if (!res.ok) throw new Error(`Failed to update tutoring class ${item.title}`);
                     }
                 }
             }
         } catch (err) {
+            // ✅ ROLLBACK on error
             console.error('Failed to sync tutoring classes with D1:', err);
+            _setTutoringClasses(prev);
+            localStorage.setItem('tutoring_classes_v10', JSON.stringify(prev));
+            alert(`Gagal menyimpan kelas bimbel: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     }, []);
 

@@ -106,13 +106,14 @@ export const useSubjects = () => {
             // 1. Handle Deleted
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
-                await fetch(`/api/subject_groups?id=eq.${id}`, { method: 'DELETE', headers });
+                const res = await fetch(`/api/subject_groups?id=eq.${id}`, { method: 'DELETE', headers });
+                if (!res.ok) throw new Error(`Failed to delete subject group ${id}`);
             }
 
             // 2. Handle Inserted
             const inserted = next.filter(g => !currentIds.has(g.id.toString()));
             for (const item of inserted) {
-                await fetch('/api/subject_groups', {
+                const res = await fetch('/api/subject_groups', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -121,6 +122,7 @@ export const useSubjects = () => {
                         description: 'Group'
                     })
                 });
+                if (!res.ok) throw new Error(`Failed to create subject group ${item.name}`);
             }
 
             // 3. Handle Updated
@@ -129,17 +131,22 @@ export const useSubjects = () => {
                 const idStr = item.id.toString();
                 const current = prevMap.get(idStr);
                 if (current && current.name !== item.name) {
-                    await fetch(`/api/subject_groups?id=eq.${idStr}`, {
+                    const res = await fetch(`/api/subject_groups?id=eq.${idStr}`, {
                         method: 'PATCH',
                         headers,
                         body: JSON.stringify({
                             name: item.name
                         })
                     });
+                    if (!res.ok) throw new Error(`Failed to update subject group ${item.name}`);
                 }
             }
         } catch (err) {
+            // ✅ ROLLBACK on error
             console.error('Failed to sync subject groups with D1:', err);
+            _setSubjectGroups(prev);
+            localStorage.setItem('subject_groups_v10', JSON.stringify(prev));
+            alert(`Gagal menyimpan kelompok mata pelajaran: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 
@@ -159,13 +166,14 @@ export const useSubjects = () => {
             // 1. Handle Deleted
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
-                await fetch(`/api/subjects?id=eq.${id}`, { method: 'DELETE', headers });
+                const res = await fetch(`/api/subjects?id=eq.${id}`, { method: 'DELETE', headers });
+                if (!res.ok) throw new Error(`Failed to delete subject ${id}`);
             }
 
             // 2. Handle Inserted
             const inserted = next.filter(s => !currentIds.has(s.id.toString()));
             for (const item of inserted) {
-                await fetch('/api/subjects', {
+                const res = await fetch('/api/subjects', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -177,6 +185,7 @@ export const useSubjects = () => {
                         is_active: 1
                     })
                 });
+                if (!res.ok) throw new Error(`Failed to create subject ${item.name}`);
             }
 
             // 3. Handle Updated
@@ -192,7 +201,7 @@ export const useSubjects = () => {
                         current.level !== item.level;
 
                     if (hasChanged) {
-                        await fetch(`/api/subjects?id=eq.${idStr}`, {
+                        const res = await fetch(`/api/subjects?id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
@@ -202,11 +211,16 @@ export const useSubjects = () => {
                                 description: item.level
                             })
                         });
+                        if (!res.ok) throw new Error(`Failed to update subject ${item.name}`);
                     }
                 }
             }
         } catch (err) {
+            // ✅ ROLLBACK on error
             console.error('Failed to sync subjects with D1:', err);
+            _setSubjects(prev);
+            localStorage.setItem('subjects_data_v10', JSON.stringify(prev));
+            alert(`Gagal menyimpan mata pelajaran: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 

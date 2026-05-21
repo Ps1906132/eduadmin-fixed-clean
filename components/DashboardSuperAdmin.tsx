@@ -1144,7 +1144,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* --- VIEW: DASHBOARD HOME --- */}
                     {activeView === 'dashboard' && (
-                        <DashboardHome students={students} setActiveView={setActiveView} user={user} />
+                        <DashboardHome students={students} classes={classes} teachers={teachers} setActiveView={setActiveView} user={user} />
                     )}
 
                     {/* --- VIEW: DATA SISWA & KELAS --- */}

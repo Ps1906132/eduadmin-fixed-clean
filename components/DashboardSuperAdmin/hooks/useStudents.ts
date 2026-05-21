@@ -53,9 +53,22 @@ export const useStudents = () => {
                     status: s.status
                 }));
                 setStudents(mappedData);
+                // ✅ SYNC to localStorage for offline fallback
+                localStorage.setItem('students_data_v11', JSON.stringify(mappedData));
             }
         } catch (err) {
             console.error('Error fetching students:', err);
+            // ✅ FALLBACK to localStorage if API fails
+            try {
+                const saved = localStorage.getItem('students_data_v11');
+                if (saved) {
+                    const fallbackData = JSON.parse(saved);
+                    setStudents(fallbackData);
+                    console.log('Loaded students from localStorage cache');
+                }
+            } catch (cacheErr) {
+                console.error('Failed to load from cache:', cacheErr);
+            }
         } finally {
             setLoading(false);
         }
@@ -68,9 +81,16 @@ export const useStudents = () => {
 
 
     const addNewStudent = async (student: Student) => {
-        // Optimistic update — update UI dulu
-        setStudents(prev => [...prev, student]);
+        // ✅ BACKUP original data for rollback
+        const backupStudents = students;
+        
+        // ✅ Optimistic update — update UI dulu
+        const updatedStudents = [...students, student];
+        setStudents(updatedStudents);
         addStudentToShared(student);
+
+        // ✅ PERSIST to localStorage immediately
+        localStorage.setItem('students_data_v11', JSON.stringify(updatedStudents));
 
         // Sync ke D1 via API
         try {
@@ -87,16 +107,30 @@ export const useStudents = () => {
                     status: 'active'
                 })
             });
-            if (!res.ok) console.warn('D1 sync tambah siswa gagal:', await res.text());
+            if (!res.ok) {
+                throw new Error(`API Error: ${res.status}`);
+            }
         } catch (err) {
-            console.warn('Gagal sync ke D1:', err);
+            // ✅ ROLLBACK jika API gagal
+            console.error('Error adding student to D1:', err);
+            setStudents(backupStudents);
+            localStorage.setItem('students_data_v11', JSON.stringify(backupStudents));
+            alert(`Gagal menambah siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 
     const updateStudent = async (id: string | number, updates: Partial<Student>) => {
         const idStr = id.toString();
-        // Optimistic update — update UI dulu
-        setStudents(prev => prev.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s));
+        
+        // ✅ BACKUP original data for rollback
+        const backupStudents = students;
+        
+        // ✅ Optimistic update — update UI dulu
+        const updatedStudents = students.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s);
+        setStudents(updatedStudents);
+
+        // ✅ PERSIST to localStorage immediately
+        localStorage.setItem('students_data_v11', JSON.stringify(updatedStudents));
 
         try {
             const token = localStorage.getItem('eduadmin_token');
@@ -111,9 +145,15 @@ export const useStudents = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(dbUpdates)
             });
-            if (!res.ok) console.warn('D1 update siswa gagal:', await res.text());
+            if (!res.ok) {
+                throw new Error(`API Error: ${res.status}`);
+            }
         } catch (err) {
-            console.warn('Gagal sync update ke D1:', err);
+            // ✅ ROLLBACK jika API gagal
+            console.error('Error updating student in D1:', err);
+            setStudents(backupStudents);
+            localStorage.setItem('students_data_v11', JSON.stringify(backupStudents));
+            alert(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 
@@ -159,8 +199,16 @@ export const useStudents = () => {
         const name = student.nama;
         if (confirm(`Apakah Anda yakin ingin menghapus data ${name}?`)) {
             const targetIdStr = id.toString();
-            // Optimistic update — hapus dari UI dulu
-            setStudents(prev => prev.filter(s => s.id.toString() !== targetIdStr));
+            
+            // ✅ BACKUP original data for rollback
+            const backupStudents = students;
+            
+            // ✅ Optimistic update — hapus dari UI dulu
+            const updatedStudents = students.filter(s => s.id.toString() !== targetIdStr);
+            setStudents(updatedStudents);
+
+            // ✅ PERSIST to localStorage immediately
+            localStorage.setItem('students_data_v11', JSON.stringify(updatedStudents));
 
             try {
                 const token = localStorage.getItem('eduadmin_token');
@@ -168,9 +216,15 @@ export const useStudents = () => {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (!res.ok) console.warn('D1 delete siswa gagal:', await res.text());
+                if (!res.ok) {
+                    throw new Error(`API Error: ${res.status}`);
+                }
             } catch (err) {
-                console.warn('Gagal sync hapus ke D1:', err);
+                // ✅ ROLLBACK jika API gagal
+                console.error('Error deleting student from D1:', err);
+                setStudents(backupStudents);
+                localStorage.setItem('students_data_v11', JSON.stringify(backupStudents));
+                alert(`Gagal menghapus siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
         }
     };
