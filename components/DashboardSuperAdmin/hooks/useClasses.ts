@@ -129,17 +129,23 @@ export const useClasses = () => {
         // Sync to D1 and localStorage
         try {
             const token = localStorage.getItem('eduadmin_token');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
             const res = await fetch(`/api/classes?id=eq.${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!res.ok) {
                 const errorMsg = await res.text();
                 console.error('D1 delete sync gagal:', errorMsg);
                 // Rollback on API failure
                 setClasses(originalClasses);
-                alert('Gagal menghapus kelas. Silakan coba lagi.');
+                alert('Gagal menghapus kelas. Pastikan Backend API berjalan di port 8788.');
                 return;
             }
             
@@ -148,11 +154,21 @@ export const useClasses = () => {
             
             // Refetch from D1 to ensure consistency
             fetchClasses();
-        } catch (err) {
-            console.error('D1 tidak tersedia, rollback data:', err);
+        } catch (err: any) {
+            clearTimeout(0);
+            console.error('Delete class error:', err);
+            
             // Restore original data if error occurs
             setClasses(originalClasses);
-            alert('Gagal menghapus kelas. Periksa koneksi internet Anda.');
+            
+            // Better error messaging based on error type
+            if (err.name === 'AbortError') {
+                alert('Backend tidak merespons (timeout). Pastikan Wrangler/API sedang berjalan di port 8788.');
+            } else if (err.message?.includes('CORS')) {
+                alert('CORS error: Periksa konfigurasi backend.');
+            } else {
+                alert('Gagal menghapus kelas. Periksa koneksi ke backend API.');
+            }
         }
     };
 
