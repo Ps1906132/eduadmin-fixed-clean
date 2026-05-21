@@ -71,6 +71,7 @@ export const db = {
     interface DbChain extends Promise<any> {
       order(column: string, options?: { ascending?: boolean }): DbChain;
       eq(column: string, value: any): DbChain;
+      neq(column: string, value: any): DbChain;
       limit(n: number): DbChain;
       single(): Promise<any>;
     }
@@ -96,6 +97,10 @@ export const db = {
           },
           eq: (column: string, value: any) => {
             filters[column] = `eq.${value}`;
+            return chain;
+          },
+          neq: (column: string, value: any) => {
+            filters[column] = `neq.${value}`;
             return chain;
           },
           limit: (n: number) => {
@@ -184,6 +189,22 @@ export const db = {
           }
           return wrap(
             fetch(`${API_BASE}/${table}?${column}=eq.${value}`, {
+              method: 'DELETE',
+              headers
+            }).then(async res => {
+              if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+              return { data: await res.json(), error: null };
+            }).catch(error => ({ data: null, error }))
+          );
+        },
+        neq: (column: string, value: any) => {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+          const headers: Record<string, string> = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          return wrap(
+            fetch(`${API_BASE}/${table}?${column}=neq.${value}`, {
               method: 'DELETE',
               headers
             }).then(async res => {

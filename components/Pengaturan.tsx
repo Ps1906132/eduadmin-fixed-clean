@@ -32,12 +32,13 @@ import { migrateLocalStorageToD1 } from '../src/lib/migrateToD1';
 const D1MigratorView: React.FC = () => {
     const [isMigrating, setIsMigrating] = useState(false);
     const [migrationResult, setMigrationResult] = useState<any>(null);
+    const [forceReset, setForceReset] = useState(true); // Default to true since user has corrupt data
 
     const handleStartMigration = async () => {
         setIsMigrating(true);
-        const toastId = toast.loading('Melakukan migrasi data dari LocalStorage ke Cloudflare D1...');
+        const toastId = toast.loading(forceReset ? 'Membersihkan database dan melakukan migrasi data...' : 'Melakukan migrasi data dari LocalStorage ke Cloudflare D1...');
         try {
-            const result = await migrateLocalStorageToD1();
+            const result = await migrateLocalStorageToD1(forceReset);
             setIsMigrating(false);
             setMigrationResult(result);
             if (result.success) {
@@ -88,6 +89,20 @@ const D1MigratorView: React.FC = () => {
                         <p className="text-slate-500 text-xs max-w-md mb-6 leading-relaxed">
                             Pastikan Anda memiliki koneksi internet yang stabil selama proses migrasi berlangsung. Proses ini tidak akan menghapus data lokal di browser Anda.
                         </p>
+                        
+                        <div className="flex items-center gap-3 mb-6 bg-white border border-slate-200 px-4 py-3 rounded-2xl shadow-sm">
+                            <input
+                                type="checkbox"
+                                id="forceReset"
+                                checked={forceReset}
+                                onChange={(e) => setForceReset(e.target.checked)}
+                                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                            />
+                            <label htmlFor="forceReset" className="text-xs text-slate-700 font-bold cursor-pointer select-none">
+                                Bersihkan database D1 sebelum migrasi (Sangat Direkomendasikan untuk memperbaiki data yang corrupt)
+                            </label>
+                        </div>
+
                         <button
                             onClick={handleStartMigration}
                             disabled={isMigrating}

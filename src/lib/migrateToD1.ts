@@ -14,7 +14,7 @@ export interface MigrationStatus {
   };
 }
 
-export async function migrateLocalStorageToD1(): Promise<MigrationStatus> {
+export async function migrateLocalStorageToD1(forceReset = false): Promise<MigrationStatus> {
   const details = {
     profiles: 0,
     staff: 0,
@@ -25,6 +25,15 @@ export async function migrateLocalStorageToD1(): Promise<MigrationStatus> {
   };
 
   try {
+    if (forceReset) {
+      // Clear relevant tables in D1 to avoid duplication/corruption
+      await db.from('student_bills').delete().neq('id', 'none');
+      await db.from('expenses').delete().neq('id', 'none');
+      await db.from('students').delete().neq('id', 'none');
+      await db.from('classes').delete().neq('id', 'none');
+      await db.from('staff').delete().neq('id', 'none');
+      await db.from('profiles').delete().neq('email', 'admin@eduadmin.com');
+    }
     // 1. Migrate Teachers & Staff -> profiles & staff tables
     const teachersRaw = localStorage.getItem('teachers_data_v11') || localStorage.getItem('teachers_data_v10');
     const teachers = teachersRaw ? JSON.parse(teachersRaw) : [];

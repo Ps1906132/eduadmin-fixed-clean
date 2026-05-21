@@ -308,6 +308,7 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
       const select = url.searchParams.get('select') || '*';
       const order = url.searchParams.get('order');
       const dir = url.searchParams.get('dir') || 'asc';
+      const limit = url.searchParams.get('limit');
 
       // SQL Validation: Check select parameters
       if (select !== '*' && !/^[a-zA-Z0-9_,\s\*]+$/.test(select)) {
@@ -324,12 +325,50 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
         return new Response('Invalid dir parameter', { status: 400 });
       }
 
+      // SQL Validation: Check limit parameter
+      if (limit && !/^\d+$/.test(limit)) {
+        return new Response('Invalid limit parameter', { status: 400 });
+      }
+
+      let whereClauses: string[] = [];
+      let whereValues: any[] = [];
+
+      for (const [key, value] of url.searchParams.entries()) {
+        if (['select', 'order', 'dir', 'limit'].includes(key)) continue;
+
+        // SQL Validation: Verify column keys
+        if (!/^[a-zA-Z0-9_]+$/.test(key)) {
+          return new Response('Invalid filter key', { status: 400 });
+        }
+
+        if (value.startsWith('eq.')) {
+          whereClauses.push(`${key} = ?`);
+          whereValues.push(value.substring(3));
+        } else if (value.startsWith('neq.')) {
+          whereClauses.push(`${key} != ?`);
+          whereValues.push(value.substring(4));
+        } else if (value.startsWith('like.')) {
+          whereClauses.push(`${key} LIKE ?`);
+          whereValues.push(value.substring(5));
+        }
+      }
+
       let query = `SELECT ${select} FROM ${table}`;
+      if (whereClauses.length > 0) {
+        query += ` WHERE ${whereClauses.join(' AND ')}`;
+      }
       if (order) {
         query += ` ORDER BY ${order} ${dir.toUpperCase()}`;
       }
+      if (limit) {
+        query += ` LIMIT ${limit}`;
+      }
 
-      const { results } = await env.DB.prepare(query).all();
+      let stmt = env.DB.prepare(query);
+      if (whereValues.length > 0) {
+        stmt = stmt.bind(...whereValues);
+      }
+      const { results } = await stmt.all();
       return new Response(JSON.stringify(results), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -371,24 +410,32 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
       const data = await request.json();
       const searchParams = url.searchParams;
       
-      let whereClause = '';
+      let whereClauses: string[] = [];
       let whereValues: any[] = [];
       
       for (const [key, value] of searchParams.entries()) {
+        if (!/^[a-zA-Z0-9_]+$/.test(key)) {
+          return new Response('Invalid filter key', { status: 400 });
+        }
         if (value.startsWith('eq.')) {
-          // SQL Validation: Verify filter key
-          if (!/^[a-zA-Z0-9_]+$/.test(key)) {
-            return new Response('Invalid filter key', { status: 400 });
-          }
-          whereClause = `${key} = ?`;
+          whereClauses.push(`${key} = ?`);
           whereValues.push(value.substring(3));
-          break; // Only support one filter for now
+        } else if (value.startsWith('neq.')) {
+          whereClauses.push(`${key} != ?`);
+          whereValues.push(value.substring(4));
+        } else if (value.startsWith('like.')) {
+          whereClauses.push(`${key} LIKE ?`);
+          whereValues.push(value.substring(5));
         }
       }
 
-      if (!whereClause && path[1]) {
-        whereClause = 'id = ?';
+      if (whereClauses.length === 0 && path[1]) {
+        whereClauses.push('id = ?');
         whereValues.push(path[1]);
+      }
+
+      if (whereClauses.length === 0) {
+        return new Response('Missing update filter', { status: 400 });
       }
 
       const keys = Object.keys(data);
@@ -402,7 +449,7 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
       }
       
       const values = [...Object.values(data), ...whereValues];
-      const query = `UPDATE ${table} SET ${setClause} WHERE ${whereClause}`;
+      const query = `UPDATE ${table} SET ${setClause} WHERE ${whereClauses.join(' AND ')}`;
       const result = await env.DB.prepare(query).bind(...values).run();
       
       return new Response(JSON.stringify(result), {
@@ -413,27 +460,35 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
     // 4. DELETE - Protected against SQL Injection
     if (request.method === 'DELETE') {
       const searchParams = url.searchParams;
-      let whereClause = '';
+      let whereClauses: string[] = [];
       let whereValues: any[] = [];
       
       for (const [key, value] of searchParams.entries()) {
+        if (!/^[a-zA-Z0-9_]+$/.test(key)) {
+          return new Response('Invalid delete filter key', { status: 400 });
+        }
         if (value.startsWith('eq.')) {
-          // SQL Validation: Verify filter key
-          if (!/^[a-zA-Z0-9_]+$/.test(key)) {
-            return new Response('Invalid delete filter key', { status: 400 });
-          }
-          whereClause = `${key} = ?`;
+          whereClauses.push(`${key} = ?`);
           whereValues.push(value.substring(3));
-          break;
+        } else if (value.startsWith('neq.')) {
+          whereClauses.push(`${key} != ?`);
+          whereValues.push(value.substring(4));
+        } else if (value.startsWith('like.')) {
+          whereClauses.push(`${key} LIKE ?`);
+          whereValues.push(value.substring(5));
         }
       }
 
-      if (!whereClause && path[1]) {
-        whereClause = 'id = ?';
+      if (whereClauses.length === 0 && path[1]) {
+        whereClauses.push('id = ?');
         whereValues.push(path[1]);
       }
 
-      const query = `DELETE FROM ${table} WHERE ${whereClause}`;
+      if (whereClauses.length === 0) {
+        return new Response('Missing delete filter', { status: 400 });
+      }
+
+      const query = `DELETE FROM ${table} WHERE ${whereClauses.join(' AND ')}`;
       const result = await env.DB.prepare(query).bind(...whereValues).run();
       
       return new Response(JSON.stringify(result), {
