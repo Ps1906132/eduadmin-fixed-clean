@@ -2424,7 +2424,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                 }}
                                             >
                                                 <option value="">Pilih Guru</option>
-                                                {teachers.map(t => (
+                                                {teachers.filter(t => t.nama !== 'Super Admin' && t.role !== 'admin').map(t => (
                                                     <option key={t.id} value={t.id}>{t.nama}</option>
                                                 ))}
                                             </select>

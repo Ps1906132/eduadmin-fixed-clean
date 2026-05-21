@@ -25,8 +25,8 @@ export const useClasses = () => {
 
             const data = await res.json();
             if (data && Array.isArray(data)) {
-                const mappedData: Class[] = (data as any[]).map(c => ({
-                    id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) : Date.now(),
+                const mappedData: Class[] = (data as any[]).map((c, idx) => ({
+                    id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) : `fallback-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
                     nama: c.name,
                     tingkat: c.grade_level,
                     paralel: c.name.replace(/[0-9]/g, '') || 'A'
@@ -70,6 +70,7 @@ export const useClasses = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
+                        id: tempId.toString(),
                         name: nama,
                         grade_level: parseInt(tingkat),
                         is_active: 1
