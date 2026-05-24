@@ -1,7 +1,8 @@
 import { AttendanceRecord } from '../../../../data/sharedData';
 import React from 'react';
-import { CirclePlus, UserCog, ChevronLeft, ChevronRight, CheckSquare, Search, Save } from 'lucide-react';
+import { CirclePlus, UserCog, ChevronLeft, ChevronRight, CheckSquare, Search, Save, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAttendance } from '../../hooks/useAttendance';
 
 // AttendanceRecord imported from sharedData
 
@@ -42,6 +43,44 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
     classes,
     subjects
 }) => {
+    const { saveAttendanceBatch, saving } = useAttendance();
+
+    const handleSave = async () => {
+        const currentDateStr = absenDate.toISOString().split('T')[0];
+        const currentClass = classes.find((c: any) => c.nama === absenClass);
+
+        if (!currentClass) {
+            toast.error('Kelas tidak ditemukan');
+            return;
+        }
+
+        const classStudents = students.filter((s: any) => s.kelas === absenClass);
+        if (classStudents.length === 0) {
+            toast.error('Tidak ada siswa di kelas ini');
+            return;
+        }
+
+        const records = classStudents.map((student: any) => {
+            const existing = (attendanceData as any[]).find(
+                d => d.studentId === student.id && d.date === currentDateStr
+            ) as any;
+            return {
+                studentId: student.id.toString(),
+                classId: currentClass.id.toString(),
+                date: currentDateStr,
+                status: (existing?.status || 'H') as 'H' | 'S' | 'I' | 'A',
+                note: existing?.note || ''
+            };
+        });
+
+        const result = await saveAttendanceBatch(records);
+        if (result.success) {
+            toast.success(`Absensi kelas ${absenClass} tanggal ${currentDateStr} berhasil disimpan!`);
+        } else {
+            toast.error(result.error || 'Gagal menyimpan absensi');
+        }
+    };
+
     return (
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in flex flex-col">
             {/* Header and Controls */}
@@ -227,12 +266,15 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                                 className="h-10 pl-9 pr-4 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 w-48 md:w-64"
                             />
                         </div>
-                        <button onClick={() => {
-                            // Mock Save
-                            toast.success(`Data Absensi Semester ${absenSemester} untuk kelas ${absenClass} tanggal ${absenDate.toLocaleDateString()} berhasil disinkronkan!`);
-                            console.log("Saved Attendance:", { semester: absenSemester, data: attendanceData });
-                        }} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all h-10">
-                            <Save size={18} /> Simpan
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all h-10 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {saving
+                                ? <><Loader2 size={18} className="animate-spin" /> Menyimpan...</>
+                                : <><Save size={18} /> Simpan</>
+                            }
                         </button>
                     </div>
                 </div>

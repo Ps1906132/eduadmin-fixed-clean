@@ -43,7 +43,7 @@ interface DashboardWaliKelasProps {
 
 const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout, schoolName = "SD Normal Islam Samarinda" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'deskripsi' | 'raport' | 'latihan' | 'quran' | 'channel' | 'ai' | 'informasi' | 'notepad' | 'notifikasi' | 'profile' | 'library'>('home');
+    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'deskripsi' | 'raport' | 'latihan' | 'quran' | 'channel' | 'ai' | 'informasi' | 'notepad' | 'notifikasi' | 'profile'>('home');
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -146,7 +146,6 @@ const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout,
                                                 else if (item.id === 'quran') setActiveView('quran');
                                                 else if (item.id === 'channel') setActiveView('channel');
                                                 else if (item.id === 'ai') setActiveView('ai');
-                                                else if (item.id === 'library') setActiveView('library');
                                             }}
                                             className="flex flex-col items-center gap-3 group w-full"
                                         >

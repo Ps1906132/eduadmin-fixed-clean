@@ -3,7 +3,7 @@ import {
     LayoutDashboard, Users, GraduationCap, School, CreditCard,
     Bell, Settings, ChevronRight, Search, MoreHorizontal,
     Calendar, BookOpen, FileText, BarChart2, Plus, Edit, Trash2,
-    UploadCloud, FolderPlus, UserPlus, Download, Save, SquarePen, Eye, X, Award, Star,
+    UploadCloud, FolderPlus, UserPlus, Download, Save, SquarePen, Eye, X, Award, Star, AlertTriangle,
     Zap, UserCheck, Info, ClipboardList, RotateCcw, ChevronLeft, ChevronDown, CheckSquare,
     File as FileIcon, Files as FilesIcon, Upload as UploadIcon, GripVertical, Shirt, Clock,
     Archive, Printer, Lock, PieChart, CheckCircle, TrendingDown, History, Video, List,
@@ -242,6 +242,9 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [showTeacherModal, setShowTeacherModal] = useState(false);
 
     const { classes, setClasses, showAddClassModal, setShowAddClassModal, handleAddClass, handleDeleteClass } = useClasses();
+    const [confirmDeleteClassId, setConfirmDeleteClassId] = useState<string | number | null>(null);
+    const [deleteClassError, setDeleteClassError] = useState<string | null>(null);
+    const [isDeletingClass, setIsDeletingClass] = useState(false);
 
     // --- ABSENSI STATE ---
     const [absenDate, setAbsenDate] = useState<Date>(new Date());
@@ -1380,7 +1383,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                         <button onClick={() => handleEditItem(kelas, 'Kelas')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg group tooltip-trigger relative">
                                                             <Edit size={16} />
                                                         </button>
-                                                        <button onClick={() => handleDeleteClass(kelas.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg">
+                                                        <button onClick={() => { setDeleteClassError(null); setConfirmDeleteClassId(kelas.id); }} className="p-2 hover:bg-red-50 text-red-500 rounded-lg">
                                                             <Trash2 size={16} />
                                                         </button>
                                                     </td>
@@ -2516,6 +2519,57 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                 </main>
             </div>
+
+            {/* Modal Konfirmasi Hapus Kelas */}
+            {confirmDeleteClassId !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setConfirmDeleteClassId(null); setDeleteClassError(null); }} />
+                    <div className="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                <AlertTriangle size={20} className="text-red-500" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-slate-800 text-base">Hapus Kelas</h3>
+                                <p className="text-sm text-slate-500 mt-1">Kelas yang dihapus tidak dapat dikembalikan. Yakin ingin melanjutkan?</p>
+                            </div>
+                            <button onClick={() => { setConfirmDeleteClassId(null); setDeleteClassError(null); }} className="p-1 text-slate-400 hover:text-slate-600 rounded-full">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        {deleteClassError && (
+                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+                                {deleteClassError}
+                            </div>
+                        )}
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => { setConfirmDeleteClassId(null); setDeleteClassError(null); }}
+                                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                disabled={isDeletingClass}
+                                onClick={async () => {
+                                    setIsDeletingClass(true);
+                                    const result = await handleDeleteClass(confirmDeleteClassId);
+                                    setIsDeletingClass(false);
+                                    if (result && !result.success && result.error) {
+                                        setDeleteClassError(result.error);
+                                    } else {
+                                        setConfirmDeleteClassId(null);
+                                        setDeleteClassError(null);
+                                    }
+                                }}
+                                className="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isDeletingClass ? 'Menghapus...' : 'Ya, Hapus'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

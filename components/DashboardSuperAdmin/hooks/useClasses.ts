@@ -12,16 +12,28 @@ export const useClasses = () => {
     const [classes, setClasses] = useState<Class[]>([]);
     const [loading, setLoading] = useState(false);
     const [showAddClassModal, setShowAddClassModal] = useState(false);
+    const [isOfflineMode, setIsOfflineMode] = useState(false);
 
     // Fetch from D1
     const fetchClasses = useCallback(async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('eduadmin_token');
+            if (!token) {
+                throw new Error('NO_TOKEN');
+            }
             const headers = { 'Authorization': `Bearer ${token}` };
 
             const res = await fetch('/api/classes', { headers });
-            if (!res.ok) throw new Error('Gagal mengambil data kelas');
+
+            // Token expired / tidak valid → arahkan ke login
+            if (res.status === 401) {
+                console.warn('[useClasses] Token expired atau tidak valid (401). Mengarahkan ke login...');
+                window.dispatchEvent(new CustomEvent('auth:expired'));
+                throw new Error('UNAUTHORIZED');
+            }
+
+            if (!res.ok) throw new Error(`HTTP_${res.status}`);
 
             const data = await res.json();
             if (data && Array.isArray(data)) {
@@ -32,11 +44,19 @@ export const useClasses = () => {
                     paralel: c.name.replace(/[0-9]/g, '') || 'A'
                 }));
                 setClasses(mappedData);
+                setIsOfflineMode(false);
                 localStorage.setItem('classes_data_v11', JSON.stringify(mappedData));
             }
-        } catch (err) {
+        } catch (err: any) {
+            // Jangan fallback ke cache jika token expired
+            if (err.message === 'UNAUTHORIZED' || err.message === 'NO_TOKEN') {
+                setClasses([]);
+                setLoading(false);
+                return;
+            }
+
             console.error('Error fetching classes:', err);
-            
+
             // Fallback: Try to load from localStorage
             try {
                 const cachedData = localStorage.getItem('classes_data_v11');
@@ -44,16 +64,19 @@ export const useClasses = () => {
                     const parsedData = JSON.parse(cachedData);
                     if (Array.isArray(parsedData)) {
                         setClasses(parsedData);
-                        console.warn('Menggunakan data kelas dari cache lokal');
+                        setIsOfflineMode(true);
+                        console.warn('Menggunakan data kelas dari cache lokal (offline mode)');
+                        setLoading(false);
                         return;
                     }
                 }
             } catch (cacheErr) {
                 console.error('Error loading from cache:', cacheErr);
             }
-            
+
             // If both API and cache fail, use empty array
             setClasses([]);
+            setIsOfflineMode(false);
         } finally {
             setLoading(false);
         }
@@ -86,6 +109,8 @@ export const useClasses = () => {
             // Sync to D1 in background
             try {
                 const token = localStorage.getItem('eduadmin_token');
+                // Ambil academic_year_id aktif dari localStorage atau gunakan default
+                const cachedAcademicYear = localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
                 const res = await fetch('/api/classes', {
                     method: 'POST',
                     headers: {
@@ -96,6 +121,7 @@ export const useClasses = () => {
                         id: tempId.toString(),
                         name: nama,
                         grade_level: parseInt(tingkat),
+                        academic_year_id: cachedAcademicYear,
                         is_active: 1
                     })
                 });
@@ -116,59 +142,75 @@ export const useClasses = () => {
         return false;
     };
 
-    const handleDeleteClass = async (id: string | number) => {
-        if (!confirm("Hapus kelas ini?")) return;
-
-        // Store original data for rollback in case of error
+    const handleDeleteClass = async (id: string | number): Promise<{ success: boolean; error?: string }> => {
         const originalClasses = classes;
-        
-        // Optimistic UI update
         const updatedClasses = classes.filter(c => c.id !== id);
+
+        // Optimistic UI update
         setClasses(updatedClasses);
 
-        // Sync to D1 and localStorage
         try {
             const token = localStorage.getItem('eduadmin_token');
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
             const res = await fetch(`/api/classes?id=eq.${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
                 signal: controller.signal
             });
-            
+
             clearTimeout(timeoutId);
-            
+
             if (!res.ok) {
-                const errorMsg = await res.text();
-                console.error('D1 delete sync gagal:', errorMsg);
-                // Rollback on API failure
+                let errorMsg = '';
+                try { errorMsg = await res.text(); } catch (_) {}
+                console.error(`D1 delete gagal [HTTP ${res.status}]:`, errorMsg || '(no body)');
+
+                // Jika 500 karena foreign key constraint, beri pesan spesifik
+                if (res.status === 500) {
+                    const isFKError = errorMsg.toLowerCase().includes('foreign key') ||
+                                     errorMsg.toLowerCase().includes('constraint');
+                    setClasses(originalClasses);
+                    localStorage.setItem('classes_data_v11', JSON.stringify(originalClasses));
+                    return {
+                        success: false,
+                        error: isFKError
+                            ? 'Kelas tidak dapat dihapus karena masih memiliki data terkait (siswa/jadwal/absensi). Hapus data terkait terlebih dahulu.'
+                            : `Gagal menghapus kelas di server (HTTP ${res.status}). Pastikan Backend API berjalan.`
+                    };
+                }
+
                 setClasses(originalClasses);
-                alert('Gagal menghapus kelas. Pastikan Backend API berjalan di port 8788.');
-                return;
+                localStorage.setItem('classes_data_v11', JSON.stringify(originalClasses));
+                return { success: false, error: `Gagal menghapus kelas (HTTP ${res.status}).` };
             }
-            
-            // SUCCESS: Update localStorage dengan data terbaru
+
+            // Berhasil (200/204) — update localStorage dan refresh
             localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
-            
-            // Refetch from D1 to ensure consistency
-            fetchClasses();
+            // Jangan re-fetch jika data berasal dari cache lokal saja
+            try { fetchClasses(); } catch (_) {}
+            return { success: true };
         } catch (err: any) {
-            clearTimeout(0);
             console.error('Delete class error:', err);
-            
-            // Restore original data if error occurs
-            setClasses(originalClasses);
-            
-            // Better error messaging based on error type
+
             if (err.name === 'AbortError') {
-                alert('Backend tidak merespons (timeout). Pastikan Wrangler/API sedang berjalan di port 8788.');
-            } else if (err.message?.includes('CORS')) {
-                alert('CORS error: Periksa konfigurasi backend.');
-            } else {
-                alert('Gagal menghapus kelas. Periksa koneksi ke backend API.');
+                // Backend timeout — tetap hapus dari UI lokal (offline mode)
+                localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
+                console.warn('Backend timeout, kelas dihapus dari cache lokal saja.');
+                return { success: true }; // Anggap sukses secara lokal
             }
+
+            // Jika backend tidak dapat dihubungi sama sekali, hapus lokal saja
+            if (err.message?.includes('fetch') || err.message?.includes('network')) {
+                localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
+                console.warn('Backend tidak tersedia, kelas dihapus dari cache lokal saja.');
+                return { success: true };
+            }
+
+            setClasses(originalClasses);
+            localStorage.setItem('classes_data_v11', JSON.stringify(originalClasses));
+            return { success: false, error: 'Gagal menghapus kelas. Periksa koneksi ke backend API.' };
         }
     };
 

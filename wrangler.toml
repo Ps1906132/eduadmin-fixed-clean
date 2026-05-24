@@ -5,7 +5,7 @@ compatibility_date = "2026-05-15"
 [[d1_databases]]
 binding = "DB"
 database_name = "eduadmin_db"
-database_id = "1c7f883c-5992-4f26-8245-b1ee2340b6d0"
+database_id = "77d7d271-5515-4cd1-8865-5cd676d4752b"
 
 [vars]
 # Add environment variables here
