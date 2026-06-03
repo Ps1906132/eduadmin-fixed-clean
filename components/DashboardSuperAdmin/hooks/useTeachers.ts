@@ -146,7 +146,10 @@ export const useTeachers = () => {
                         is_active: 1
                     })
                 });
-                if (!res2.ok) throw new Error(`Failed to create staff record for ${teacher.nama}`);
+                if (!res2.ok) {
+                    const errText2 = await res2.text();
+                    throw new Error(`Gagal membuat data staff untuk ${teacher.nama}: ${errText2}`);
+                }
             }
 
             // 3. Handle Updated:
