@@ -297,14 +297,88 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
   }
 
   const token = authHeader.substring(7);
-  const jwtSecret = env.JWT_SECRET || 'fallback-dev-secret-key-12345';
-  const decodedToken = await verifyJWT(token, jwtSecret);
+  const jwtSecret = env.JWT_SECRET;
+  if (!jwtSecret) {
+    return new Response(JSON.stringify({ error: 'Server Configuration Error: JWT_SECRET is not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
+  const decodedToken = await verifyJWT(token, jwtSecret);
   if (!decodedToken) {
     return new Response(JSON.stringify({ error: 'Unauthorized: Token is invalid or expired' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }
     });
+  }
+
+  // --- SERVER-SIDE ROLE-BASED ACCESS CONTROL (RBAC) GUARD ---
+  const userRole = decodedToken.role;
+
+  // 1. Tabel Konfigurasi & Kunci API Sensitif: Hanya boleh diakses oleh Admin (Read & Write)
+  const ADMIN_ONLY_TABLES = [
+    'ai_api_keys',
+    'ai_providers',
+    'ai_system_settings',
+    'school_settings',
+    'multimedia_settings',
+    'audit_logs'
+  ];
+
+  if (ADMIN_ONLY_TABLES.includes(table) && userRole !== 'admin') {
+    return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mengakses tabel ${table}` }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 2. Tabel Finansial: Hanya boleh dimodifikasi (Write) oleh Admin atau Keuangan
+  const FINANCE_WRITE_TABLES = [
+    'student_bills',
+    'payment_transactions',
+    'expenses',
+    'savings_accounts',
+    'savings_transactions'
+  ];
+
+  if (FINANCE_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'admin' && userRole !== 'keuangan') {
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya Admin atau Staff Keuangan yang dapat mengubah data finansial` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // 3. Tabel Master Akademik: Hanya boleh dimodifikasi (Write) oleh Admin
+  const ACADEMIC_MASTER_WRITE_TABLES = [
+    'classes',
+    'academic_years',
+    'subject_groups',
+    'subjects',
+    'profiles',
+    'staff'
+  ];
+
+  if (ACADEMIC_MASTER_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'admin') {
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mengubah data master akademik` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // 4. Tabel Registrasi Siswa: Hanya boleh dimodifikasi (Write) oleh Admin
+  const STUDENT_WRITE_TABLES = ['students', 'parent_students', 'class_students'];
+  if (STUDENT_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'admin') {
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mendaftarkan siswa` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   try {

@@ -62,7 +62,14 @@ export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string; JWT_SECRET?:
   }
 
   const token = authHeader.substring(7);
-  const jwtSecret = env.JWT_SECRET || 'fallback-dev-secret-key-12345';
+  const jwtSecret = env.JWT_SECRET;
+  if (!jwtSecret) {
+    return new Response(JSON.stringify({ error: 'Server Configuration Error: JWT_SECRET is not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   const decodedToken = await verifyJWT(token, jwtSecret);
 
   if (!decodedToken) {
