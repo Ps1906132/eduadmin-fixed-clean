@@ -840,7 +840,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
             toast.success(`Guru ${newTeacher.nama} berhasil diperbarui!`);
         } else {
             const teacherToAdd = {
-                id: Date.now(),
+                id: `guru-${Math.random().toString(36).substr(2, 9)}`,
                 nama: newTeacher.nama,
                 nip: newTeacher.nip,
                 jabatan: newTeacher.jabatan,
