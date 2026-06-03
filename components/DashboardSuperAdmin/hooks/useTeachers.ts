@@ -43,7 +43,7 @@ export const useTeachers = () => {
                         return {
                             id: p.id ? (isNaN(Number(p.id)) ? p.id : Number(p.id)) : Date.now(),
                             nama: p.full_name,
-                            nip: s.employee_number || p.email?.split('@')[0] || `NIP-${p.id}`,
+                            nip: s.nip || p.email?.split('@')[0] || `NIP-${p.id}`,
                             jabatan: s.position || (p.role === 'ks' ? 'Kepala Sekolah' : 'Guru'),
                             mapel: s.department || '-',
                             wali: '-', // Wali is resolved via class assignments in DB
@@ -128,7 +128,7 @@ export const useTeachers = () => {
                     body: JSON.stringify({
                         id: profileId,
                         profile_id: profileId,
-                        employee_number: teacher.nip,
+                        nip: teacher.nip,
                         position: teacher.jabatan,
                         department: teacher.mapel || 'Umum',
                         is_active: 1
@@ -176,7 +176,7 @@ export const useTeachers = () => {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
-                                employee_number: teacher.nip,
+                                nip: teacher.nip,
                                 position: teacher.jabatan,
                                 department: teacher.mapel
                             })

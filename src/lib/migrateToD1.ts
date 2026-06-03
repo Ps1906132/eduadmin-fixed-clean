@@ -86,7 +86,7 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
         await db.from('staff').insert([{
           id: profileId, // use same UUID
           profile_id: profileId,
-          employee_number: teacher.nip || `NIP-${Math.floor(Math.random() * 1000000)}`,
+          nip: teacher.nip || `NIP-${Math.floor(Math.random() * 1000000)}`,
           position: teacher.jabatan || 'Guru',
           department: teacher.mapel || 'Umum',
           is_active: 1

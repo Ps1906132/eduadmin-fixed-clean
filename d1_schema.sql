@@ -662,6 +662,10 @@ INSERT OR IGNORE INTO profiles (id, email, full_name, password_hash, role, is_ac
 VALUES ('admin-001', 'admin@eduadmin.com', 'System Administrator', 
     '$2a$10$YourHashedPasswordHere', 'admin', 1);
 
+INSERT OR IGNORE INTO staff (id, profile_id, nip, position, department, is_active)
+VALUES ('admin-001', 'admin-001', 'admin', 'Kepala Sekolah', 'Umum', 1);
+
+
 -- Insert default academic year if needed
 INSERT OR IGNORE INTO academic_years (id, name, start_date, end_date, semester, is_active)
 VALUES ('ay-2025-2026', '2025/2026 - Semester 1', '2025-07-01', '2025-12-31', 1, 1);

@@ -18,3 +18,22 @@ CREATE TABLE IF NOT EXISTS staff (
 
 -- Index
 CREATE INDEX IF NOT EXISTS idx_staff_nip ON staff(nip);
+
+-- Insert Staff Record for Super Admin
+-- Ini diperlukan agar profil Super Admin dapat diupdate/dikelola dari UI
+INSERT OR REPLACE INTO staff (
+    id,
+    profile_id,
+    nip,
+    position,
+    department,
+    is_active
+) VALUES (
+    'admin-001',
+    'admin-001',
+    'admin',
+    'Kepala Sekolah',
+    'Umum',
+    1
+);
+
