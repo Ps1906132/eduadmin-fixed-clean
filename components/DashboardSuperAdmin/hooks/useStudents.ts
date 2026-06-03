@@ -108,7 +108,8 @@ export const useStudents = () => {
                 })
             });
             if (!res.ok) {
-                throw new Error(`API Error: ${res.status}`);
+                const errText = await res.text();
+                throw new Error(`API Error ${res.status}: ${errText}`);
             }
         } catch (err) {
             // ✅ ROLLBACK jika API gagal
