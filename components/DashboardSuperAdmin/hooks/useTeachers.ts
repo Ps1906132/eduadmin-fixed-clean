@@ -37,16 +37,16 @@ export const useTeachers = () => {
                 const staffMap = new Map((staff as any[]).map((s: any) => [s.profile_id?.toString(), s]));
                 
                 const mappedData: Teacher[] = (profiles as any[])
-                    .filter((p: any) => ['ks', 'wk', 'gb', 'gm', 'admin'].includes(p.role))
+                    .filter((p: any) => ['guru', 'admin', 'kurikulum', 'keuangan'].includes(p.role))
                     .map((p: any) => {
                         const s = staffMap.get(p.id?.toString()) || {};
                         return {
                             id: p.id ? (isNaN(Number(p.id)) ? p.id : Number(p.id)) : Date.now(),
                             nama: p.full_name,
                             nip: s.nip || p.email?.split('@')[0] || `NIP-${p.id}`,
-                            jabatan: s.position || (p.role === 'ks' ? 'Kepala Sekolah' : 'Guru'),
+                            jabatan: s.position || (p.role === 'admin' ? 'Administrator' : 'Guru'),
                             mapel: s.department || '-',
-                            wali: '-', // Wali is resolved via class assignments in DB
+                            wali: '-',
                             username: p.email ? p.email.split('@')[0] : p.full_name.toLowerCase().replace(/\s+/g, ''),
                             password: p.password_hash || 'password123',
                             role: p.role
@@ -95,13 +95,22 @@ export const useTeachers = () => {
             const inserted = nextList.filter(t => !currentIds.has(t.id.toString()));
             for (const teacher of inserted) {
                 const profileId = teacher.id.toString();
-                const email = teacher.username + '@eduadmin.com';
-                const rawRole = (teacher.role || teacher.jabatan || 'gm').toLowerCase();
-                let role = 'gm';
-                if (rawRole.includes('kepala sekolah')) role = 'ks';
-                else if (rawRole.includes('wali kelas') || rawRole.includes('guru kelas')) role = 'wk';
-                else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel')) role = 'gb';
-                else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator'].some(r => rawRole.includes(r))) role = 'admin';
+                // Build email: if username already contains '@', use as-is; otherwise append domain
+                const rawUsername = teacher.username || teacher.nama.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+                const email = rawUsername.includes('@') ? rawUsername : `${rawUsername}@eduadmin.com`;
+
+                // Map jabatan to valid DB role values
+                const jabatanLower = (teacher.jabatan || '').toLowerCase();
+                let dbRole: string;
+                if (['admin', 'operator', 'kepala sekolah', 'wakil kepala'].some(k => jabatanLower.includes(k))) {
+                    dbRole = 'admin';
+                } else if (jabatanLower.includes('kurikulum')) {
+                    dbRole = 'kurikulum';
+                } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara')) {
+                    dbRole = 'keuangan';
+                } else {
+                    dbRole = 'guru'; // Default for all teaching staff
+                }
 
                 const passwordPlain = teacher.password || 'password123';
                 const passwordHash = /^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$/.test(passwordPlain)
@@ -115,12 +124,15 @@ export const useTeachers = () => {
                         id: profileId,
                         email,
                         full_name: teacher.nama,
-                        role,
+                        role: dbRole,
                         password_hash: passwordHash,
                         is_active: 1
                     })
                 });
-                if (!res1.ok) throw new Error(`Failed to create profile for ${teacher.nama}`);
+                if (!res1.ok) {
+                    const errText = await res1.text();
+                    throw new Error(`Gagal membuat profil untuk ${teacher.nama}: ${errText}`);
+                }
 
                 const res2 = await fetch('/api/staff', {
                     method: 'POST',
@@ -154,20 +166,28 @@ export const useTeachers = () => {
                         current.wali !== teacher.wali;
 
                     if (hasChanged) {
-                        const email = teacher.username + '@eduadmin.com';
-                        const rawRole = (teacher.role || teacher.jabatan || 'gm').toLowerCase();
-                        let role = 'gm';
-                        if (rawRole.includes('kepala sekolah')) role = 'ks';
-                        else if (rawRole.includes('wali kelas') || rawRole.includes('guru kelas')) role = 'wk';
-                        else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel')) role = 'gb';
-                        else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator'].some(r => rawRole.includes(r))) role = 'admin';
+                        const rawUsername2 = teacher.username || teacher.nama.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+                        const email2 = rawUsername2.includes('@') ? rawUsername2 : `${rawUsername2}@eduadmin.com`;
+
+                        // Map jabatan to valid DB role values
+                        const jabatanLower2 = (teacher.jabatan || '').toLowerCase();
+                        let dbRole2: string;
+                        if (['admin', 'operator', 'kepala sekolah', 'wakil kepala'].some(k => jabatanLower2.includes(k))) {
+                            dbRole2 = 'admin';
+                        } else if (jabatanLower2.includes('kurikulum')) {
+                            dbRole2 = 'kurikulum';
+                        } else if (jabatanLower2.includes('keuangan') || jabatanLower2.includes('bendahara')) {
+                            dbRole2 = 'keuangan';
+                        } else {
+                            dbRole2 = 'guru';
+                        }
 
                         const res1 = await fetch(`/api/profiles?id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
                                 full_name: teacher.nama,
-                                role
+                                role: dbRole2
                             })
                         });
                         if (!res1.ok) throw new Error(`Failed to update profile for ${teacher.nama}`);
