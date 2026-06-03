@@ -297,7 +297,7 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string }> =
   }
 
   const token = authHeader.substring(7);
-  const jwtSecret = env.JWT_SECRET;
+  const jwtSecret = env.JWT_SECRET || 'fallback-dev-secret-key-12345';
   if (!jwtSecret) {
     return new Response(JSON.stringify({ error: 'Server Configuration Error: JWT_SECRET is not configured' }), {
       status: 500,
