@@ -20,6 +20,22 @@ export const useClasses = () => {
         try {
             const token = localStorage.getItem('eduadmin_token');
             if (!token) {
+                // Try loading from localStorage if no token
+                try {
+                    const cachedData = localStorage.getItem('classes_data_v11');
+                    if (cachedData) {
+                        const parsedData = JSON.parse(cachedData);
+                        if (Array.isArray(parsedData) && parsedData.length > 0) {
+                            setClasses(parsedData);
+                            setIsOfflineMode(true);
+                            console.warn('Menggunakan data kelas dari cache lokal (no token)');
+                            setLoading(false);
+                            return;
+                        }
+                    }
+                } catch (cacheErr) {
+                    console.error('Error loading from cache:', cacheErr);
+                }
                 throw new Error('NO_TOKEN');
             }
             const headers = { 'Authorization': `Bearer ${token}` };
@@ -49,7 +65,7 @@ export const useClasses = () => {
             }
         } catch (err: any) {
             // Jangan fallback ke cache jika token expired
-            if (err.message === 'UNAUTHORIZED' || err.message === 'NO_TOKEN') {
+            if (err.message === 'UNAUTHORIZED') {
                 setClasses([]);
                 setLoading(false);
                 return;

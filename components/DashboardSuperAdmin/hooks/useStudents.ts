@@ -200,10 +200,10 @@ export const useStudents = () => {
 
     const updateStudent = async (id: string | number, updates: Partial<Student>) => {
         const idStr = id.toString();
-        
+
         // ✅ BACKUP original data for rollback
         const backupStudents = students;
-        
+
         // ✅ Optimistic update — update UI dulu
         const updatedStudents = students.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s);
         setStudents(updatedStudents);
@@ -218,6 +218,14 @@ export const useStudents = () => {
             if (updates.nis) dbUpdates.nis = updates.nis;
             if (updates.ayah) dbUpdates.parent_name = updates.ayah;
             if (updates.gender) dbUpdates.gender = updates.gender;
+            if (updates.ttl) {
+                const ttlParts = updates.ttl.split(', ');
+                if (ttlParts[0]) dbUpdates.birth_place = ttlParts[0];
+                if (ttlParts[1]) dbUpdates.birth_date = ttlParts[1];
+            }
+            if (updates.ibu) dbUpdates.mother_name = updates.ibu;
+            if (updates.jobAyah) dbUpdates.parent_job = updates.jobAyah;
+            if (updates.jobIbu) dbUpdates.mother_job = updates.jobIbu;
 
             const res = await fetch(`/api/students/${idStr}`, {
                 method: 'PATCH',
@@ -226,6 +234,40 @@ export const useStudents = () => {
             });
             if (!res.ok) {
                 throw new Error(`API Error: ${res.status}`);
+            }
+
+            // If class-related fields are updated, also update class_students table
+            if (updates.kelas || updates.tingkat || updates.paralel) {
+                try {
+                    // Get the student's current class assignment
+                    const csRes = await fetch(`/api/class_students?student_id=eq.${idStr}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (csRes.ok) {
+                        const csData = await csRes.json();
+                        if (Array.isArray(csData) && csData.length > 0) {
+                            // Update existing class assignment
+                            const currentCs = csData[0];
+                            // Find the new class ID based on class name
+                            const classRes = await fetch('/api/classes', { headers: { 'Authorization': `Bearer ${token}` } });
+                            if (classRes.ok) {
+                                const classData = await classRes.json();
+                                if (Array.isArray(classData)) {
+                                    const newClass = classData.find((c: any) => c.name === updates.kelas);
+                                    if (newClass) {
+                                        await fetch(`/api/class_students?id=eq.${currentCs.id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                            body: JSON.stringify({ class_id: newClass.id.toString() })
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (csErr) {
+                    console.warn('Gagal update class_students:', csErr);
+                }
             }
         } catch (err) {
             // ✅ ROLLBACK jika API gagal

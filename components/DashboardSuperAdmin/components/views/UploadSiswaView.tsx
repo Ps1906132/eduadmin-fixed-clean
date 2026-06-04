@@ -7,6 +7,7 @@ interface UploadSiswaViewProps {
     handleUploadClick: () => void;
     handleSaveData: () => void;
     students: any[];
+    classes?: any[];
     handleViewStudent: (student: any) => void;
     handleEditStudent: (student: any) => void;
     handleDelete: (name: string) => void;
@@ -19,6 +20,7 @@ const UploadSiswaView: React.FC<UploadSiswaViewProps> = ({
     handleUploadClick,
     handleSaveData,
     students,
+    classes,
     handleViewStudent,
     handleEditStudent,
     handleDelete,
