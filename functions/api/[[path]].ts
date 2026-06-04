@@ -27,6 +27,7 @@ const ALLOWED_TABLES = [
   'exam_answers',
   'parent_students',
   'tutoring_classes',
+  'class_students',
   'broadcasts',
   'multimedia_settings',
   'grades',

@@ -28,30 +28,75 @@ export const useStudents = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('eduadmin_token');
-            const res = await fetch('/api/students', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) throw new Error('Gagal mengambil data siswa');
+            if (!token) {
+                // Try loading from localStorage cache if no token
+                const saved = localStorage.getItem('students_data_v11');
+                if (saved) setStudents(JSON.parse(saved));
+                setLoading(false);
+                return;
+            }
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // Fetch students and class assignments in parallel
+            const [studentRes, classStudentRes, classRes] = await Promise.all([
+                fetch('/api/students', { headers }),
+                fetch('/api/class_students', { headers }).catch(() => null),
+                fetch('/api/classes', { headers }).catch(() => null)
+            ]);
+
+            if (!studentRes.ok) throw new Error('Gagal mengambil data siswa');
             
-            const data = await res.json();
+            const data = await studentRes.json();
+
+            // Build class lookup maps
+            let classStudentMap: Record<string, string> = {}; // studentId -> classId
+            let classNameMap: Record<string, { name: string; grade: number; paralel: string }> = {};
+
+            if (classStudentRes && classStudentRes.ok) {
+                const csData = await classStudentRes.json();
+                if (Array.isArray(csData)) {
+                    csData.forEach((cs: any) => {
+                        classStudentMap[cs.student_id?.toString()] = cs.class_id?.toString();
+                    });
+                }
+            }
+
+            if (classRes && classRes.ok) {
+                const clData = await classRes.json();
+                if (Array.isArray(clData)) {
+                    clData.forEach((c: any) => {
+                        const paralel = (c.name || '').replace(/[0-9\s]/g, '').trim() || 'A';
+                        classNameMap[c.id?.toString()] = {
+                            name: c.name || '-',
+                            grade: Number(c.grade_level) || 1,
+                            paralel
+                        };
+                    });
+                }
+            }
+
             if (data && Array.isArray(data)) {
-                type SbStudent = { id: string; nis: string; full_name: string; birth_place?: string; birth_date?: string; parent_name?: string; gender: string; status: string; class_id?: string };
-                const mappedData: Student[] = (data as SbStudent[]).map(s => ({
-                    id: s.id,
-                    nis: s.nis,
-                    nama: s.full_name,
-                    ttl: `${s.birth_place || '-'}, ${s.birth_date || '-'}`,
-                    kelas: '-', // Requires class join or separate fetch
-                    tingkat: 1,
-                    paralel: '',
-                    ayah: s.parent_name || '-',
-                    ibu: '-',
-                    jobAyah: '-',
-                    jobIbu: '-',
-                    username: s.nis,
-                    gender: s.gender,
-                    status: s.status
-                }));
+                type SbStudent = { id: string; nis: string; full_name: string; birth_place?: string; birth_date?: string; parent_name?: string; mother_name?: string; parent_job?: string; mother_job?: string; phone?: string; gender: string; status: string; class_id?: string; username?: string; };
+                const mappedData: Student[] = (data as SbStudent[]).map(s => {
+                    const classId = classStudentMap[s.id?.toString()] || s.class_id || '';
+                    const classInfo = classNameMap[classId] || { name: '-', grade: 1, paralel: '' };
+                    return {
+                        id: s.id,
+                        nis: s.nis,
+                        nama: s.full_name,
+                        ttl: `${s.birth_place || '-'}, ${s.birth_date || '-'}`,
+                        kelas: classInfo.name,
+                        tingkat: classInfo.grade,
+                        paralel: classInfo.paralel,
+                        ayah: s.parent_name || '-',
+                        ibu: s.mother_name || '-',
+                        jobAyah: s.parent_job || '-',
+                        jobIbu: s.mother_job || '-',
+                        username: s.username || s.nis,
+                        gender: s.gender,
+                        status: s.status
+                    };
+                });
                 setStudents(mappedData);
                 // ✅ SYNC to localStorage for offline fallback
                 localStorage.setItem('students_data_v11', JSON.stringify(mappedData));
@@ -80,7 +125,7 @@ export const useStudents = () => {
 
 
 
-    const addNewStudent = async (student: Student) => {
+    const addNewStudent = async (student: Student & { classId?: string; noHp?: string }) => {
         // ✅ BACKUP original data for rollback
         const backupStudents = students;
         
@@ -95,14 +140,20 @@ export const useStudents = () => {
         // Sync ke D1 via API
         try {
             const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+            
+            // Insert student record (only valid columns matching D1 schema)
             const res = await fetch('/api/students', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers,
                 body: JSON.stringify({
                     id: student.id.toString(),
                     nis: student.nis,
                     full_name: student.nama,
-                    parent_name: student.ayah,
+                    birth_place: student.ttl?.split(', ')[0] || null,
+                    birth_date: student.ttl?.split(', ')[1] || null,
+                    parent_name: student.ayah || null,
+                    phone: (student as any).noHp || null,
                     gender: student.gender || null,
                     status: 'active',
                     enrollment_date: new Date().toISOString().split('T')[0]
@@ -111,6 +162,32 @@ export const useStudents = () => {
             if (!res.ok) {
                 const errText = await res.text();
                 throw new Error(`API Error ${res.status}: ${errText}`);
+            }
+
+            // Also insert into class_students if classId provided
+            const classId = (student as any).classId;
+            if (classId) {
+                try {
+                    // Get active academic year from localStorage or use default
+                    const academicYearId = localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
+                    const csRes = await fetch('/api/class_students', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            id: `cs-${student.id}-${classId}`,
+                            student_id: student.id.toString(),
+                            class_id: classId.toString(),
+                            academic_year_id: academicYearId,
+                            enrollment_date: new Date().toISOString().split('T')[0],
+                            is_active: 1
+                        })
+                    });
+                    if (!csRes.ok) {
+                        console.warn('Gagal menyimpan kelas siswa (class_students):', await csRes.text());
+                    }
+                } catch (csErr) {
+                    console.warn('Gagal sync class_students:', csErr);
+                }
             }
         } catch (err) {
             // ✅ ROLLBACK jika API gagal

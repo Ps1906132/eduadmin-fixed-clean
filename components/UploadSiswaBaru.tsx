@@ -29,7 +29,10 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
   const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
 
   const listKelas1 = classes && classes.length > 0
-      ? classes.filter((c: any) => c.nama.startsWith('1') || c.tingkat === '1' || c.tingkat === 1).map((c: any) => c.nama)
+      ? classes.filter((c: any) => {
+          const tingkat = c.tingkat ?? c.grade_level;
+          return String(tingkat) === '1' || c.nama?.startsWith('1');
+        }).map((c: any) => c.nama)
       : [];
 
   const [visibleCount, setVisibleCount] = useState('100');
@@ -87,51 +90,53 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
     setUploadedFile(file.name);
 
-    const currentClass = classes.find((c: any) => c.nama === selectedKelas);
-    const tingkat = currentClass ? currentClass.tingkat : 1;
-    const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9\s]/g, '') || 'A';
+      const currentClass = classes.find((c: any) => c.nama === selectedKelas);
+      const tingkat = currentClass ? currentClass.tingkat : 1;
+      const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9\s]/g, '') || 'A';
+      const classId = currentClass ? String(currentClass.id) : undefined;
 
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const text = ev.target?.result as string;
-      if (!text) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const text = ev.target?.result as string;
+        if (!text) return;
 
-      const lines = text.split('\n').filter(l => l.trim() !== '');
-      const dataLines = lines.slice(1); // skip header
+        const lines = text.split('\n').filter(l => l.trim() !== '');
+        const dataLines = lines.slice(1); // skip header
 
-      if (dataLines.length === 0) {
-        alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
-        return;
-      }
+        if (dataLines.length === 0) {
+          alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
+          return;
+        }
 
-      const parsedStudents = dataLines.map((line) => {
-        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
-        return {
-          id: Date.now() + Math.floor(Math.random() * 100000),
-          nis: cols[0] || '',
-          nama: cols[1] || '',
-          ttl: cols[2] || '',
-          kelas: selectedKelas,
-          tingkat,
-          paralel,
-          ayah: cols[3] || '',
-          ibu: cols[4] || '',
-          jobAyah: cols[5] || '',
-          jobIbu: cols[6] || '',
-          noHp: cols[7] || '',
-          username: cols[8] || cols[0] || '',
-          password: cols[9] || '123456'
-        };
-      }).filter(s => s.nis && s.nama);
+        const parsedStudents = dataLines.map((line) => {
+          const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+          return {
+            id: Date.now() + Math.floor(Math.random() * 100000),
+            nis: cols[0] || '',
+            nama: cols[1] || '',
+            ttl: cols[2] || '',
+            kelas: selectedKelas,
+            tingkat,
+            paralel,
+            ayah: cols[3] || '',
+            ibu: cols[4] || '',
+            jobAyah: cols[5] || '',
+            jobIbu: cols[6] || '',
+            noHp: cols[7] || '',
+            username: cols[8] || cols[0] || '',
+            password: cols[9] || '123456',
+            classId,  // Used for class_students sync in D1
+          };
+        }).filter(s => s.nis && s.nama);
 
-      for (const s of parsedStudents) {
-        await addNewStudent(s);
-      }
-      alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+        for (const s of parsedStudents) {
+          await addNewStudent(s as any);
+        }
+        alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      };
+      reader.readAsText(file);
     };
-    reader.readAsText(file);
-  };
 
   const handleOpenAddModal = () => {
     setEditId(null);
@@ -187,6 +192,7 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
     const currentClass = classes.find(c => c.nama === selectedKelas);
     const tingkat = currentClass ? currentClass.tingkat : 1;
     const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '').trim() || 'A';
+    const classId = currentClass ? String(currentClass.id) : undefined;
 
     const studentPayload = {
       id: editId !== null ? editId : Date.now(),
@@ -202,13 +208,15 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
       jobIbu: newStudent.pekerjaanIbu,
       username: newStudent.username || newStudent.nis,
       password: newStudent.password || 'password123',
+      noHp: newStudent.noHp,
+      classId,  // Used for class_students sync in D1
     };
 
     if (editId !== null) {
       await updateStudent(editId, studentPayload);
       alert(`Data siswa ${newStudent.nama} berhasil diperbarui!`);
     } else {
-      await addNewStudent(studentPayload);
+      await addNewStudent(studentPayload as any);
       alert(`Siswa ${newStudent.nama} berhasil ditambahkan!`);
     }
     setIsAddModalOpen(false);
