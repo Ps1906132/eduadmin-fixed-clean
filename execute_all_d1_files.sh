@@ -39,6 +39,7 @@ files=(
   "d1_sql/26_multimedia_settings.sql"
   "d1_sql/27_promotion_history.sql"
   "d1_sql/28_audit_logs.sql"
+  "d1_sql/35_tutoring_tables.sql"
 )
 
 # Counter

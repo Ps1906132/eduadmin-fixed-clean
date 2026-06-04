@@ -323,13 +323,58 @@ export interface TutoringTeacher {
     status: string;
 }
 
+export interface TutoringEnrollment {
+    groupId: number;
+    studentId: number;
+}
+
 export let tutoringSubjectsGlobal: TutoringSubject[] = [];
+if (typeof window !== 'undefined') {
+    try {
+        const saved = localStorage.getItem('tutoring_subjects_v11');
+        if (saved) tutoringSubjectsGlobal = JSON.parse(saved);
+    } catch (e) {
+        console.error('Failed to load tutoringSubjectsGlobal', e);
+    }
+}
+
 export let tutoringTeachersGlobal: TutoringTeacher[] = [];
+if (typeof window !== 'undefined') {
+    try {
+        const saved = localStorage.getItem('tutoring_teachers_v11');
+        if (saved) tutoringTeachersGlobal = JSON.parse(saved);
+    } catch (e) {
+        console.error('Failed to load tutoringTeachersGlobal', e);
+    }
+}
+
+export let tutoringEnrollmentsGlobal: TutoringEnrollment[] = [];
+if (typeof window !== 'undefined') {
+    try {
+        const saved = localStorage.getItem('tutoring_enrollments_v11');
+        if (saved) tutoringEnrollmentsGlobal = JSON.parse(saved);
+    } catch (e) {
+        console.error('Failed to load tutoringEnrollmentsGlobal', e);
+    }
+}
 
 export const updateTutoringSubjectsGlobal = (newData: TutoringSubject[]) => {
     tutoringSubjectsGlobal = newData;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('tutoring_subjects_v11', JSON.stringify(newData));
+    }
 };
 
 export const updateTutoringTeachersGlobal = (newData: TutoringTeacher[]) => {
     tutoringTeachersGlobal = newData;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('tutoring_teachers_v11', JSON.stringify(newData));
+    }
+};
+
+export const updateTutoringEnrollmentsGlobal = (newData: TutoringEnrollment[]) => {
+    tutoringEnrollmentsGlobal = newData;
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('tutoring_enrollments_v11', JSON.stringify(newData));
+    }
 };

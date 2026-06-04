@@ -442,15 +442,51 @@ CREATE TABLE IF NOT EXISTS tutoring_classes (
     name TEXT NOT NULL,
     teacher_id TEXT NOT NULL,
     subject_id TEXT,
+    subject TEXT,
     schedule TEXT,
+    room TEXT,
     max_students INTEGER,
     current_students INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
     description TEXT,
+    sessions TEXT,
+    is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (teacher_id) REFERENCES profiles(id),
     FOREIGN KEY (subject_id) REFERENCES subjects(id)
+);
+
+CREATE TABLE IF NOT EXISTS tutoring_subjects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    classes TEXT, -- stored as JSON string e.g. ["1A", "1B"]
+    meetings INTEGER DEFAULT 10,
+    status TEXT DEFAULT 'Aktif'
+);
+
+CREATE TABLE IF NOT EXISTS tutoring_teachers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    source TEXT DEFAULT 'internal',
+    subject_id TEXT,
+    subject_name TEXT,
+    class_id TEXT,
+    schedule_day TEXT,
+    schedule_start TEXT,
+    schedule_end TEXT,
+    username TEXT,
+    password TEXT,
+    students_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'Aktif'
+);
+
+CREATE TABLE IF NOT EXISTS tutoring_enrollments (
+    id TEXT PRIMARY KEY,
+    group_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(group_id, student_id)
 );
 
 -- ========================================

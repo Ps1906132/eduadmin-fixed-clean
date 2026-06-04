@@ -12,25 +12,30 @@ interface ManageTutoringStudentsModalProps {
 }
 
 const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = ({
-    isOpen, onClose, tutoringGroup, allStudents, enrolledStudents, onAddStudent, onRemoveStudent
+    isOpen, onClose, tutoringGroup, allStudents = [], enrolledStudents = [], onAddStudent, onRemoveStudent
 }) => {
     const [search, setSearch] = useState('');
 
     if (!isOpen || !tutoringGroup) return null;
 
+    const studentsList = allStudents || [];
+    const enrolledList = enrolledStudents || [];
+
     // Filter students who are NOT enrolled yet - Memoized for performance
     const availableStudents = React.useMemo(() => {
         const searchLower = search.toLowerCase();
-        return allStudents.filter(s =>
-            !enrolledStudents.includes(s.id) &&
-            (s.nama.toLowerCase().includes(searchLower) || (s.kelas && s.kelas.toLowerCase().includes(searchLower)))
+        return studentsList.filter(s =>
+            s && s.id !== undefined &&
+            !enrolledList.includes(s.id) &&
+            (((s.nama || '').toLowerCase().includes(searchLower)) || 
+             ((s.kelas || '').toLowerCase().includes(searchLower)))
         );
-    }, [allStudents, enrolledStudents, search]);
+    }, [studentsList, enrolledList, search]);
 
     // Get full objects of enrolled students - Memoized for performance
     const validEnrolled = React.useMemo(() => {
-        return allStudents.filter(s => enrolledStudents.includes(s.id));
-    }, [allStudents, enrolledStudents]);
+        return studentsList.filter(s => s && s.id !== undefined && enrolledList.includes(s.id));
+    }, [studentsList, enrolledList]);
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
@@ -40,7 +45,7 @@ const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = 
                     <div>
                         <h3 className="font-bold text-xl text-slate-800">Kelola Siswa Bimbingan</h3>
                         <p className="text-slate-500 text-sm">
-                            Pengajar: <span className="font-bold text-blue-600">{tutoringGroup.name}</span> | Mapel: {tutoringGroup.subjectName}
+                            Pengajar: <span className="font-bold text-blue-600">{tutoringGroup.name || tutoringGroup.nama || '-'}</span> | Mapel: {tutoringGroup.subjectName || tutoringGroup.subject || '-'}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -78,11 +83,11 @@ const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = 
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
-                                                {student.nama.charAt(0)}
+                                                {(student.nama || 'S').charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors">{student.nama}</div>
-                                                <div className="text-xs text-slate-500">Kelas {student.kelas}</div>
+                                                <div className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors">{student.nama || 'Tanpa Nama'}</div>
+                                                <div className="text-xs text-slate-500">Kelas {student.kelas || '-'}</div>
                                             </div>
                                         </div>
                                         <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm">
@@ -110,11 +115,11 @@ const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = 
                                     <div key={student.id} className="p-4 bg-white border border-slate-200 rounded-2xl flex justify-between items-center shadow-sm hover:border-emerald-200 transition-colors">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm">
-                                                {student.nama.charAt(0)}
+                                                {(student.nama || 'S').charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="font-bold text-slate-800 text-sm">{student.nama}</div>
-                                                <div className="text-xs text-slate-500">Kelas {student.kelas}</div>
+                                                <div className="font-bold text-slate-800 text-sm">{student.nama || 'Tanpa Nama'}</div>
+                                                <div className="text-xs text-slate-500">Kelas {student.kelas || '-'}</div>
                                             </div>
                                         </div>
                                         <button

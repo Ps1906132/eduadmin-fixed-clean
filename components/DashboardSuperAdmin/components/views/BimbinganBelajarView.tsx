@@ -6,7 +6,8 @@ import {
 import { toast } from 'react-hot-toast';
 import { 
     tutoringSubjectsGlobal, updateTutoringSubjectsGlobal, 
-    tutoringTeachersGlobal, updateTutoringTeachersGlobal 
+    tutoringTeachersGlobal, updateTutoringTeachersGlobal,
+    tutoringEnrollmentsGlobal, updateTutoringEnrollmentsGlobal
 } from '../../../../data/sharedData';
 import { hashPassword } from '../../../../utils/auth';
 import ManageTutoringStudentsModal from '../modals/ManageTutoringStudentsModal';
@@ -23,10 +24,83 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [tutoringActiveTab, setTutoringActiveTab] = useState('dashboard'); // dashboard, mapel, guru, materi
     const [tutoringSubjects, setTutoringSubjects] = useState<any[]>(tutoringSubjectsGlobal);
     const [tutoringTeachers, setTutoringTeachers] = useState<any[]>(tutoringTeachersGlobal);
+    const [tutoringEnrollments, setTutoringEnrollments] = useState<any[]>(tutoringEnrollmentsGlobal);
     const [tutoringMaterials, setTutoringMaterials] = useState<any[]>([]);
 
     useEffect(() => { updateTutoringSubjectsGlobal(tutoringSubjects); }, [tutoringSubjects]);
     useEffect(() => { updateTutoringTeachersGlobal(tutoringTeachers); }, [tutoringTeachers]);
+    useEffect(() => { updateTutoringEnrollmentsGlobal(tutoringEnrollments); }, [tutoringEnrollments]);
+
+    // Fetch from D1 on mount (with fallback to localStorage/global memory)
+    const fetchTutoringData = async () => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        try {
+            // 1. Fetch Subjects
+            const subRes = await fetch('/api/tutoring_subjects', { headers });
+            if (subRes.ok) {
+                const subData = await subRes.json();
+                if (subData && Array.isArray(subData)) {
+                    const mapped = subData.map(s => ({
+                        id: Number(s.id),
+                        name: s.name,
+                        classes: typeof s.classes === 'string' ? JSON.parse(s.classes) : (s.classes || []),
+                        meetings: Number(s.meetings),
+                        status: s.status
+                    }));
+                    setTutoringSubjects(mapped);
+                    updateTutoringSubjectsGlobal(mapped);
+                }
+            }
+
+            // 2. Fetch Teachers (Tutoring groups)
+            const teachRes = await fetch('/api/tutoring_teachers', { headers });
+            if (teachRes.ok) {
+                const teachData = await teachRes.json();
+                if (teachData && Array.isArray(teachData)) {
+                    const mapped = teachData.map(t => ({
+                        id: Number(t.id),
+                        name: t.name,
+                        source: t.source,
+                        subjectId: t.subject_id,
+                        subjectName: t.subject_name,
+                        classId: t.class_id,
+                        scheduleDay: t.schedule_day,
+                        scheduleStart: t.schedule_start,
+                        scheduleEnd: t.schedule_end,
+                        username: t.username,
+                        password: t.password,
+                        studentsCount: Number(t.students_count || 0),
+                        status: t.status
+                    }));
+                    setTutoringTeachers(mapped);
+                    updateTutoringTeachersGlobal(mapped);
+                }
+            }
+
+            // 3. Fetch Enrollments
+            const enrollRes = await fetch('/api/tutoring_enrollments', { headers });
+            if (enrollRes.ok) {
+                const enrollData = await enrollRes.json();
+                if (enrollData && Array.isArray(enrollData)) {
+                    const mapped = enrollData.map(e => ({
+                        groupId: Number(e.group_id),
+                        studentId: Number(e.student_id)
+                    }));
+                    setTutoringEnrollments(mapped);
+                    updateTutoringEnrollmentsGlobal(mapped);
+                }
+            }
+        } catch (error) {
+            console.error('Gagal mengambil data bimbingan dari database:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchTutoringData();
+    }, []);
 
     const [showAddTutoringSubject, setShowAddTutoringSubject] = useState(false);
     const [showAddTutoringTeacher, setShowAddTutoringTeacher] = useState(false);
@@ -34,14 +108,58 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [newTutoringTeacher, setNewTutoringTeacher] = useState({ name: '', source: 'internal', subjectId: '', classId: '', scheduleDay: 'Senin', scheduleStart: '14:00', scheduleEnd: '15:00', username: '', password: '' });
     const [editingTutoringTeacherId, setEditingTutoringTeacherId] = useState<number | null>(null);
 
-    const handleAddTutoringSubject = () => {
-        setTutoringSubjects([...tutoringSubjects, { ...newTutoringSubject, id: Date.now(), classes: newTutoringSubject.classes || [] }]);
+    const handleAddTutoringSubject = async () => {
+        const newSubject = { ...newTutoringSubject, id: Date.now(), classes: newTutoringSubject.classes || [] };
+        
+        // Optimistic UI Update
+        const updatedList = [...tutoringSubjects, newSubject];
+        setTutoringSubjects(updatedList);
+        updateTutoringSubjectsGlobal(updatedList);
         setShowAddTutoringSubject(false);
         setNewTutoringSubject({ name: '', classes: [], meetings: 10, status: 'Aktif' });
+        toast.success("Mata pelajaran bimbel ditambahkan");
+
+        // Save to D1
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            await fetch('/api/tutoring_subjects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    id: newSubject.id.toString(),
+                    name: newSubject.name,
+                    classes: JSON.stringify(newSubject.classes),
+                    meetings: newSubject.meetings,
+                    status: newSubject.status
+                })
+            });
+        } catch (e) {
+            console.error('Gagal menyimpan mata pelajaran bimbel ke database:', e);
+        }
+    };
+
+    const handleDeleteTutoringSubject = async (id: number) => {
+        if (confirm("Hapus mata pelajaran bimbel ini?")) {
+            const updatedList = tutoringSubjects.filter(s => s.id !== id);
+            setTutoringSubjects(updatedList);
+            updateTutoringSubjectsGlobal(updatedList);
+            toast.success("Mata pelajaran bimbel dihapus");
+
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                await fetch(`/api/tutoring_subjects?id=eq.${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
     };
 
     const handleAddTutoringTeacher = async () => {
         const subject = tutoringSubjects.find(s => s.id.toString() === newTutoringTeacher.subjectId);
+        const token = localStorage.getItem('eduadmin_token');
 
         if (editingTutoringTeacherId) {
             let updatedTeacher = { ...newTutoringTeacher };
@@ -49,28 +167,81 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 updatedTeacher.password = await hashPassword(newTutoringTeacher.password);
             }
 
-            setTutoringTeachers(tutoringTeachers.map(t => t.id === editingTutoringTeacherId ? {
+            const updatedList = tutoringTeachers.map(t => t.id === editingTutoringTeacherId ? {
                 ...t,
                 ...updatedTeacher,
                 subjectName: subject?.name || t.subjectName
-            } : t));
+            } : t);
+
+            setTutoringTeachers(updatedList);
+            updateTutoringTeachersGlobal(updatedList);
             toast.success("Data guru diperbarui");
+
+            try {
+                await fetch(`/api/tutoring_teachers?id=eq.${editingTutoringTeacherId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        name: updatedTeacher.name,
+                        source: updatedTeacher.source,
+                        subject_id: updatedTeacher.subjectId,
+                        subject_name: subject?.name || '',
+                        class_id: updatedTeacher.classId,
+                        schedule_day: updatedTeacher.scheduleDay,
+                        schedule_start: updatedTeacher.scheduleStart,
+                        schedule_end: updatedTeacher.scheduleEnd,
+                        username: updatedTeacher.username,
+                        password: updatedTeacher.password
+                    })
+                });
+            } catch (e) {
+                console.error(e);
+            }
         } else {
+            const id = Date.now();
             const username = newTutoringTeacher.username || newTutoringTeacher.name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(Math.random() * 1000);
             const rawPassword = newTutoringTeacher.password || Math.random().toString(36).substring(2, 10);
             const hashedPassword = await hashPassword(rawPassword);
 
-            setTutoringTeachers([...tutoringTeachers, {
+            const newTeacher = {
                 ...newTutoringTeacher,
-                id: Date.now(),
+                id,
                 subjectName: subject?.name || '-',
                 studentsCount: 0,
                 status: 'Aktif',
                 username,
                 password: hashedPassword
-            }]);
+            };
+
+            const updatedList = [...tutoringTeachers, newTeacher];
+            setTutoringTeachers(updatedList);
+            updateTutoringTeachersGlobal(updatedList);
             
             toast.success(`Guru berhasil ditambahkan. Password: ${rawPassword}`, { duration: 10000 });
+
+            try {
+                await fetch('/api/tutoring_teachers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        id: id.toString(),
+                        name: newTeacher.name,
+                        source: newTeacher.source,
+                        subject_id: newTeacher.subjectId,
+                        subject_name: newTeacher.subjectName,
+                        class_id: newTeacher.classId,
+                        schedule_day: newTeacher.scheduleDay,
+                        schedule_start: newTeacher.scheduleStart,
+                        schedule_end: newTeacher.scheduleEnd,
+                        username: newTeacher.username,
+                        password: newTeacher.password,
+                        students_count: 0,
+                        status: newTeacher.status
+                    })
+                });
+            } catch (e) {
+                console.error(e);
+            }
         }
         setShowAddTutoringTeacher(false);
         setNewTutoringTeacher({ name: '', source: 'internal', subjectId: '', classId: '', scheduleDay: 'Senin', scheduleStart: '14:00', scheduleEnd: '15:00', username: '', password: '' });
@@ -81,7 +252,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
         setEditingTutoringTeacherId(t.id);
         setNewTutoringTeacher({
             name: t.name,
-            source: 'internal',
+            source: t.source || 'internal',
             subjectId: t.subjectId ? t.subjectId.toString() : '',
             classId: t.classId,
             scheduleDay: t.scheduleDay,
@@ -93,14 +264,25 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
         setShowAddTutoringTeacher(true);
     };
 
-    const handleDeleteTutoringTeacher = (id: number) => {
+    const handleDeleteTutoringTeacher = async (id: number) => {
         if (confirm("Hapus data guru bimbel ini?")) {
-            setTutoringTeachers(tutoringTeachers.filter(t => t.id !== id));
+            const updatedList = tutoringTeachers.filter(t => t.id !== id);
+            setTutoringTeachers(updatedList);
+            updateTutoringTeachersGlobal(updatedList);
             toast.success("Guru dihapus");
+
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                await fetch(`/api/tutoring_teachers?id=eq.${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (e) {
+                console.error(e);
+            }
         }
     };
 
-    const [tutoringEnrollments, setTutoringEnrollments] = useState<{ groupId: number, studentId: number }[]>([]);
     const [showManageTutoringStudentsModal, setShowManageTutoringStudentsModal] = useState(false);
     const [selectedTutoringGroup, setSelectedTutoringGroup] = useState<any>(null);
 
@@ -109,18 +291,80 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
         setShowManageTutoringStudentsModal(true);
     };
 
-    const handleAddStudentToTutoring = (studentId: number) => {
+    const handleAddStudentToTutoring = async (studentId: number) => {
         if (!selectedTutoringGroup) return;
         if (tutoringEnrollments.some(e => e.groupId === selectedTutoringGroup.id && e.studentId === studentId)) return;
 
-        setTutoringEnrollments([...tutoringEnrollments, { groupId: selectedTutoringGroup.id, studentId }]);
+        const newEnrollment = { groupId: selectedTutoringGroup.id, studentId };
+        const updatedList = [...tutoringEnrollments, newEnrollment];
+        setTutoringEnrollments(updatedList);
+        updateTutoringEnrollmentsGlobal(updatedList);
         toast.success("Siswa berhasil ditambahkan ke bimbingan!");
+
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const id = `${selectedTutoringGroup.id}-${studentId}`;
+            await fetch('/api/tutoring_enrollments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    id,
+                    group_id: selectedTutoringGroup.id.toString(),
+                    student_id: studentId.toString()
+                })
+            });
+
+            // Update studentsCount on group in UI
+            const updatedTeachers = tutoringTeachers.map(t => 
+                t.id === selectedTutoringGroup.id ? { ...t, studentsCount: (t.studentsCount || 0) + 1 } : t
+            );
+            setTutoringTeachers(updatedTeachers);
+            updateTutoringTeachersGlobal(updatedTeachers);
+
+            await fetch(`/api/tutoring_teachers?id=eq.${selectedTutoringGroup.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    students_count: ((selectedTutoringGroup.studentsCount || 0) + 1)
+                })
+            });
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const handleRemoveStudentFromTutoring = (studentId: number) => {
+    const handleRemoveStudentFromTutoring = async (studentId: number) => {
         if (!selectedTutoringGroup) return;
-        setTutoringEnrollments(tutoringEnrollments.filter(e => !(e.groupId === selectedTutoringGroup.id && e.studentId === studentId)));
+        const updatedList = tutoringEnrollments.filter(e => !(e.groupId === selectedTutoringGroup.id && e.studentId === studentId));
+        setTutoringEnrollments(updatedList);
+        updateTutoringEnrollmentsGlobal(updatedList);
         toast.success("Siswa dihapus dari bimbingan.");
+
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const id = `${selectedTutoringGroup.id}-${studentId}`;
+            await fetch(`/api/tutoring_enrollments?id=eq.${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            // Update studentsCount on group in UI
+            const updatedTeachers = tutoringTeachers.map(t => 
+                t.id === selectedTutoringGroup.id ? { ...t, studentsCount: Math.max(0, (t.studentsCount || 0) - 1) } : t
+            );
+            setTutoringTeachers(updatedTeachers);
+            updateTutoringTeachersGlobal(updatedTeachers);
+
+            await fetch(`/api/tutoring_teachers?id=eq.${selectedTutoringGroup.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    students_count: Math.max(0, (selectedTutoringGroup.studentsCount || 0) - 1)
+                })
+            });
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const activeGroupEnrollments = React.useMemo(() => {
@@ -228,7 +472,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                                 <td className="p-4 text-center">
                                                     <div className="flex justify-center gap-3">
                                                         <button className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><SquarePen size={18} /></button>
-                                                        <button className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                                                        <button onClick={() => handleDeleteTutoringSubject(s.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={18} /></button>
                                                     </div>
                                                 </td>
                                             </tr>

@@ -32,7 +32,10 @@ const ALLOWED_TABLES = [
   'grades',
   'school_settings',
   'promotion_history',
-  'schedule_periods'
+  'schedule_periods',
+  'tutoring_subjects',
+  'tutoring_teachers',
+  'tutoring_enrollments'
 ];
 
 // Helper to sign JWT using Web Crypto API (dependency-free)
