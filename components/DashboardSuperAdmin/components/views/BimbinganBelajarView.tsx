@@ -27,10 +27,6 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [tutoringEnrollments, setTutoringEnrollments] = useState<any[]>(tutoringEnrollmentsGlobal);
     const [tutoringMaterials, setTutoringMaterials] = useState<any[]>([]);
 
-    useEffect(() => { updateTutoringSubjectsGlobal(tutoringSubjects); }, [tutoringSubjects]);
-    useEffect(() => { updateTutoringTeachersGlobal(tutoringTeachers); }, [tutoringTeachers]);
-    useEffect(() => { updateTutoringEnrollmentsGlobal(tutoringEnrollments); }, [tutoringEnrollments]);
-
     // Fetch from D1 on mount (with fallback to localStorage/global memory)
     const fetchTutoringData = async () => {
         const token = localStorage.getItem('eduadmin_token');
@@ -315,7 +311,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             });
 
             // Update studentsCount on group in UI
-            const updatedTeachers = tutoringTeachers.map(t => 
+            const updatedTeachers = tutoringTeachers.map(t =>
                 t.id === selectedTutoringGroup.id ? { ...t, studentsCount: (t.studentsCount || 0) + 1 } : t
             );
             setTutoringTeachers(updatedTeachers);
@@ -349,7 +345,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             });
 
             // Update studentsCount on group in UI
-            const updatedTeachers = tutoringTeachers.map(t => 
+            const updatedTeachers = tutoringTeachers.map(t =>
                 t.id === selectedTutoringGroup.id ? { ...t, studentsCount: Math.max(0, (t.studentsCount || 0) - 1) } : t
             );
             setTutoringTeachers(updatedTeachers);
@@ -367,12 +363,13 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
         }
     };
 
-    const activeGroupEnrollments = React.useMemo(() => {
-        if (!selectedTutoringGroup) return [];
+    // Calculate activeGroupEnrollments
+    const activeGroupEnrollments = (() => {
+        if (!selectedTutoringGroup || !selectedTutoringGroup.id) return [];
         return (tutoringEnrollments || [])
             .filter(e => e && e.groupId === selectedTutoringGroup.id)
             .map(e => e.studentId);
-    }, [selectedTutoringGroup, tutoringEnrollments]);
+    })();
 
     return (
         <div className="bg-[#F4F7FE] p-6 h-full overflow-y-auto">
@@ -743,7 +740,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     onClose={() => setShowManageTutoringStudentsModal(false)}
                     tutoringGroup={selectedTutoringGroup}
                     allStudents={students || []}
-                    enrolledStudents={activeGroupEnrollments || []}
+                    enrolledStudents={activeGroupEnrollments}
                     onAddStudent={handleAddStudentToTutoring}
                     onRemoveStudent={handleRemoveStudentFromTutoring}
                 />

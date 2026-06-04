@@ -21,21 +21,16 @@ const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = 
     const studentsList = Array.isArray(allStudents) ? allStudents : [];
     const enrolledList = Array.isArray(enrolledStudents) ? enrolledStudents : [];
 
-    // Filter students who are NOT enrolled yet - Memoized for performance
-    const availableStudents = React.useMemo(() => {
-        const searchLower = search.toLowerCase();
-        return studentsList.filter(s =>
-            s && s.id !== undefined &&
-            !enrolledList.includes(s.id) &&
-            (((s.nama || '').toLowerCase().includes(searchLower)) || 
-             ((s.kelas || '').toLowerCase().includes(searchLower)))
-        );
-    }, [studentsList, enrolledList, search]);
+    // Filter students who are NOT enrolled yet
+    const availableStudents = studentsList.filter(s =>
+        s && s.id !== undefined &&
+        !enrolledList.includes(s.id) &&
+        (((s.nama || '').toLowerCase().includes(search.toLowerCase())) ||
+         ((s.kelas || '').toLowerCase().includes(search.toLowerCase())))
+    );
 
-    // Get full objects of enrolled students - Memoized for performance
-    const validEnrolled = React.useMemo(() => {
-        return studentsList.filter(s => s && s.id !== undefined && enrolledList.includes(s.id));
-    }, [studentsList, enrolledList]);
+    // Get full objects of enrolled students
+    const validEnrolled = studentsList.filter(s => s && s.id !== undefined && enrolledList.includes(s.id));
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
