@@ -369,8 +369,8 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
 
     const activeGroupEnrollments = React.useMemo(() => {
         if (!selectedTutoringGroup) return [];
-        return tutoringEnrollments
-            .filter(e => e.groupId === selectedTutoringGroup.id)
+        return (tutoringEnrollments || [])
+            .filter(e => e && e.groupId === selectedTutoringGroup.id)
             .map(e => e.studentId);
     }, [selectedTutoringGroup, tutoringEnrollments]);
 
@@ -737,15 +737,17 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             )}
 
             {/* Modal Manage Students */}
-            <ManageTutoringStudentsModal 
-                isOpen={showManageTutoringStudentsModal}
-                onClose={() => setShowManageTutoringStudentsModal(false)}
-                tutoringGroup={selectedTutoringGroup}
-                allStudents={students}
-                enrolledStudents={activeGroupEnrollments}
-                onAddStudent={handleAddStudentToTutoring}
-                onRemoveStudent={handleRemoveStudentFromTutoring}
-            />
+            {showManageTutoringStudentsModal && selectedTutoringGroup && (
+                <ManageTutoringStudentsModal
+                    isOpen={showManageTutoringStudentsModal}
+                    onClose={() => setShowManageTutoringStudentsModal(false)}
+                    tutoringGroup={selectedTutoringGroup}
+                    allStudents={students || []}
+                    enrolledStudents={activeGroupEnrollments || []}
+                    onAddStudent={handleAddStudentToTutoring}
+                    onRemoveStudent={handleRemoveStudentFromTutoring}
+                />
+            )}
         </div>
     );
 };

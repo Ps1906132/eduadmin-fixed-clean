@@ -18,8 +18,8 @@ const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = 
 
     if (!isOpen || !tutoringGroup) return null;
 
-    const studentsList = allStudents || [];
-    const enrolledList = enrolledStudents || [];
+    const studentsList = Array.isArray(allStudents) ? allStudents : [];
+    const enrolledList = Array.isArray(enrolledStudents) ? enrolledStudents : [];
 
     // Filter students who are NOT enrolled yet - Memoized for performance
     const availableStudents = React.useMemo(() => {
