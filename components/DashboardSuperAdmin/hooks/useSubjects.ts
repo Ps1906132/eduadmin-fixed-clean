@@ -180,7 +180,7 @@ export const useSubjects = () => {
                         id: item.id.toString(),
                         code: item.code || `SBJ-${Date.now()}`,
                         name: item.name,
-                        group_id: item.group,
+                        subject_group_id: item.group,
                         description: item.level || 'Kelas 1',
                         is_active: 1
                     })
@@ -207,7 +207,7 @@ export const useSubjects = () => {
                             body: JSON.stringify({
                                 code: item.code,
                                 name: item.name,
-                                group_id: item.group,
+                                subject_group_id: item.group,
                                 description: item.level
                             })
                         });
