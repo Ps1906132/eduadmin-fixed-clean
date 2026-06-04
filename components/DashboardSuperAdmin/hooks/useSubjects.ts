@@ -16,9 +16,10 @@ export interface Subject {
 }
 
 const initialSubjectGroups: SubjectGroup[] = [
-    { id: 1, name: 'Wajib A' },
-    { id: 2, name: 'Wajib B' },
-    { id: 3, name: 'Muatan Lokal' }
+    { id: 'sg-001', name: 'Matematika & IPA' },
+    { id: 'sg-002', name: 'Bahasa & Sastra' },
+    { id: 'sg-003', name: 'IPS & PKN' },
+    { id: 'sg-004', name: 'Olahraga & Seni' }
 ];
 
 export const useSubjects = () => {
@@ -72,7 +73,7 @@ export const useSubjects = () => {
                         name: s.name,
                         code: s.code,
                         level: s.description || 'Kelas 1',
-                        group: s.group_id || 'Umum',
+                        group: s.subject_group_id || 'Umum',
                         color: s.color || undefined
                     }));
                     _setSubjects(mappedSubjects);
@@ -177,15 +178,19 @@ export const useSubjects = () => {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
-                        id: item.id.toString(),
+                        id: item.id.toString().startsWith('subj-') ? item.id.toString() : `subj-${Date.now()}`,
                         code: item.code || `SBJ-${Date.now()}`,
                         name: item.name,
                         subject_group_id: item.group,
                         description: item.level || 'Kelas 1',
+                        credits: 2,
                         is_active: 1
                     })
                 });
-                if (!res.ok) throw new Error(`Failed to create subject ${item.name}`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Failed to create subject ${item.name}: ${errorText}`);
+                }
             }
 
             // 3. Handle Updated

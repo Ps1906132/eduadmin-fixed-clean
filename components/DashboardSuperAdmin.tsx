@@ -124,15 +124,15 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
     // --- FORCE RESET CLEANUP (Run once to ensure everything is empty) ---
     useEffect(() => {
-        const hasReset = localStorage.getItem('force_reset_v10');
+        const hasReset = localStorage.getItem('force_reset_v11');
         if (!hasReset) {
             // Clear all possible legacy keys
             Object.keys(localStorage).forEach(key => {
-                if (key.includes('data_v') || key.includes('finance_') || key.includes('savings_') || key.includes('announcements_') || key.includes('broadcasts_')) {
+                if (key.includes('data_v') || key.includes('finance_') || key.includes('savings_') || key.includes('announcements_') || key.includes('broadcasts_') || key.includes('subject_') || key.includes('teacher_')) {
                     localStorage.removeItem(key);
                 }
             });
-            localStorage.setItem('force_reset_v10', 'true');
+            localStorage.setItem('force_reset_v11', 'true');
             // Hard refresh to ensure hooks re-initialize with empty data from sharedData
             window.location.reload();
         }
@@ -726,7 +726,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         const form = e.target as HTMLFormElement;
         const name = (form.elements.namedItem('groupName') as HTMLInputElement).value;
         if (name) {
-            setSubjectGroups([...subjectGroups, { id: Date.now(), name }]);
+            setSubjectGroups([...subjectGroups, { id: `sg-${Date.now()}`, name }]);
             toast.success("Kelompok berhasil ditambahkan!");
             form.reset();
         }
@@ -2151,7 +2151,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Kelompok</label>
                                                 <select name="subjectGroup" defaultValue={editItem && editType === 'Mata Pelajaran' ? editItem.group : ''} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer">
                                                     {subjectGroups.map(g => (
-                                                        <option key={g.id} value={g.name}>{g.name}</option>
+                                                        <option key={g.id} value={g.id}>{g.name}</option>
                                                     ))}
                                                 </select>
                                             </div>
