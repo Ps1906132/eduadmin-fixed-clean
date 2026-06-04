@@ -104,7 +104,8 @@ export const useStudents = () => {
                     full_name: student.nama,
                     parent_name: student.ayah,
                     gender: student.gender || null,
-                    status: 'active'
+                    status: 'active',
+                    enrollment_date: new Date().toISOString().split('T')[0]
                 })
             });
             if (!res.ok) {
