@@ -153,6 +153,10 @@ export const useStudents = () => {
                     birth_place: student.ttl?.split(', ')[0] || null,
                     birth_date: student.ttl?.split(', ')[1] || null,
                     parent_name: student.ayah || null,
+                    mother_name: student.ibu || null,
+                    parent_job: student.jobAyah || null,
+                    mother_job: student.jobIbu || null,
+                    username: student.username || student.nis,
                     phone: (student as any).noHp || null,
                     gender: student.gender || null,
                     status: 'active',
@@ -227,7 +231,7 @@ export const useStudents = () => {
             if (updates.jobAyah) dbUpdates.parent_job = updates.jobAyah;
             if (updates.jobIbu) dbUpdates.mother_job = updates.jobIbu;
 
-            const res = await fetch(`/api/students/${idStr}`, {
+            const res = await fetch(`/api/students?id=eq.${idStr}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(dbUpdates)
@@ -333,7 +337,7 @@ export const useStudents = () => {
 
             try {
                 const token = localStorage.getItem('eduadmin_token');
-                const res = await fetch(`/api/students/${targetIdStr}`, {
+                const res = await fetch(`/api/students?id=eq.${targetIdStr}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });

@@ -116,10 +116,10 @@ export const useClasses = () => {
             // Optimistic UI update
             const updatedClasses = [...classes, newClass];
             setClasses(updatedClasses);
-            
+
             // Update localStorage immediately
             localStorage.setItem('classes_data_v11', JSON.stringify(updatedClasses));
-            
+
             setShowAddClassModal(false);
 
             // Sync to D1 in background
@@ -127,6 +127,43 @@ export const useClasses = () => {
                 const token = localStorage.getItem('eduadmin_token');
                 // Ambil academic_year_id aktif dari localStorage atau gunakan default
                 const cachedAcademicYear = localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
+
+                // ✅ FIX: Ensure academic_year exists before inserting class
+                // Cek apakah academic_year sudah ada di D1
+                let academicYearId = cachedAcademicYear;
+                try {
+                    const checkRes = await fetch(`/api/academic_years?id=eq.${academicYearId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (checkRes.ok) {
+                        const checkData = await checkRes.json();
+                        // Jika belum ada, insert academic_year baru
+                        if (!Array.isArray(checkData) || checkData.length === 0) {
+                            const insertAyRes = await fetch('/api/academic_years', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    id: academicYearId,
+                                    name: '2025/2026 - Semester 1',
+                                    start_date: '2025-07-01',
+                                    end_date: '2025-12-31',
+                                    semester: 1,
+                                    is_active: 1
+                                })
+                            });
+                            if (!insertAyRes.ok) {
+                                console.warn('Gagal membuat academic_year:', await insertAyRes.text());
+                            }
+                        }
+                    }
+                } catch (ayErr) {
+                    console.warn('Gagal cek/insert academic_year:', ayErr);
+                }
+
+                // Sekarang insert class dengan academic_year_id yang sudah dijamin ada
                 const res = await fetch('/api/classes', {
                     method: 'POST',
                     headers: {
@@ -137,7 +174,7 @@ export const useClasses = () => {
                         id: tempId.toString(),
                         name: nama,
                         grade_level: parseInt(tingkat),
-                        academic_year_id: cachedAcademicYear,
+                        academic_year_id: academicYearId,
                         is_active: 1
                     })
                 });
@@ -146,7 +183,7 @@ export const useClasses = () => {
                     console.warn('D1 sync gagal (offline mode), kelas disimpan lokal:', await res.text());
                     return true;
                 }
-                
+
                 // Fetch to get database assigned IDs
                 fetchClasses();
             } catch (err) {
