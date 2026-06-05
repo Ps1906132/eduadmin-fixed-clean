@@ -153,6 +153,9 @@ export const useStudents = () => {
                     birth_place: student.ttl?.split(', ')[0] || null,
                     birth_date: student.ttl?.split(', ')[1] || null,
                     parent_name: student.ayah || null,
+                    mother_name: student.ibu || null,
+                    parent_job: student.jobAyah || null,
+                    mother_job: student.jobIbu || null,
                     phone: (student as any).noHp || null,
                     gender: student.gender || null,
                     status: 'active',
@@ -217,15 +220,15 @@ export const useStudents = () => {
             if (updates.nama) dbUpdates.full_name = updates.nama;
             if (updates.nis) dbUpdates.nis = updates.nis;
             if (updates.ayah) dbUpdates.parent_name = updates.ayah;
+            if (updates.ibu) dbUpdates.mother_name = updates.ibu;
+            if (updates.jobAyah) dbUpdates.parent_job = updates.jobAyah;
+            if (updates.jobIbu) dbUpdates.mother_job = updates.jobIbu;
             if (updates.gender) dbUpdates.gender = updates.gender;
             if (updates.ttl) {
                 const ttlParts = updates.ttl.split(', ');
                 if (ttlParts[0]) dbUpdates.birth_place = ttlParts[0];
                 if (ttlParts[1]) dbUpdates.birth_date = ttlParts[1];
             }
-            if (updates.ibu) dbUpdates.mother_name = updates.ibu;
-            if (updates.jobAyah) dbUpdates.parent_job = updates.jobAyah;
-            if (updates.jobIbu) dbUpdates.mother_job = updates.jobIbu;
 
             const res = await fetch(`/api/students?id=eq.${idStr}`, {
                 method: 'PATCH',
@@ -237,7 +240,7 @@ export const useStudents = () => {
             }
 
             // If class-related fields are updated, also update class_students table
-            if (updates.kelas || updates.tingkat || updates.paralel) {
+            if (updates.kelas) {
                 try {
                     // Get the student's current class assignment
                     const csRes = await fetch(`/api/class_students?student_id=eq.${idStr}`, {
@@ -259,6 +262,30 @@ export const useStudents = () => {
                                             method: 'PATCH',
                                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                             body: JSON.stringify({ class_id: newClass.id.toString() })
+                                        });
+                                    }
+                                }
+                            }
+                        } else {
+                            // No existing class assignment, create new one
+                            const classRes = await fetch('/api/classes', { headers: { 'Authorization': `Bearer ${token}` } });
+                            if (classRes.ok) {
+                                const classData = await classRes.json();
+                                if (Array.isArray(classData)) {
+                                    const newClass = classData.find((c: any) => c.name === updates.kelas);
+                                    if (newClass) {
+                                        const academicYearId = localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
+                                        await fetch('/api/class_students', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                            body: JSON.stringify({
+                                                id: `cs-${idStr}-${newClass.id}`,
+                                                student_id: idStr,
+                                                class_id: newClass.id.toString(),
+                                                academic_year_id: academicYearId,
+                                                enrollment_date: new Date().toISOString().split('T')[0],
+                                                is_active: 1
+                                            })
                                         });
                                     }
                                 }
