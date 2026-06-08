@@ -135,9 +135,17 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
             // 2. OFFLINE LOCAL TEACHERS CHECK (ONLY LOCAL FALLBACK)
             const localTeachers = localStorage.getItem('teachers_data_v11');
             const teachersSource = localTeachers ? JSON.parse(localTeachers) : teachersDataGlobal;
+            
+            const localTutoringTeachers = localStorage.getItem('tutoring_teachers_v11');
+            const tutoringTeachersSource = localTutoringTeachers ? JSON.parse(localTutoringTeachers) : [];
+
             const matchedTeacher = teachersSource.find((t: any) =>
                 t.username === username || t.nip === username || t.email === username
             );
+
+            const matchedTutoringTeacher = !matchedTeacher ? tutoringTeachersSource.find((t: any) =>
+                t.username === username
+            ) : null;
 
             if (matchedTeacher) {
                 const isValid = await verifyPassword(password, matchedTeacher.password);
@@ -162,6 +170,24 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                         mapel: matchedTeacher.mapel,
                         kelas: matchedTeacher.kelas || matchedTeacher.wali,
                         avatar: matchedTeacher.avatar || 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            } else if (matchedTutoringTeacher) {
+                const isValid = await verifyPassword(password, matchedTutoringTeacher.password);
+                // Also allow plaintext for newly created tutoring teachers before they login if not yet hashed
+                const devFallback = !isValid && password === matchedTutoringTeacher.password;
+
+                if (isValid || devFallback) {
+                    onLogin('gb', {
+                        id: matchedTutoringTeacher.id,
+                        nama: matchedTutoringTeacher.name,
+                        role: 'Guru Bimbel',
+                        nip: '-',
+                        mapel: matchedTutoringTeacher.subjectName,
+                        kelas: matchedTutoringTeacher.classId,
+                        avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=100&auto=format&fit=crop'
                     });
                     setIsLoading(false);
                     return;

@@ -21,19 +21,29 @@ const JadwalMengajarGuru: React.FC<JadwalMengajarGuruProps> = ({ onBack, user })
 
         // 2. Identify which classes and subjects are assigned to this teacher
         const myAssignments = teacherAssignments.filter((ta: any) => {
-            // Find teacher in global teachers data to get their ID if needed, 
-            // but usually plotting uses IDs. Let's assume we can match by name for simplicity if ID is not available.
             return ta.teacherName === teacherName || ta.teacherId === user?.id;
         });
 
-        // 3. Get Published Schedule
-        const publishedSchedule = schedulesDataGlobal.find(s => s.status === 'published') || schedulesDataGlobal[0];
+        // 3. Get Published Schedule from localStorage or Fallback
+        let publishedSchedule = null;
+        if (typeof window !== 'undefined') {
+            const savedSchedules = localStorage.getItem('schedules_data_v2');
+            if (savedSchedules) {
+                const parsed = JSON.parse(savedSchedules);
+                publishedSchedule = parsed.find((s: any) => s.status === 'published') || parsed[0];
+            }
+        }
+        
+        if (!publishedSchedule) {
+            publishedSchedule = schedulesDataGlobal.find(s => s.status === 'published') || schedulesDataGlobal[0];
+        }
+
         if (!publishedSchedule) return [];
 
         // 4. Map the schedule items
         const results: any[] = [];
 
-        publishedSchedule.items.forEach(item => {
+        publishedSchedule.items.forEach((item: any) => {
             // Check if this item matches teacher's assignment
             const isMyMapel = myAssignments.some((ta: any) =>
                 ta.classNama === item.classId && ta.subjectIds.includes(Number(item.subjectId))
@@ -48,7 +58,7 @@ const JadwalMengajarGuru: React.FC<JadwalMengajarGuruProps> = ({ onBack, user })
                     hari: item.day,
                     jam: periodInfo ? `${periodInfo.start} - ${periodInfo.end}` : `Jam ke-${item.period}`,
                     kelas: item.classId,
-                    mapel: subjectInfo?.name || item.customName || 'Mata Pelajaran',
+                    mapel: subjectInfo?.nama || item.customName || 'Mata Pelajaran',
                     ruang: `R. ${item.classId}`
                 });
             }

@@ -41,7 +41,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
 
     const [attendanceData, setAttendanceData] = useState<any[]>(() => {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('attendance_data_v10');
+            const saved = localStorage.getItem('attendance_data_v2');
             if (saved) return JSON.parse(saved);
         }
         return attendanceDataGlobal.length > 0 ? attendanceDataGlobal : [];
@@ -72,7 +72,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
             });
         }
         setAttendanceData(newData);
-        localStorage.setItem('attendance_data_v10', JSON.stringify(newData));
+        localStorage.setItem('attendance_data_v2', JSON.stringify(newData));
         updateAttendanceDataGlobal(newData);
     };
 
@@ -98,12 +98,12 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
             }
         });
         setAttendanceData(newData);
-        localStorage.setItem('attendance_data_v10', JSON.stringify(newData));
+        localStorage.setItem('attendance_data_v2', JSON.stringify(newData));
         updateAttendanceDataGlobal(newData);
     };
 
     const handleSave = () => {
-        localStorage.setItem('attendance_data_v10', JSON.stringify(attendanceData));
+        localStorage.setItem('attendance_data_v2', JSON.stringify(attendanceData));
         updateAttendanceDataGlobal(attendanceData);
         alert('Data absensi berhasil disimpan dan disinkronkan!');
         onBack();

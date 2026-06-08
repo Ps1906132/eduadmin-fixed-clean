@@ -11,6 +11,7 @@ import {
 } from '../../../../data/sharedData';
 import { hashPassword } from '../../../../utils/auth';
 import ManageTutoringStudentsModal from '../modals/ManageTutoringStudentsModal';
+import { useTutoring } from '../../hooks/useTutoring';
 
 interface BimbinganBelajarViewProps {
     students: any[];
@@ -25,7 +26,24 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [tutoringSubjects, setTutoringSubjects] = useState<any[]>(tutoringSubjectsGlobal);
     const [tutoringTeachers, setTutoringTeachers] = useState<any[]>(tutoringTeachersGlobal);
     const [tutoringEnrollments, setTutoringEnrollments] = useState<any[]>(tutoringEnrollmentsGlobal);
-    const [tutoringMaterials, setTutoringMaterials] = useState<any[]>([]);
+    
+    // Sync with Teacher's view via useTutoring hook
+    const { tutoringClasses, loading: tutoringLoading, setTutoringClasses } = useTutoring();
+    
+    // Derived state for materials from tutoringClasses sessions
+    const tutoringMaterials = tutoringClasses.flatMap(cls => 
+        (cls.sessions || []).map((session, idx) => ({
+            id: session.id || `${cls.id}-${idx}`,
+            teacherId: cls.id,
+            teacherName: cls.teacher,
+            subjectName: cls.title,
+            meeting: idx + 1,
+            title: session.title,
+            videoUrl: session.youtubeId,
+            fileUrl: session.driveLink,
+            date: session.date
+        }))
+    );
 
     // Fetch from D1 on mount (with fallback to localStorage/global memory)
     const fetchTutoringData = async () => {
@@ -171,6 +189,15 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
 
             setTutoringTeachers(updatedList);
             updateTutoringTeachersGlobal(updatedList);
+
+            // Update associated class
+            setTutoringClasses(prev => prev.map(c => c.id === editingTutoringTeacherId ? {
+                ...c,
+                title: `${subject?.name || 'Bimbel'} - ${updatedTeacher.classId}`,
+                teacher: updatedTeacher.name,
+                schedule: `${updatedTeacher.scheduleDay}, ${updatedTeacher.scheduleStart}-${updatedTeacher.scheduleEnd}`
+            } : c));
+
             toast.success("Data guru diperbarui");
 
             try {
@@ -213,6 +240,18 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             setTutoringTeachers(updatedList);
             updateTutoringTeachersGlobal(updatedList);
             
+            // Create associated class for teacher's dashboard
+            setTutoringClasses(prev => [...prev, {
+                id,
+                title: `${subject?.name || 'Bimbel'} - ${newTutoringTeacher.classId}`,
+                teacher: newTutoringTeacher.name,
+                schedule: `${newTutoringTeacher.scheduleDay}, ${newTutoringTeacher.scheduleStart}-${newTutoringTeacher.scheduleEnd}`,
+                room: 'Lab/Kelas',
+                status: 'Aktif',
+                description: `Kelas bimbingan belajar ${subject?.name || ''}`,
+                sessions: []
+            }]);
+
             toast.success(`Guru berhasil ditambahkan. Password: ${rawPassword}`, { duration: 10000 });
 
             try {
