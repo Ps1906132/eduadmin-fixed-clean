@@ -2436,10 +2436,13 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                     <form onSubmit={(e) => {
                                         e.preventDefault();
                                         const form = e.target as HTMLFormElement;
-                                        const teacherId = parseInt((form.elements.namedItem('teacherId') as HTMLSelectElement).value);
+                                        const teacherIdValue = (form.elements.namedItem('teacherId') as HTMLSelectElement).value;
+                                        // Use number if it's a numeric string, otherwise keep as string (for UUIDs)
+                                        const teacherId = isNaN(Number(teacherIdValue)) ? teacherIdValue : Number(teacherIdValue);
+                                        
                                         const classNama = (form.elements.namedItem('classNama') as HTMLSelectElement).value;
                                         const mapelOptions = (form.elements.namedItem('mapelIds') as HTMLSelectElement).selectedOptions;
-                                        const subjectIds = Array.from(mapelOptions).map(opt => parseInt(opt.value));
+                                        const subjectIds = Array.from(mapelOptions).map(opt => isNaN(Number(opt.value)) ? opt.value : Number(opt.value));
 
                                         if (teacherId && classNama && subjectIds.length > 0) {
                                             setTeacherAssignments([...teacherAssignments, {
@@ -2457,11 +2460,12 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Nama Guru</label>
                                             <select name="teacherId" required className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer"
                                                 onChange={(e) => {
-                                                    const tid = parseInt(e.target.value);
+                                                    const val = e.target.value;
+                                                    const tid = isNaN(Number(val)) ? val : Number(val);
                                                     const guru = teachers.find(t => t.id === tid);
                                                     // Auto-fill NIP logic can be purely visual here or managed via state if needed
                                                     const nipInput = document.getElementById('plotting-nip') as HTMLInputElement;
-                                                    if (nipInput && guru) nipInput.value = guru.nip;
+                                                    if (nipInput) nipInput.value = guru?.nip || '-';
                                                 }}
                                             >
                                                 <option value="">Pilih Guru</option>
