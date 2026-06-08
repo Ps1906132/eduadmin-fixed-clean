@@ -70,7 +70,12 @@ const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout,
 
     useEffect(() => {
         const dataTimer = setInterval(() => {
-            setAnnouncements([...announcementDataGlobal]);
+            const saved = localStorage.getItem('announcements_data_v10');
+            if (saved) {
+                setAnnouncements(JSON.parse(saved));
+            } else {
+                setAnnouncements([...announcementDataGlobal]);
+            }
         }, 2000);
         return () => clearInterval(dataTimer);
     }, []);

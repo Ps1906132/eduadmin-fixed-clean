@@ -14,16 +14,16 @@ const ChannelSekolahSiswa: React.FC<ChannelSekolahSiswaProps> = ({ onBack }) => 
 
     useEffect(() => {
         // Load initially from localStorage if exists
-        const savedBroadcasts = localStorage.getItem('broadcasts_data_v1');
-        const savedSettings = localStorage.getItem('multimedia_settings_v1');
+        const savedBroadcasts = localStorage.getItem('broadcasts_data_v10');
+        const savedSettings = localStorage.getItem('multimedia_settings_v10');
 
         if (savedBroadcasts) setBroadcasts(JSON.parse(savedBroadcasts));
         if (savedSettings) setSettings(JSON.parse(savedSettings));
 
         // Periodically check for updates (Polling simulation)
         const interval = setInterval(() => {
-            const b = localStorage.getItem('broadcasts_data_v1');
-            const s = localStorage.getItem('multimedia_settings_v1');
+            const b = localStorage.getItem('broadcasts_data_v10');
+            const s = localStorage.getItem('multimedia_settings_v10');
             if (b) setBroadcasts(JSON.parse(b));
             if (s) setSettings(JSON.parse(s));
         }, 3000);

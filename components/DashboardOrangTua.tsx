@@ -56,7 +56,12 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
 
         // Polling for announcement updates
         const dataTimer = setInterval(() => {
-            setAnnouncements([...announcementDataGlobal]);
+            const saved = localStorage.getItem('announcements_data_v10');
+            if (saved) {
+                setAnnouncements(JSON.parse(saved));
+            } else {
+                setAnnouncements([...announcementDataGlobal]);
+            }
         }, 2000);
 
         return () => {
