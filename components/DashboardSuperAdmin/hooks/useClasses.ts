@@ -56,7 +56,7 @@ export const useClasses = () => {
                 const mappedData: Class[] = (data as any[]).map((c, idx) => ({
                     id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) : `fallback-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
                     nama: c.name,
-                    tingkat: c.grade_level,
+                    tingkat: Number(c.grade_level) || 1,
                     paralel: c.name.replace(/[0-9]/g, '') || 'A'
                 }));
                 setClasses(mappedData);

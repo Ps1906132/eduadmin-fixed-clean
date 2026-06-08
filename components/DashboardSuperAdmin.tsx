@@ -1917,13 +1917,14 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Kelas</label>
-                                            <select disabled={modalMode === 'view'} value={selectedStudent?.kelas || selectedClass} onChange={e => {
+                                            <select disabled={modalMode === 'view'} value={selectedStudent?.kelas || ''} onChange={e => {
                                                 const selectedCls = classes.find(c => c.nama === e.target.value);
                                                 setSelectedStudent({ 
                                                     ...selectedStudent, 
                                                     kelas: e.target.value,
-                                                    tingkat: selectedCls ? selectedCls.tingkat : selectedStudent.tingkat,
-                                                    paralel: selectedCls ? selectedCls.paralel : selectedStudent.paralel
+                                                    classId: selectedCls?.id,
+                                                    tingkat: selectedCls ? selectedCls.tingkat : selectedStudent?.tingkat,
+                                                    paralel: selectedCls ? selectedCls.paralel : selectedStudent?.paralel
                                                 });
                                             }} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none disabled:opacity-60">
                                                 <option value="">- Pilih Kelas -</option>
@@ -1935,7 +1936,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Tingkat</label>
-                                                <select disabled={modalMode === 'view'} value={selectedStudent?.tingkat || "1"} onChange={e => setSelectedStudent({ ...selectedStudent, tingkat: parseInt(e.target.value) })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none disabled:opacity-60">
+                                                <select disabled={modalMode === 'view'} value={selectedStudent?.tingkat || ""} onChange={e => setSelectedStudent({ ...selectedStudent, tingkat: parseInt(e.target.value) })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none disabled:opacity-60">
+                                                    <option value="">Pilih</option>
                                                     {[1, 2, 3, 4, 5, 6].map(i => <option key={i} value={i}>{i}</option>)}
                                                 </select>
                                             </div>
@@ -1987,8 +1989,10 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         {modalMode !== 'view' && (
                                             <button onClick={() => {
                                                 if (modalMode === 'edit') {
-                                                    toast.success('Perubahan disimpan (Mock Edit)!');
-                                                    // Implement edit logic if needed, accessing setStudents
+                                                    if (selectedStudent.id) {
+                                                        updateStudent(selectedStudent.id, selectedStudent);
+                                                        toast.success(`Data ${selectedStudent.nama} berhasil diperbarui!`);
+                                                    }
                                                 } else {
                                                     if (selectedStudent.nama) {
                                                         const newStudent = {
