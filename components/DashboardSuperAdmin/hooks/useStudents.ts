@@ -20,6 +20,21 @@ export interface Student {
     tabungan?: number;
 }
 
+const indonesianDateToISO = (dateStr: string) => {
+    if (!dateStr) return null;
+    const months: Record<string, string> = {
+        'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+        'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+        'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
+    };
+    const parts = dateStr.trim().split(' ');
+    if (parts.length !== 3) return null;
+    const day = parts[0].padStart(2, '0');
+    const month = months[parts[1]];
+    const year = parts[2];
+    return month ? `${year}-${month}-${day}` : null;
+};
+
 export const useStudents = () => {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(false);
@@ -80,11 +95,21 @@ export const useStudents = () => {
                 const mappedData: Student[] = (data as SbStudent[]).map(s => {
                     const classId = classStudentMap[s.id?.toString()] || s.class_id || '';
                     const classInfo = classNameMap[classId] || { name: '-', grade: 1, paralel: '' };
+                    
+                    // Convert ISO date back to Indonesian for UI
+                    let formattedDate = s.birth_date || '-';
+                    if (s.birth_date && s.birth_date.includes('-')) {
+                        try {
+                            const d = new Date(s.birth_date);
+                            formattedDate = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+                        } catch (e) {}
+                    }
+
                     return {
                         id: s.id,
                         nis: s.nis,
                         nama: s.full_name,
-                        ttl: `${s.birth_place || '-'}, ${s.birth_date || '-'}`,
+                        ttl: `${s.birth_place || '-'}${formattedDate !== '-' ? ', ' + formattedDate : ''}`,
                         kelas: classInfo.name,
                         tingkat: classInfo.grade,
                         paralel: classInfo.paralel,
@@ -142,6 +167,10 @@ export const useStudents = () => {
             const token = localStorage.getItem('eduadmin_token');
             const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
             
+            const ttlParts = student.ttl?.split(', ') || [];
+            const birth_place = ttlParts[0] || null;
+            const birth_date = indonesianDateToISO(ttlParts[1]);
+
             // Insert student record (only valid columns matching D1 schema)
             const res = await fetch('/api/students', {
                 method: 'POST',
@@ -150,8 +179,8 @@ export const useStudents = () => {
                     id: student.id.toString(),
                     nis: student.nis,
                     full_name: student.nama,
-                    birth_place: student.ttl?.split(', ')[0] || null,
-                    birth_date: student.ttl?.split(', ')[1] || null,
+                    birth_place,
+                    birth_date,
                     parent_name: student.ayah || null,
                     mother_name: student.ibu || null,
                     parent_job: student.jobAyah || null,
@@ -217,17 +246,18 @@ export const useStudents = () => {
         try {
             const token = localStorage.getItem('eduadmin_token');
             const dbUpdates: any = {};
-            if (updates.nama) dbUpdates.full_name = updates.nama;
-            if (updates.nis) dbUpdates.nis = updates.nis;
-            if (updates.ayah) dbUpdates.parent_name = updates.ayah;
-            if (updates.ibu) dbUpdates.mother_name = updates.ibu;
-            if (updates.jobAyah) dbUpdates.parent_job = updates.jobAyah;
-            if (updates.jobIbu) dbUpdates.mother_job = updates.jobIbu;
-            if (updates.gender) dbUpdates.gender = updates.gender;
-            if (updates.ttl) {
+            if (updates.nama !== undefined) dbUpdates.full_name = updates.nama;
+            if (updates.nis !== undefined) dbUpdates.nis = updates.nis;
+            if (updates.ayah !== undefined) dbUpdates.parent_name = updates.ayah;
+            if (updates.ibu !== undefined) dbUpdates.mother_name = updates.ibu;
+            if (updates.jobAyah !== undefined) dbUpdates.parent_job = updates.jobAyah;
+            if (updates.jobIbu !== undefined) dbUpdates.mother_job = updates.jobIbu;
+            if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+            
+            if (updates.ttl !== undefined) {
                 const ttlParts = updates.ttl.split(', ');
-                if (ttlParts[0]) dbUpdates.birth_place = ttlParts[0];
-                if (ttlParts[1]) dbUpdates.birth_date = ttlParts[1];
+                dbUpdates.birth_place = ttlParts[0] || null;
+                dbUpdates.birth_date = indonesianDateToISO(ttlParts[1]);
             }
 
             const res = await fetch(`/api/students?id=eq.${idStr}`, {
@@ -248,6 +278,62 @@ export const useStudents = () => {
                     });
                     if (csRes.ok) {
                         const csData = await csRes.json();
+                        if (Array.isArray(csData) && csData.length > 0) {
+                            // Update existing class assignment
+                            const currentCs = csData[0];
+                            // Find the new class ID based on class name
+                            const classRes = await fetch('/api/classes', { headers: { 'Authorization': `Bearer ${token}` } });
+                            if (classRes.ok) {
+                                const classData = await classRes.json();
+                                if (Array.isArray(classData)) {
+                                    const newClass = classData.find((c: any) => c.name === updates.kelas);
+                                    if (newClass) {
+                                        await fetch(`/api/class_students?id=eq.${currentCs.id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                            body: JSON.stringify({ class_id: newClass.id.toString() })
+                                        });
+                                    }
+                                }
+                            }
+                        } else {
+                            // No existing class assignment, create new one
+                            const classRes = await fetch('/api/classes', { headers: { 'Authorization': `Bearer ${token}` } });
+                            if (classRes.ok) {
+                                const classData = await classRes.json();
+                                if (Array.isArray(classData)) {
+                                    const newClass = classData.find((c: any) => c.name === updates.kelas);
+                                    if (newClass) {
+                                        const academicYearId = localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
+                                        await fetch('/api/class_students', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                            body: JSON.stringify({
+                                                id: `cs-${idStr}-${newClass.id}`,
+                                                student_id: idStr,
+                                                class_id: newClass.id.toString(),
+                                                academic_year_id: academicYearId,
+                                                enrollment_date: new Date().toISOString().split('T')[0],
+                                                is_active: 1
+                                            })
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (csErr) {
+                    console.warn('Gagal update class_students:', csErr);
+                }
+            }
+        } catch (err) {
+            // ✅ ROLLBACK jika API gagal
+            console.error('Error updating student in D1:', err);
+            setStudents(backupStudents);
+            localStorage.setItem('students_data_v11', JSON.stringify(backupStudents));
+            alert(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+    };
                         if (Array.isArray(csData) && csData.length > 0) {
                             // Update existing class assignment
                             const currentCs = csData[0];

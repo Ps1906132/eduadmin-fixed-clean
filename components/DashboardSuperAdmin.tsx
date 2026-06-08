@@ -1896,16 +1896,38 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Tempat Lahir</label>
-                                            <input disabled={modalMode === 'view'} value={selectedStudent?.ttl?.split(',')[0] || ''} onChange={e => setSelectedStudent({ ...selectedStudent, ttl: `${e.target.value}, ${selectedStudent?.ttl?.split(',')[1] || ''}` })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Kota Kelahiran" />
+                                            <input disabled={modalMode === 'view'} value={selectedStudent?.ttl?.split(', ')[0] || ''} onChange={e => {
+                                                const datePart = selectedStudent?.ttl?.split(', ')[1] || '';
+                                                setSelectedStudent({ ...selectedStudent, ttl: `${e.target.value}, ${datePart}` });
+                                            }} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Kota Kelahiran" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Tanggal Lahir</label>
-                                            <input disabled={modalMode === 'view'} type="date" className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
+                                            <input 
+                                                disabled={modalMode === 'view'} 
+                                                type="date" 
+                                                className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
+                                                value={(() => {
+                                                    const dateStr = selectedStudent?.ttl?.split(', ')[1];
+                                                    if (!dateStr) return '';
+                                                    const months: Record<string, string> = {
+                                                        'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+                                                        'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+                                                        'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
+                                                    };
+                                                    const parts = dateStr.trim().split(' ');
+                                                    if (parts.length !== 3) return '';
+                                                    const day = parts[0].padStart(2, '0');
+                                                    const month = months[parts[1]];
+                                                    const year = parts[2];
+                                                    return month ? `${year}-${month}-${day}` : '';
+                                                })()}
                                                 onChange={e => {
+                                                    if (!e.target.value) return;
                                                     const date = new Date(e.target.value);
                                                     const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
                                                     const formatted = date.toLocaleDateString('id-ID', options);
-                                                    const place = selectedStudent?.ttl?.split(',')[0] || '';
+                                                    const place = selectedStudent?.ttl?.split(', ')[0] || '';
                                                     setSelectedStudent({ ...selectedStudent, ttl: `${place}, ${formatted}` });
                                                 }} />
                                         </div>
