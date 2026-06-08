@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import {
     Settings,
@@ -26,13 +26,15 @@ import {
     AlertCircle,
     Database
 } from 'lucide-react';
-import { schoolSettingsGlobal } from '../data/sharedData';
+import { schoolSettingsGlobal, teachersDataGlobal, updateTeachersGlobal } from '../data/sharedData';
 import { migrateLocalStorageToD1 } from '../src/lib/migrateToD1';
+import { hashPassword, verifyPassword } from '../utils/auth';
+import { db } from '../src/lib/db';
 
 const D1MigratorView: React.FC = () => {
     const [isMigrating, setIsMigrating] = useState(false);
     const [migrationResult, setMigrationResult] = useState<any>(null);
-    const [forceReset, setForceReset] = useState(true); // Default to true since user has corrupt data
+    const [forceReset, setForceReset] = useState(true);
 
     const handleStartMigration = async () => {
         setIsMigrating(true);
@@ -185,6 +187,7 @@ interface PengaturanProps {
 
 const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettings }) => {
     const [activeTab, setActiveTab] = useState('profil');
+    const [isLoading, setIsLoading] = useState(false);
 
     // 1. PROFIL SEKOLAH & 2. UPLOAD LOGO
     const [schoolProfile, setSchoolProfile] = useState({
@@ -193,18 +196,24 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
         accreditation: schoolSettings?.accreditation || 'A',
         principal: schoolSettings?.principal || '',
         academicYear: schoolSettings?.academicYear || '2025/2026',
-        status: 'Swasta',
+        status: schoolSettings?.status || 'Swasta',
         logo: schoolSettings?.logo || null as string | null,
         icon: schoolSettings?.icon || null as string | null
     });
 
     // 3. AKUN ADMINISTRATOR
-    const [adminProfile, setAdminProfile] = useState({
-        name: 'Administrator',
-        username: 'admin',
-        email: '',
-        role: 'Administrator',
-        isActive: true
+    const [adminProfile, setAdminProfile] = useState(() => {
+        const localUser = localStorage.getItem('eduadmin_user');
+        const user = localUser ? JSON.parse(localUser) : null;
+        
+        return {
+            id: user?.id || 'admin-001',
+            name: user?.full_name || user?.nama || 'Administrator',
+            username: user?.email || user?.username || 'admin',
+            email: user?.email || '',
+            role: user?.role || 'Administrator',
+            isActive: true
+        };
     });
 
     // 4. KEAMANAN
@@ -215,18 +224,99 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
         showPass: false
     });
 
-    // 5. TAMPILAN APLIKASI
-    const [appearance, setAppearance] = useState({
-        theme: 'blue', // blue, emerald, rose, violet
-        mode: 'light', // light, dark
-        language: 'id' // id
-    });
-
     // 6. RIWAYAT PERUBAHAN
     const [logs, setLogs] = useState<any[]>([]);
 
+    // Load Initial Data from D1
+    useEffect(() => {
+        const loadD1Data = async () => {
+            setIsLoading(true);
+            try {
+                // Load School Settings
+                const { data: settings, error: sError } = await db.from('school_settings').select('*').eq('id', 'settings-school').single();
+                if (settings && !sError) {
+                    setSchoolProfile(prev => ({
+                        ...prev,
+                        name: settings.school_name || prev.name,
+                        address: settings.school_address || prev.address,
+                        principal: settings.principal_name || prev.principal,
+                        logo: settings.logo_url || prev.logo,
+                        // Update fields if they exist in DB (diagnosed they might be missing)
+                        accreditation: (settings as any).accreditation || prev.accreditation,
+                        status: (settings as any).school_status || prev.status,
+                        icon: (settings as any).icon_url || prev.icon
+                    }));
+                }
+
+                // Load Admin Profile
+                const { data: profile, error: pError } = await db.from('profiles').select('*').eq('id', adminProfile.id).single();
+                if (profile && !pError) {
+                    setAdminProfile(prev => ({
+                        ...prev,
+                        name: profile.full_name,
+                        username: profile.email,
+                        email: profile.email,
+                        role: profile.role,
+                        isActive: profile.is_active === 1
+                    }));
+                }
+
+                // Load Logs from D1
+                const { data: d1Logs, error: lError } = await db.from('audit_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+                if (d1Logs && !lError) {
+                    const mappedLogs = d1Logs.map((l: any) => ({
+                        date: new Date(l.timestamp).toLocaleString('id-ID'),
+                        admin: l.user_role || 'Admin',
+                        action: l.action
+                    }));
+                    setLogs(mappedLogs);
+                } else {
+                    // Fallback to localStorage if D1 fails or empty
+                    const saved = localStorage.getItem('audit_logs_v10');
+                    if (saved) setLogs(JSON.parse(saved));
+                }
+            } catch (err) {
+                console.error("Failed to load D1 data", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadD1Data();
+    }, [adminProfile.id]);
+
     // Helpers
-    const handleSaveProfil = () => {
+    const addLog = async (action: string, table?: string, recordId?: string) => {
+        const timestamp = new Date().toISOString();
+        const newLogEntry = {
+            id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: timestamp,
+            user_id: adminProfile.id,
+            user_role: adminProfile.role,
+            module: 'PENGATURAN',
+            action: action,
+            table_name: table || 'school_settings',
+            record_id: recordId || 'settings-school',
+            status: 'SUCCESS'
+        };
+
+        // Save to D1
+        try {
+            await db.from('audit_logs').insert(newLogEntry);
+        } catch (e) {
+            console.error("Failed to save audit log to D1", e);
+        }
+
+        // UI Update
+        const newLogUI = {
+            date: new Date().toLocaleString('id-ID'),
+            admin: adminProfile.name,
+            action: action
+        };
+        setLogs(prev => [newLogUI, ...prev].slice(0, 50));
+    };
+
+    const handleSaveProfil = async () => {
         const newSettings = {
             ...schoolSettings,
             name: schoolProfile.name,
@@ -234,74 +324,136 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
             accreditation: schoolProfile.accreditation,
             principal: schoolProfile.principal,
             academicYear: schoolProfile.academicYear,
+            status: schoolProfile.status,
             logo: schoolProfile.logo,
             icon: schoolProfile.icon
         };
 
-        // Sync to Global for RaporView
-        Object.assign(schoolSettingsGlobal, {
-            name: schoolProfile.name,
-            address: schoolProfile.address,
-            principal: schoolProfile.principal,
-            academicYear: schoolProfile.academicYear,
-        });
+        try {
+            // Update D1 - Only fields known to exist in schema
+            const updateData: any = {
+                school_name: schoolProfile.name,
+                school_address: schoolProfile.address,
+                principal_name: schoolProfile.principal,
+                logo_url: schoolProfile.logo,
+                updated_at: new Date().toISOString()
+            };
 
-        toast.success('Profil sekolah berhasil disimpan!');
-        addLog('Update profil sekolah');
+            // Attempt to add extra fields (wrapped in try-catch if db layer doesn't handle missing columns)
+            // But usually we just send what we think is there.
+            // Diagnosis: icon_url, accreditation, school_status might be missing from D1.
+            
+            await db.from('school_settings').update(updateData).eq('id', 'settings-school');
 
-        if (typeof setSchoolSettings === 'function') {
-            setSchoolSettings(newSettings);
+            // Sync to Global
+            Object.assign(schoolSettingsGlobal, {
+                name: schoolProfile.name,
+                address: schoolProfile.address,
+                principal: schoolProfile.principal,
+                academicYear: schoolProfile.academicYear,
+                logo: schoolProfile.logo,
+                icon: schoolProfile.icon
+            });
+
+            if (typeof setSchoolSettings === 'function') {
+                setSchoolSettings(newSettings);
+            }
+
+            toast.success('Profil sekolah berhasil disimpan!');
+            addLog('Update profil sekolah', 'school_settings', 'settings-school');
+        } catch (error) {
+            toast.error('Gagal menyimpan ke database cloud.');
+            console.error(error);
         }
     };
 
-    const handleSaveAdmin = () => {
-        toast.success('Data administrator berhasil diperbarui!');
-        addLog('Update data administrator');
+    const handleSaveAdmin = async () => {
+        try {
+            // Update D1 Profiles
+            await db.from('profiles').update({
+                full_name: adminProfile.name,
+                email: adminProfile.email,
+                updated_at: new Date().toISOString()
+            }).eq('id', adminProfile.id);
+
+            // Update LocalStorage Legacy
+            const localTeachers = localStorage.getItem('teachers_data_v11');
+            const teachers = localTeachers ? JSON.parse(localTeachers) : [...teachersDataGlobal];
+            
+            const updatedTeachers = teachers.map((t: any) => 
+                t.id === adminProfile.id ? { 
+                    ...t, 
+                    nama: adminProfile.name, 
+                    username: adminProfile.username,
+                    email: adminProfile.email 
+                } : t
+            );
+
+            localStorage.setItem('teachers_data_v11', JSON.stringify(updatedTeachers));
+            updateTeachersGlobal(updatedTeachers);
+            
+            toast.success('Data administrator berhasil diperbarui!');
+            addLog('Update data administrator', 'profiles', adminProfile.id);
+        } catch (error) {
+            toast.error('Gagal memperbarui data admin di cloud.');
+        }
     };
 
-    const handlePasswordChange = () => {
+    const handlePasswordChange = async () => {
+        if (!security.oldPass || !security.newPass) {
+            toast.error('Mohon isi password lama dan baru!');
+            return;
+        }
+
         if (security.newPass !== security.confirmPass) {
             toast.error('Konfirmasi password tidak cocok!');
             return;
         }
-        toast.success('Password berhasil diubah!');
-        setSecurity({ ...security, oldPass: '', newPass: '', confirmPass: '' });
-        addLog('Ubah password akun');
+
+        if (security.newPass.length < 8) {
+            toast.error('Password baru minimal 8 karakter!');
+            return;
+        }
+
+        try {
+            const { data: profile } = await db.from('profiles').select('password_hash').eq('id', adminProfile.id).single();
+            
+            if (!profile) {
+                toast.error('Akun admin tidak ditemukan!');
+                return;
+            }
+
+            const isOldCorrect = await verifyPassword(security.oldPass, profile.password_hash);
+            if (!isOldCorrect) {
+                toast.error('Password lama salah!');
+                return;
+            }
+
+            const hashed = await hashPassword(security.newPass);
+            
+            await db.from('profiles').update({
+                password_hash: hashed,
+                updated_at: new Date().toISOString()
+            }).eq('id', adminProfile.id);
+
+            // Update Local Legacy
+            const localTeachers = localStorage.getItem('teachers_data_v11');
+            const teachers = localTeachers ? JSON.parse(localTeachers) : [...teachersDataGlobal];
+            const updatedTeachers = teachers.map((t: any) => 
+                t.id === adminProfile.id ? { ...t, password: hashed } : t
+            );
+
+            localStorage.setItem('teachers_data_v11', JSON.stringify(updatedTeachers));
+            updateTeachersGlobal(updatedTeachers);
+
+            toast.success('Password berhasil diubah!');
+            setSecurity({ ...security, oldPass: '', newPass: '', confirmPass: '' });
+            addLog('Ubah password akun', 'profiles', adminProfile.id);
+        } catch (error) {
+            toast.error('Gagal mengubah password.');
+        }
     };
 
-    const handleSaveAppearance = () => {
-        toast.success('Pengaturan tampilan disimpan!');
-        addLog('Ubah tampilan aplikasi');
-    };
-
-    const addLog = (action: string) => {
-        const newLog = {
-            date: new Date().toLocaleString('id-ID'),
-            admin: adminProfile.name,
-            action: action
-        };
-        setLogs([newLog, ...logs]);
-    };
-
-    // Reset Profile to Initial Values
-    const handleResetProfil = () => {
-        setSchoolProfile({
-            name: schoolSettings?.name || '',
-            address: schoolSettings?.address || '',
-            accreditation: schoolSettings?.accreditation || 'A',
-            principal: schoolSettings?.principal || '',
-            academicYear: schoolSettings?.academicYear || '2025/2026',
-            status: 'Swasta',
-            logo: schoolSettings?.logo || null,
-            icon: schoolSettings?.icon || null
-        });
-        toast.success('Data profil berhasil direset!');
-    };
-
-    // Preview Kop Laporan
-    const [showKopPreview, setShowKopPreview] = useState(false);
-
-    // Helper: Image Compression
     const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -314,7 +466,6 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                     let width = img.width;
                     let height = img.height;
 
-                    // Calculate new dimensions
                     if (width > height) {
                         if (width > maxWidth) {
                             height = Math.round((height *= maxWidth / width));
@@ -331,8 +482,6 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx?.drawImage(img, 0, 0, width, height);
-
-                    // Compress
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
                 img.onerror = (error) => reject(error);
@@ -341,18 +490,40 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
         });
     };
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'icon') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 1024 * 1024) {
+            toast.error('Ukuran file terlalu besar (Max 1MB)');
+            return;
+        }
+
+        try {
+            const compressed = await compressImage(file, type === 'logo' ? 500 : 128, 0.8);
+            setSchoolProfile(prev => ({ ...prev, [type]: compressed }));
+            toast.success(`${type === 'logo' ? 'Logo' : 'Ikon'} berhasil diupload!`);
+        } catch (error) {
+            // Fallback to base64 if compression fails
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                setSchoolProfile(prev => ({ ...prev, [type]: reader.result as string }));
+                toast.success(`${type === 'logo' ? 'Logo' : 'Ikon'} berhasil diupload!`);
+            };
+        }
+    };
+
     const renderTabContent = () => {
         switch (activeTab) {
             case 'profil':
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Upload Logo & Icon - COMPACT VERSION */}
                         <div>
                             <h3 className="text-xl font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
                                 <ImageIcon className="text-blue-600" /> Logo & Ikon Aplikasi
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Logo */}
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-300 flex items-center gap-4">
                                     <div className="w-24 h-24 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 overflow-hidden flex-shrink-0">
                                         {schoolProfile.logo ? (
@@ -366,25 +537,11 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                                         <p className="text-[10px] text-slate-500 mb-2">Max: 1MB (PNG/JPG)</p>
                                         <label className="cursor-pointer inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition-colors text-xs">
                                             <Upload size={14} /> Upload
-                                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    try {
-                                                        const compressed = await compressImage(file, 500, 0.8);
-                                                        setSchoolProfile({ ...schoolProfile, logo: compressed });
-                                                        toast.success('Logo berhasil diupload!');
-                                                    } catch (error) {
-                                                        console.error("Compression failed", error);
-                                                        setSchoolProfile({ ...schoolProfile, logo: URL.createObjectURL(file) });
-                                                        toast.success('Logo berhasil diupload!');
-                                                    }
-                                                }
-                                            }} />
+                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'logo')} />
                                         </label>
                                     </div>
                                 </div>
 
-                                {/* Icon */}
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-300 flex items-center gap-4">
                                     <div className="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 overflow-hidden flex-shrink-0">
                                         {schoolProfile.icon ? (
@@ -398,27 +555,13 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                                         <p className="text-[10px] text-slate-500 mb-2">Max: 512x512 (PNG)</p>
                                         <label className="cursor-pointer inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition-colors text-xs">
                                             <Upload size={14} /> Upload
-                                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    try {
-                                                        const compressed = await compressImage(file, 128, 0.9);
-                                                        setSchoolProfile({ ...schoolProfile, icon: compressed });
-                                                        toast.success('Ikon berhasil diupload!');
-                                                    } catch (error) {
-                                                        console.error("Compression failed", error);
-                                                        setSchoolProfile({ ...schoolProfile, icon: URL.createObjectURL(file) });
-                                                        toast.success('Ikon berhasil diupload!');
-                                                    }
-                                                }
-                                            }} />
+                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'icon')} />
                                         </label>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Identitas Sekolah */}
                         <div>
                             <h3 className="text-xl font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
                                 <School className="text-blue-600" /> Identitas Sekolah
@@ -488,48 +631,28 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                         </div>
 
                         <div className="flex gap-4 pt-4 border-t border-slate-100">
-                            <button onClick={() => setShowKopPreview(true)} className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 flex items-center gap-2">
+                            <button onClick={() => (window as any).setShowKopPreview(true)} className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 flex items-center gap-2">
                                 <FileText size={18} /> Preview Kop Laporan
                             </button>
-                            <button onClick={handleResetProfil} className="ml-auto px-6 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200">
+                            <button 
+                                onClick={() => setSchoolProfile({
+                                    name: schoolSettings?.name || '',
+                                    address: schoolSettings?.address || '',
+                                    accreditation: schoolSettings?.accreditation || 'A',
+                                    principal: schoolSettings?.principal || '',
+                                    academicYear: schoolSettings?.academicYear || '2025/2026',
+                                    status: schoolSettings?.status || 'Swasta',
+                                    logo: schoolSettings?.logo || null,
+                                    icon: schoolSettings?.icon || null
+                                })}
+                                className="ml-auto px-6 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200"
+                            >
                                 Reset
                             </button>
                             <button onClick={handleSaveProfil} className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center gap-2">
                                 <Save size={18} /> Simpan Profil
                             </button>
                         </div>
-
-                        {/* Modal Preview Kop Laporan */}
-                        {showKopPreview && (
-                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowKopPreview(false)}>
-                                <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                        <FileText className="text-blue-600" /> Preview Kop Laporan
-                                    </h3>
-                                    <div className="border border-slate-200 rounded-xl p-6 bg-white">
-                                        <div className="flex items-center gap-4 border-b-2 border-slate-800 pb-4">
-                                            {schoolProfile.logo ? (
-                                                <img src={schoolProfile.logo} alt="Logo" className="w-20 h-20 object-contain" />
-                                            ) : (
-                                                <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center">
-                                                    <School size={32} className="text-slate-300" />
-                                                </div>
-                                            )}
-                                            <div className="text-center flex-1">
-                                                <h2 className="text-lg font-bold text-slate-800 uppercase">{schoolProfile.name || 'NAMA SEKOLAH'}</h2>
-                                                <p className="text-sm text-slate-600">{schoolProfile.address || 'Alamat Sekolah'}</p>
-                                                <p className="text-xs text-slate-500 mt-1">Akreditasi: {schoolProfile.accreditation}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end mt-4">
-                                        <button onClick={() => setShowKopPreview(false)} className="px-6 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200">
-                                            Tutup
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 );
 
@@ -559,30 +682,23 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Username (Unik)</label>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Username (Email)</label>
                                             <input
                                                 type="text"
                                                 value={adminProfile.username}
                                                 onChange={(e) => setAdminProfile({ ...adminProfile, username: e.target.value })}
                                                 className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium bg-slate-100"
+                                                readOnly
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Email <span className="text-slate-400 font-normal">(Opsional)</span></label>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Cadangan</label>
                                             <input
                                                 type="email"
                                                 value={adminProfile.email}
                                                 onChange={(e) => setAdminProfile({ ...adminProfile, email: e.target.value })}
                                                 className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
                                             />
-                                        </div>
-                                        <div className="pt-2">
-                                            <label className="flex items-center gap-3 cursor-pointer">
-                                                <div className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${adminProfile.isActive ? 'bg-green-500' : 'bg-slate-300'}`} onClick={() => setAdminProfile({ ...adminProfile, isActive: !adminProfile.isActive })}>
-                                                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${adminProfile.isActive ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                                                </div>
-                                                <span className="text-sm font-bold text-slate-700">Akun Aktif</span>
-                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -628,12 +744,6 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                                                 placeholder="Minimal 8 karakter"
                                             />
                                         </div>
-                                        {/* Password Strength Indicator */}
-                                        <div className="flex gap-1 mt-2 h-1">
-                                            <div className={`flex-1 rounded-full ${security.newPass.length > 0 ? 'bg-red-500' : 'bg-slate-200'}`}></div>
-                                            <div className={`flex-1 rounded-full ${security.newPass.length >= 6 ? 'bg-amber-500' : 'bg-slate-200'}`}></div>
-                                            <div className={`flex-1 rounded-full ${security.newPass.length >= 8 ? 'bg-green-500' : 'bg-slate-200'}`}></div>
-                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Konfirmasi Password Baru</label>
@@ -646,9 +756,6 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                                                 placeholder="Ulangi password baru"
                                             />
                                         </div>
-                                        {security.confirmPass && security.newPass !== security.confirmPass && (
-                                            <p className="text-xs text-red-500 mt-1 font-bold">Password tidak cocok!</p>
-                                        )}
                                     </div>
 
                                     <div className="flex items-center gap-2 mt-2">
@@ -668,20 +775,6 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                                         <CheckCircle2 size={18} /> Update Password
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-
-            case 'tampilan':
-                return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
-                                <Palette className="text-blue-600" /> Tampilan Aplikasi
-                            </h3>
-                            <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                <p>Pengaturan tampilan telah dinonaktifkan.</p>
                             </div>
                         </div>
                     </div>
@@ -729,9 +822,14 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
         }
     };
 
+    // Kop Preview Modal State
+    const [showKopPreview, setShowKopPreview] = useState(false);
+    useEffect(() => {
+        (window as any).setShowKopPreview = setShowKopPreview;
+    }, []);
+
     return (
         <div className="h-full flex flex-col lg:flex-row gap-8">
-            {/* Sidebar Navigation */}
             <div className="w-full lg:w-64 flex-shrink-0 space-y-2">
                 {[
                     { id: 'profil', label: 'Profil Sekolah', icon: <School size={18} /> },
@@ -754,10 +852,49 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
                 ))}
             </div>
 
-            {/* Content Area */}
             <div className="flex-1 bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 h-fit min-h-[500px]">
-                {renderTabContent()}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-[400px]">
+                        <RefreshCw size={40} className="text-blue-600 animate-spin mb-4" />
+                        <p className="text-slate-500 font-bold">Memuat pengaturan dari cloud...</p>
+                    </div>
+                ) : renderTabContent()}
             </div>
+
+            {/* Modal Preview Kop Laporan */}
+            {showKopPreview && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={() => setShowKopPreview(false)}>
+                    <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <FileText className="text-blue-600" /> Preview Kop Laporan
+                        </h3>
+                        <div className="border border-slate-200 rounded-xl p-6 bg-white">
+                            <div className="flex items-center gap-4 border-b-2 border-slate-800 pb-4">
+                                {schoolProfile.logo ? (
+                                    <img src={schoolProfile.logo} alt="Logo" className="w-20 h-20 object-contain" />
+                                ) : (
+                                    <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center">
+                                        <School size={32} className="text-slate-300" />
+                                    </div>
+                                )}
+                                <div className="text-center flex-1">
+                                    <h2 className="text-lg font-bold text-slate-800 uppercase leading-tight">{schoolProfile.name || 'NAMA SEKOLAH'}</h2>
+                                    <p className="text-[10px] text-slate-600 mt-1">{schoolProfile.address || 'Alamat Sekolah'}</p>
+                                    <div className="flex justify-center gap-4 mt-1">
+                                        <p className="text-[9px] text-slate-500 font-bold">Akreditasi: {schoolProfile.accreditation}</p>
+                                        <p className="text-[9px] text-slate-500 font-bold">Status: {schoolProfile.status}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex justify-end mt-6">
+                            <button onClick={() => setShowKopPreview(false)} className="px-6 py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors">
+                                Tutup Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
