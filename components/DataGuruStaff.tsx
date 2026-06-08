@@ -121,6 +121,7 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
     nama: '',
     wali: '',
     nip: '',
+    teacher_id: '' as string | number,
     tingkat: '1',
     paralel: ''
   });
@@ -257,6 +258,7 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
       nama: kelas.nama,
       wali: kelas.wali || '',
       nip: kelas.waliNip || '',
+      teacher_id: kelas.teacher_id || '',
       tingkat: kelas.tingkat || '1',
       paralel: kelas.paralel || ''
     });
@@ -283,7 +285,7 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
       // Edit existing
       setKelasData((prev: any[]) => prev.map((cls: any) =>
         cls.id === waliForm.id
-          ? { ...(cls as Record<string, unknown>), wali: waliForm.wali, waliNip: waliForm.nip }
+          ? { ...(cls as Record<string, unknown>), wali: waliForm.wali, waliNip: waliForm.nip, teacher_id: waliForm.teacher_id }
           : cls
       ));
     } else {
@@ -292,12 +294,13 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
       const genKode = `KLS-${waliForm.tingkat}${waliForm.paralel.replace(/\s+/g, '').toUpperCase()}`;
       const genNama = `Kelas ${waliForm.tingkat} ${waliForm.paralel}`;
 
-      setKelasData((prev: unknown[]) => [...prev, {
+      setKelasData((prev: any[]) => [...prev, {
         id: newId,
         kode: genKode,
         nama: genNama,
         wali: waliForm.wali,
         waliNip: waliForm.nip,
+        teacher_id: waliForm.teacher_id,
         tingkat: waliForm.tingkat,
         paralel: waliForm.paralel
       }]);
@@ -777,7 +780,8 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
                         setWaliForm({
                           ...waliForm,
                           wali: selectedStaff?.nama || '',
-                          nip: selectedStaff?.noPegawai || ''
+                          nip: selectedStaff?.noPegawai || '',
+                          teacher_id: selectedStaff?.id || ''
                         });
                       }}
                     >

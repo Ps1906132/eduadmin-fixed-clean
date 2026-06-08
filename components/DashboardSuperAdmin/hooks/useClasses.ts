@@ -6,6 +6,8 @@ export interface Class {
     nama: string;
     tingkat: number;
     paralel: string;
+    wali?: string;
+    teacher_id?: string;
 }
 
 export const useClasses = () => {
@@ -40,7 +42,10 @@ export const useClasses = () => {
             }
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const res = await fetch('/api/classes', { headers });
+            const [res, profRes] = await Promise.all([
+                fetch('/api/classes', { headers }),
+                fetch('/api/profiles?role=eq.guru', { headers }).catch(() => null)
+            ]);
 
             // Token expired / tidak valid → arahkan ke login
             if (res.status === 401) {
@@ -52,12 +57,17 @@ export const useClasses = () => {
             if (!res.ok) throw new Error(`HTTP_${res.status}`);
 
             const data = await res.json();
+            const profiles = profRes && profRes.ok ? await profRes.json() : [];
+            const profMap = new Map((profiles as any[]).map(p => [p.id.toString(), p.full_name]));
+
             if (data && Array.isArray(data)) {
                 const mappedData: Class[] = (data as any[]).map((c, idx) => ({
                     id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) : `fallback-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
                     nama: c.name,
                     tingkat: Number(c.grade_level) || 1,
-                    paralel: c.name.replace(/[0-9]/g, '') || 'A'
+                    paralel: c.name.replace(/[0-9]/g, '') || 'A',
+                    teacher_id: c.teacher_id,
+                    wali: c.teacher_id ? (profMap.get(c.teacher_id.toString()) || '-') : '-'
                 }));
                 setClasses(mappedData);
                 setIsOfflineMode(false);
@@ -101,6 +111,60 @@ export const useClasses = () => {
     useEffect(() => {
         fetchClasses();
     }, [fetchClasses]);
+
+    const syncChanges = async (prev: Class[], nextList: Class[]) => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        try {
+            const prevMap = new Map(prev.map(c => [c.id.toString(), c]));
+            for (const cls of nextList) {
+                const idStr = cls.id.toString();
+                const current = prevMap.get(idStr);
+                
+                // We only handle UPDATES here, as ADD and DELETE have their own methods
+                if (current && (current.nama !== cls.nama || current.tingkat !== cls.tingkat || current.teacher_id !== cls.teacher_id || current.wali !== cls.wali)) {
+                    
+                    // If teacher name was changed but teacher_id is the same, we might need to find the teacher_id
+                    let teacherId = cls.teacher_id;
+                    if (cls.wali && cls.wali !== '-' && !teacherId) {
+                         const profRes = await fetch(`/api/profiles?full_name=eq.${encodeURIComponent(cls.wali)}&role=eq.guru`, { headers });
+                         if (profRes.ok) {
+                             const profData = await profRes.json();
+                             if (Array.isArray(profData) && profData.length > 0) teacherId = profData[0].id;
+                         }
+                    } else if (cls.wali === '-') {
+                        teacherId = null;
+                    }
+
+                    await fetch(`/api/classes?id=eq.${idStr}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify({
+                            name: cls.nama,
+                            grade_level: cls.tingkat,
+                            teacher_id: teacherId
+                        })
+                    });
+                }
+            }
+            localStorage.setItem('classes_data_v11', JSON.stringify(nextList));
+        } catch (err) {
+            console.error('Error syncing class changes:', err);
+        }
+    };
+
+    const _setClasses = useCallback((value: React.SetStateAction<Class[]>) => {
+        setClasses(prev => {
+            const nextList = typeof value === 'function' ? (value as Function)(prev) : value;
+            syncChanges(prev, nextList);
+            return nextList;
+        });
+    }, []);
 
     const handleAddClass = async (tingkat: string, paralel: string, customName?: string) => {
         const nama = customName || `${tingkat}${paralel}`;
@@ -269,7 +333,7 @@ export const useClasses = () => {
 
     return {
         classes,
-        setClasses,
+        setClasses: _setClasses,
         loading,
         showAddClassModal,
         setShowAddClassModal,

@@ -33,8 +33,17 @@ export const useTeachers = () => {
             if (!staffRes.ok) throw new Error('Gagal mengambil data staff');
             const staff = await staffRes.json();
 
+            const classRes = await fetch('/api/classes', { headers });
+            const classes = classRes.ok ? await classRes.json() : [];
+
             if (profiles && staff) {
                 const staffMap = new Map((staff as any[]).map((s: any) => [s.profile_id?.toString(), s]));
+                const teacherClassMap = new Map();
+                if (Array.isArray(classes)) {
+                    classes.forEach((c: any) => {
+                        if (c.teacher_id) teacherClassMap.set(c.teacher_id.toString(), c.name);
+                    });
+                }
                 
                 const mappedData: Teacher[] = (profiles as any[])
                     .filter((p: any) => ['guru', 'admin', 'kurikulum', 'keuangan', 'ks', 'wk', 'gb', 'gm', 'operator'].includes(p.role))
@@ -46,7 +55,7 @@ export const useTeachers = () => {
                             nip: s.nip || p.email?.split('@')[0] || `NIP-${p.id}`,
                             jabatan: s.position || (p.role === 'admin' ? 'Administrator' : 'Guru'),
                             mapel: s.department || '-',
-                            wali: '-',
+                            wali: teacherClassMap.get(p.id?.toString()) || '-',
                             username: p.email ? p.email.split('@')[0] : p.full_name.toLowerCase().replace(/\s+/g, ''),
                             password: p.password_hash || 'password123',
                             role: p.role
@@ -205,6 +214,38 @@ export const useTeachers = () => {
                             })
                         });
                         if (!res2.ok) throw new Error(`Failed to update staff record for ${teacher.nama}`);
+
+                        // Handle Class Assignment (Wali Kelas) sync
+                        if (current.wali !== teacher.wali) {
+                            try {
+                                // 1. Clear teacher from any class where they were previously wali
+                                // We don't have the old class ID easily, but we can search for classes where teacher_id = idStr
+                                await fetch(`/api/classes?teacher_id=eq.${idStr}`, {
+                                    method: 'PATCH',
+                                    headers,
+                                    body: JSON.stringify({ teacher_id: null })
+                                });
+
+                                // 2. Assign teacher to new class if not '-'
+                                if (teacher.wali !== '-') {
+                                    // Find class ID by name
+                                    const classRes = await fetch(`/api/classes?name=eq.${encodeURIComponent(teacher.wali)}`, { headers });
+                                    if (classRes.ok) {
+                                        const classData = await classRes.json();
+                                        if (Array.isArray(classData) && classData.length > 0) {
+                                            const classId = classData[0].id;
+                                            await fetch(`/api/classes?id=eq.${classId}`, {
+                                                method: 'PATCH',
+                                                headers,
+                                                body: JSON.stringify({ teacher_id: idStr })
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch (classErr) {
+                                console.warn('Gagal sinkronisasi wali kelas ke tabel classes:', classErr);
+                            }
+                        }
                     }
                 }
             }
