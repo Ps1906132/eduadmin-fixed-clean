@@ -719,14 +719,15 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-1">Password (Opsional)</label>
-                                        <input 
-                                            type="password"
-                                            className="w-full p-2.5 border border-slate-200 rounded-xl"
-                                            placeholder="Otomatis jika kosong"
-                                            value={newTutoringTeacher.password}
+                                        <input
+                                            type="text"
+                                            className="w-full p-2.5 border border-slate-200 rounded-xl font-mono"
+                                            placeholder={newTutoringTeacher.password && newTutoringTeacher.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Otomatis jika kosong"}
+                                            value={newTutoringTeacher.password && newTutoringTeacher.password.startsWith('$2') ? '' : newTutoringTeacher.password}
                                             onChange={(e) => setNewTutoringTeacher({ ...newTutoringTeacher, password: e.target.value })}
                                         />
                                     </div>
+
                                 </div>
                             </div>
                             <button onClick={handleAddTutoringTeacher} className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-lg transition-colors">Simpan Data Guru</button>

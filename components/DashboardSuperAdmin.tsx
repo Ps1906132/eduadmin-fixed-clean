@@ -2006,7 +2006,14 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password</label>
-                                            <input disabled={modalMode === 'view'} value={selectedStudent?.password || '123456'} onChange={e => setSelectedStudent({ ...selectedStudent, password: e.target.value })} type="password" className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Password akun" />
+                                            <input 
+                                                disabled={modalMode === 'view'} 
+                                                value={selectedStudent?.password && selectedStudent.password.startsWith('$2') ? '' : (selectedStudent?.password || '')} 
+                                                onChange={e => setSelectedStudent({ ...selectedStudent, password: e.target.value })} 
+                                                type="text" 
+                                                className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60 font-mono" 
+                                                placeholder={selectedStudent?.password && selectedStudent.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Password akun"} 
+                                            />
                                         </div>
                                     </div>
 
@@ -2391,12 +2398,12 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                              <div>
                                                  <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password</label>
                                                  <input
-                                                     type="password"
-                                                     value={newTeacher.password}
+                                                     type="text"
+                                                     value={newTeacher.password && newTeacher.password.startsWith('$2') ? '' : newTeacher.password}
                                                      onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
-                                                     required
-                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors"
-                                                     placeholder="Password untuk Login"
+                                                     required={!newTeacher.password || !newTeacher.password.startsWith('$2')}
+                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors font-mono"
+                                                     placeholder={newTeacher.password && newTeacher.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Password untuk Login"}
                                                  />
                                              </div>
                                          </div>

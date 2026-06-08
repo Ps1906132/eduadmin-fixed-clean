@@ -619,7 +619,17 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
                   <div className="space-y-1"><label className="text-sm font-bold text-slate-600">Username</label><input type="text" disabled={stafModalMode === 'view'} className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 font-mono" value={stafForm.username} onChange={e => setStafForm({ ...stafForm, username: e.target.value })} /></div>
-                  <div className="space-y-1"><label className="text-sm font-bold text-slate-600">Password</label><input type="password" disabled={stafModalMode === 'view'} className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 font-mono" value={stafForm.password} onChange={e => setStafForm({ ...stafForm, password: e.target.value })} /></div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-bold text-slate-600">Password</label>
+                    <input 
+                      type="text" 
+                      disabled={stafModalMode === 'view'} 
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 font-mono" 
+                      value={stafForm.password && stafForm.password.startsWith('$2') ? '' : stafForm.password} 
+                      onChange={e => setStafForm({ ...stafForm, password: e.target.value })} 
+                      placeholder={stafForm.password && stafForm.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Ketik password baru"}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
