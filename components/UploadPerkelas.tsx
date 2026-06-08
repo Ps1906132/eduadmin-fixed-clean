@@ -26,7 +26,7 @@ interface UploadPerkelasProps {
 
 const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
   const { classes } = useClasses();
-  const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
+  const { students, addNewStudent, updateStudent, handleDelete, handleSaveData, refreshStudents } = useStudents();
 
   // Dynamic class options from system database
   const classOptions = classes && classes.length > 0
@@ -355,14 +355,12 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Tombol Simpan */}
           <button
-            onClick={() => {
+            onClick={async () => {
               setIsSaving(true);
-              setTimeout(() => {
-                setIsSaving(false);
-                alert('Seluruh perubahan berhasil disimpan ke database!');
-              }, 1500);
+              await refreshStudents();
+              setIsSaving(false);
+              alert('Data tersimpan dan disinkronisasi!');
             }}
             disabled={isSaving}
             className="px-6 py-2.5 bg-[#e8415a] text-white rounded-xl hover:bg-[#c9344a] transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 group disabled:opacity-70"

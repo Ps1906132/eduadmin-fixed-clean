@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import bcrypt from 'bcryptjs';
 import { addStudent as addStudentToShared } from '../../../data/sharedData';
 
 export interface Student {
@@ -130,7 +131,8 @@ export const useStudents = () => {
                     let formattedDate = s.birth_date || '-';
                     if (s.birth_date && s.birth_date.includes('-')) {
                         try {
-                            const d = new Date(s.birth_date);
+                            // Use T00:00:00 to avoid timezone shifts
+                            const d = new Date(s.birth_date + 'T00:00:00');
                             formattedDate = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
                         } catch (e) {}
                     }
@@ -180,7 +182,7 @@ export const useStudents = () => {
 
 
 
-    const addNewStudent = async (student: Student & { classId?: string; noHp?: string }) => {
+    const addNewStudent = async (student: Student & { classId?: string; noHp?: string; password?: string }) => {
         // ✅ BACKUP original data for rollback
         const backupStudents = students;
         
@@ -201,12 +203,35 @@ export const useStudents = () => {
             const birth_place = ttlParts[0] || null;
             const birth_date = indonesianDateToISO(ttlParts[1]);
 
-            // Insert student record (only valid columns matching D1 schema)
+            // 1. Create Profile first for authentication
+            let profileId = `prof-std-${student.nis}`;
+            try {
+                const password = student.password || student.nis; // Default password is NIS
+                const passwordHash = bcrypt.hashSync(password, 10);
+                
+                await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: profileId,
+                        email: student.nis, // Use NIS as username/email
+                        full_name: student.nama,
+                        password_hash: passwordHash,
+                        role: 'siswa',
+                        is_active: 1
+                    })
+                });
+            } catch (profErr) {
+                console.warn('Profile creation failed or already exists:', profErr);
+            }
+
+            // 2. Insert student record (only valid columns matching D1 schema)
             const res = await fetch('/api/students', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     id: student.id.toString(),
+                    profile_id: profileId,
                     nis: student.nis,
                     full_name: student.nama,
                     birth_place,
@@ -289,6 +314,38 @@ export const useStudents = () => {
                 const ttlParts = updates.ttl.split(', ');
                 dbUpdates.birth_place = ttlParts[0] || null;
                 dbUpdates.birth_date = indonesianDateToISO(ttlParts[1]);
+            }
+
+            // Ensure profile exists on update as well
+            if (updates.nis || updates.nama) {
+                try {
+                    const studentData = students.find(s => s.id.toString() === idStr);
+                    const nis = updates.nis || studentData?.nis;
+                    const nama = updates.nama || studentData?.nama;
+                    
+                    if (nis) {
+                        let profileId = `prof-std-${nis}`;
+                        const password = nis; // Default to NIS
+                        const passwordHash = bcrypt.hashSync(password, 10);
+                        
+                        await fetch('/api/profiles', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({
+                                id: profileId,
+                                email: nis,
+                                full_name: nama || 'Student',
+                                password_hash: passwordHash,
+                                role: 'siswa',
+                                is_active: 1
+                            })
+                        }).catch(() => null); // Ignore if exists
+                        
+                        dbUpdates.profile_id = profileId;
+                    }
+                } catch (profErr) {
+                    console.warn('Failed to ensure profile on update:', profErr);
+                }
             }
 
             const res = await fetch(`/api/students?id=eq.${idStr}`, {
@@ -439,22 +496,94 @@ export const useStudents = () => {
     };
 
     const handleDownloadTemplate = () => {
-        alert("Mengunduh template Excel...");
+        const headers = ["NIS", "Nama Lengkap", "Tempat Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
+        const csvContent = headers.join(",") + "\n" + 
+            "2025001,Asep Irama,\"Bandung, 10 Maret 2012\",1 A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "template_siswa_lengkap.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleUploadClick = () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.xlsx, .xls, .csv';
-        input.onchange = (e) => {
+        input.accept = '.csv, .txt';
+        input.onchange = async (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) alert(`File ${file.name} terpilih! Klik Simpan untuk memproses.`);
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const text = ev.target?.result as string;
+                if (!text) return;
+
+                const lines = text.split('\n').filter(l => l.trim() !== '');
+                if (lines.length <= 1) return;
+
+                const parsedData: Student[] = lines.slice(1).map((line, idx) => {
+                    // Handle quoted CSV values correctly
+                    const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+                    return {
+                        id: `temp-${Date.now()}-${idx}`,
+                        nis: cols[0] || '',
+                        nama: cols[1] || '',
+                        ttl: cols[2] || '',
+                        kelas: cols[3] || '',
+                        tingkat: parseInt(cols[4] || '1'),
+                        paralel: cols[5] || 'A',
+                        ayah: cols[6] || '',
+                        ibu: cols[7] || '',
+                        jobAyah: cols[8] || '',
+                        jobIbu: cols[9] || '',
+                        username: cols[11] || cols[0] || '',
+                        noHp: cols[10] || ''
+                    };
+                }).filter(s => s.nis && s.nama);
+
+                if (parsedData.length > 0) {
+                    setStudents(prev => [...prev, ...parsedData]);
+                    alert(`Berhasil memuat ${parsedData.length} data siswa! Klik Simpan untuk mensinkronisasi ke database.`);
+                }
+            };
+            reader.readAsText(file);
         };
         input.click();
     };
 
-    const handleSaveData = () => {
-        alert("Data berhasil disimpan ke database!");
+    const handleSaveData = async () => {
+        setLoading(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        // Only save students that have temporary IDs (newly uploaded)
+        const newStudents = students.filter(s => s.id.toString().startsWith('temp-'));
+        
+        if (newStudents.length === 0) {
+            alert("Tidak ada data baru untuk disimpan.");
+            setLoading(false);
+            return;
+        }
+
+        for (const student of newStudents) {
+            try {
+                // Change temp ID to real ID based on NIS or timestamp
+                const realId = `std-${student.nis}-${Date.now()}`;
+                await addNewStudent({ ...student, id: realId });
+                successCount++;
+            } catch (err) {
+                console.error(`Gagal simpan siswa ${student.nama}:`, err);
+                failCount++;
+            }
+        }
+
+        setLoading(false);
+        alert(`Selesai! ${successCount} siswa berhasil disimpan, ${failCount} gagal.`);
+        fetchStudents(); // Refresh data from server
     };
 
     return {

@@ -26,7 +26,7 @@ interface UploadSiswaBaruProps {
 
 const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
   const { classes } = useClasses();
-  const { students, addNewStudent, updateStudent, handleDelete } = useStudents();
+  const { students, addNewStudent, updateStudent, handleDelete, handleSaveData, refreshStudents } = useStudents();
 
   const listKelas1 = classes && classes.length > 0
       ? classes.filter((c: any) => {
@@ -323,7 +323,7 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
             </div>
           </div>
 
-          <button onClick={() => { setIsSaving(true); setTimeout(() => { setIsSaving(false); alert('Data tersimpan!'); }, 1500); }} disabled={isSaving} className="px-6 py-2.5 bg-[#e8415a] text-white rounded-xl hover:bg-[#c9344a] transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 group disabled:opacity-70">
+          <button onClick={async () => { setIsSaving(true); await refreshStudents(); setIsSaving(false); alert('Data tersimpan dan disinkronisasi!'); }} disabled={isSaving} className="px-6 py-2.5 bg-[#e8415a] text-white rounded-xl hover:bg-[#c9344a] transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 group disabled:opacity-70">
             {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className="fill-white group-hover:scale-110 transition-transform" />}
             <span className="text-sm font-bold tracking-wide">Simpan</span>
           </button>
