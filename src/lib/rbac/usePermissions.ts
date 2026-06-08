@@ -128,13 +128,36 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
   if (!role) return null;
   const lowerRole = role.toLowerCase();
   
-  if (lowerRole === 'admin' || lowerRole === 'super admin' || lowerRole === 'operator data' || lowerRole === 'multimedia') {
+  // ADMIN: Managing Core Records (Siswa, Guru, Settings)
+  if (
+    lowerRole === 'admin' || 
+    lowerRole === 'super admin' || 
+    lowerRole === 'operator' || 
+    lowerRole === 'operator data' || 
+    lowerRole === 'multimedia' || 
+    lowerRole === 'admin multimedia' ||
+    lowerRole.includes('tata usaha') ||
+    lowerRole.includes('staf tu')
+  ) {
     return 'admin';
   }
-  if (lowerRole === 'kurikulum' || lowerRole === 'wakil kurikulum') {
+
+  // KURIKULUM: Managing Academic Data (Jadwal, Nilai, Rapot)
+  if (
+    lowerRole === 'kurikulum' || 
+    lowerRole.includes('wakil kurikulum') || 
+    lowerRole.includes('wakil kepala') ||
+    lowerRole.includes('waka kurikulum')
+  ) {
     return 'kurikulum';
   }
-  if (lowerRole === 'keuangan' || lowerRole === 'staff tata usaha') {
+
+  // KEUANGAN: Managing Financial Data (Pembayaran, Tabungan)
+  if (
+    lowerRole === 'keuangan' || 
+    lowerRole.includes('bendahara') || 
+    lowerRole.includes('staf keuangan')
+  ) {
     return 'keuangan';
   }
   
