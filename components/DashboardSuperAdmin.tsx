@@ -1910,12 +1910,16 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                 value={(() => {
                                                     const dateStr = selectedStudent?.ttl?.split(', ')[1];
                                                     if (!dateStr) return '';
+                                                    const trimmed = dateStr.trim();
+                                                    // Handle ISO format YYYY-MM-DD (dari data lama)
+                                                    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+                                                    // Handle format Indonesia: DD Bulan YYYY
                                                     const months: Record<string, string> = {
                                                         'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
                                                         'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
                                                         'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
                                                     };
-                                                    const parts = dateStr.trim().split(' ');
+                                                    const parts = trimmed.split(' ');
                                                     if (parts.length !== 3) return '';
                                                     const day = parts[0].padStart(2, '0');
                                                     const month = months[parts[1]];
@@ -1924,7 +1928,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                 })()}
                                                 onChange={e => {
                                                     if (!e.target.value) return;
-                                                    const date = new Date(e.target.value);
+                                                    const date = new Date(e.target.value + 'T00:00:00');
                                                     const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
                                                     const formatted = date.toLocaleDateString('id-ID', options);
                                                     const place = selectedStudent?.ttl?.split(', ')[0] || '';

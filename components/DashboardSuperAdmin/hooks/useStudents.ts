@@ -14,24 +14,54 @@ export interface Student {
     jobAyah: string;
     jobIbu: string;
     username: string;
+    noHp?: string;
     // Optional fields for compatibility
     gender?: string;
     sppStatus?: string;
     tabungan?: number;
+    status?: string;
 }
 
 const indonesianDateToISO = (dateStr: string) => {
     if (!dateStr) return null;
+    const trimmed = dateStr.trim();
+    
+    // If it's already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+    }
+
     const months: Record<string, string> = {
         'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
         'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
         'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
     };
-    const parts = dateStr.trim().split(' ');
+    
+    // Try splitting by space or hyphen or slash
+    const parts = trimmed.split(/[\s\-\/]+/);
     if (parts.length !== 3) return null;
-    const day = parts[0].padStart(2, '0');
-    const month = months[parts[1]];
-    const year = parts[2];
+    
+    let day, month, year;
+    
+    if (months[parts[1]]) {
+        // Format: DD Month YYYY
+        day = parts[0].padStart(2, '0');
+        month = months[parts[1]];
+        year = parts[2];
+    } else if (months[parts[0]]) {
+        // Format: Month DD YYYY
+        month = months[parts[0]];
+        day = parts[1].padStart(2, '0');
+        year = parts[2];
+    } else if (/^\d{1,2}$/.test(parts[0]) && /^\d{1,2}$/.test(parts[1])) {
+        // Format: DD-MM-YYYY
+        day = parts[0].padStart(2, '0');
+        month = parts[1].padStart(2, '0');
+        year = parts[2];
+    } else {
+        return null;
+    }
+    
     return month ? `${year}-${month}-${day}` : null;
 };
 
@@ -253,6 +283,7 @@ export const useStudents = () => {
             if (updates.jobAyah !== undefined) dbUpdates.parent_job = updates.jobAyah;
             if (updates.jobIbu !== undefined) dbUpdates.mother_job = updates.jobIbu;
             if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+            if (updates.noHp !== undefined) dbUpdates.phone = updates.noHp;
             
             if (updates.ttl !== undefined) {
                 const ttlParts = updates.ttl.split(', ');
@@ -278,62 +309,6 @@ export const useStudents = () => {
                     });
                     if (csRes.ok) {
                         const csData = await csRes.json();
-                        if (Array.isArray(csData) && csData.length > 0) {
-                            // Update existing class assignment
-                            const currentCs = csData[0];
-                            // Find the new class ID based on class name
-                            const classRes = await fetch('/api/classes', { headers: { 'Authorization': `Bearer ${token}` } });
-                            if (classRes.ok) {
-                                const classData = await classRes.json();
-                                if (Array.isArray(classData)) {
-                                    const newClass = classData.find((c: any) => c.name === updates.kelas);
-                                    if (newClass) {
-                                        await fetch(`/api/class_students?id=eq.${currentCs.id}`, {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                            body: JSON.stringify({ class_id: newClass.id.toString() })
-                                        });
-                                    }
-                                }
-                            }
-                        } else {
-                            // No existing class assignment, create new one
-                            const classRes = await fetch('/api/classes', { headers: { 'Authorization': `Bearer ${token}` } });
-                            if (classRes.ok) {
-                                const classData = await classRes.json();
-                                if (Array.isArray(classData)) {
-                                    const newClass = classData.find((c: any) => c.name === updates.kelas);
-                                    if (newClass) {
-                                        const academicYearId = localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
-                                        await fetch('/api/class_students', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                            body: JSON.stringify({
-                                                id: `cs-${idStr}-${newClass.id}`,
-                                                student_id: idStr,
-                                                class_id: newClass.id.toString(),
-                                                academic_year_id: academicYearId,
-                                                enrollment_date: new Date().toISOString().split('T')[0],
-                                                is_active: 1
-                                            })
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (csErr) {
-                    console.warn('Gagal update class_students:', csErr);
-                }
-            }
-        } catch (err) {
-            // ✅ ROLLBACK jika API gagal
-            console.error('Error updating student in D1:', err);
-            setStudents(backupStudents);
-            localStorage.setItem('students_data_v11', JSON.stringify(backupStudents));
-            alert(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-    };
                         if (Array.isArray(csData) && csData.length > 0) {
                             // Update existing class assignment
                             const currentCs = csData[0];

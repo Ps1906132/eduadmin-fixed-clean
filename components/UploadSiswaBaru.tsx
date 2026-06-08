@@ -152,15 +152,35 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
   const handleOpenEditModal = (student: any) => {
     setEditId(student.id);
     setIsViewMode(false);
+    
+    // Helper to convert "01 Januari 2000" to "2000-01-01" for <input type="date">
+    const convertToISODate = (dateStr: string) => {
+      if (!dateStr) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return dateStr.trim();
+      const months: Record<string, string> = {
+        'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+        'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+        'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
+      };
+      const parts = dateStr.trim().split(' ');
+      if (parts.length !== 3) return '';
+      const day = parts[0].padStart(2, '0');
+      const month = months[parts[1]];
+      const year = parts[2];
+      return month ? `${year}-${month}-${day}` : '';
+    };
+
+    const ttlParts = student.ttl?.split(', ') || [];
+
     setNewStudent({
       nama: student.nama,
       nis: student.nis,
-      tempatLahir: student.ttl?.split(', ')[0] || '',
-      tanggalLahir: student.ttl?.split(', ')[1] || '',
-      namaAyah: student.ayah || '',
-      namaIbu: student.ibu || '',
-      pekerjaanAyah: student.jobAyah || student.pAyah || '',
-      pekerjaanIbu: student.jobIbu || student.pIbu || '',
+      tempatLahir: ttlParts[0] || '',
+      tanggalLahir: convertToISODate(ttlParts[1] || ''),
+      namaAyah: (student.ayah === '-' ? '' : student.ayah) || '',
+      namaIbu: (student.ibu === '-' ? '' : student.ibu) || '',
+      pekerjaanAyah: (student.jobAyah === '-' ? '' : student.jobAyah) || student.pAyah || '',
+      pekerjaanIbu: (student.jobIbu === '-' ? '' : student.jobIbu) || student.pIbu || '',
       noHp: student.noHp || '08123456789',
       username: student.username || student.nis,
       password: student.password || 'password123'
@@ -171,11 +191,31 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
   const handleOpenViewModal = (student: any) => {
     setEditId(student.id);
     setIsViewMode(true);
+    
+    // Same helper for View mode
+    const convertToISODate = (dateStr: string) => {
+      if (!dateStr) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return dateStr.trim();
+      const months: Record<string, string> = {
+        'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+        'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+        'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
+      };
+      const parts = dateStr.trim().split(' ');
+      if (parts.length !== 3) return '';
+      const day = parts[0].padStart(2, '0');
+      const month = months[parts[1]];
+      const year = parts[2];
+      return month ? `${year}-${month}-${day}` : '';
+    };
+
+    const ttlParts = student.ttl?.split(', ') || [];
+
     setNewStudent({
       nama: student.nama,
       nis: student.nis,
-      tempatLahir: student.ttl?.split(', ')[0] || '',
-      tanggalLahir: student.ttl?.split(', ')[1] || '',
+      tempatLahir: ttlParts[0] || '',
+      tanggalLahir: convertToISODate(ttlParts[1] || ''),
       namaAyah: student.ayah || '',
       namaIbu: student.ibu || '',
       pekerjaanAyah: student.jobAyah || student.pAyah || '',
@@ -194,11 +234,23 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
     const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '').trim() || 'A';
     const classId = currentClass ? String(currentClass.id) : undefined;
 
+    // Konversi tanggal ISO (YYYY-MM-DD) ke format Indonesia (DD Bulan YYYY) untuk field ttl
+    const convertISOToIndonesian = (isoDate: string): string => {
+      if (!isoDate) return '1 Januari 2015';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(isoDate.trim())) {
+        const d = new Date(isoDate + 'T00:00:00');
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+      }
+      return isoDate; // sudah format Indonesia
+    };
+
+    const formattedDate = convertISOToIndonesian(newStudent.tanggalLahir);
+
     const studentPayload = {
       id: editId !== null ? editId : Date.now(),
       nis: newStudent.nis,
       nama: newStudent.nama,
-      ttl: `${newStudent.tempatLahir}, ${newStudent.tanggalLahir || '1 Januari 2015'}`,
+      ttl: `${newStudent.tempatLahir}, ${formattedDate}`,
       kelas: selectedKelas,
       tingkat,
       paralel,
