@@ -60,7 +60,7 @@ const MataPelajaran: React.FC<MataPelajaranProps> = ({
     // Form State
     const [formData, setFormData] = useState({
         subjectNames: [] as string[], // Using names or codes since ID might not be unique in dummy data, but let's use 'kode' if unique. App.tsx mapelData has 'kode'.
-        teacherNip: ''
+        teacherNo: ''
     });
 
     // Initialize selected class
@@ -95,26 +95,35 @@ const MataPelajaran: React.FC<MataPelajaranProps> = ({
 
     const handleOpenAdd = () => {
         setEditingState({ isEditing: false, index: null });
-        setFormData({ subjectNames: [], teacherNip: '' });
+        setFormData({ subjectNames: [], teacherNo: '' });
         setIsModalOpen(true);
     };
 
     const handleEdit = (item: any, index: number) => {
         setEditingState({ isEditing: true, index });
+        // Find teacher by NIP and Name to get their 'no' for selection
+        const teacher = availableTeachers.find(t => t.noPegawai === item.nip && t.nama === item.guru);
         setFormData({
             subjectNames: [item.id], // Storing ID/Kode here
-            teacherNip: item.nip
+            teacherNo: teacher ? teacher.no.toString() : ''
         });
         setIsModalOpen(true);
     };
 
     const handleSave = () => {
-        if (formData.subjectNames.length === 0 || !formData.teacherNip) {
+        const selectedTeacher = availableTeachers.find(t => t.no.toString() === formData.teacherNo);
+
+        if (formData.subjectNames.length === 0 || !selectedTeacher) {
             alert("Mohon pilih minimal satu Mata Pelajaran dan Guru Pengampu!");
             return;
         }
 
-        const selectedTeacher = availableTeachers.find(t => t.noPegawai === formData.teacherNip);
+        // Diagnostic: If teacher has no NIP, alert but allow if necessary? 
+        // User says "harus melengkapi NIP", so let's check it.
+        if (!selectedTeacher.noPegawai || selectedTeacher.noPegawai === '-') {
+            alert("Guru yang dipilih belum memiliki NIP! Silakan lengkapi data NIP guru di menu Data Guru & Staff terlebih dahulu.");
+            return;
+        }
 
         if (selectedTeacher) {
             const newEntries = formData.subjectNames.map(subCode => {
@@ -148,7 +157,7 @@ const MataPelajaran: React.FC<MataPelajaranProps> = ({
             });
 
             setIsModalOpen(false);
-            setFormData({ subjectNames: [], teacherNip: '' });
+            setFormData({ subjectNames: [], teacherNo: '' });
             setEditingState({ isEditing: false, index: null });
         }
     };
@@ -373,20 +382,20 @@ const MataPelajaran: React.FC<MataPelajaranProps> = ({
                                 <label className="text-sm font-bold text-slate-700">Guru Pengampu</label>
                                 <div className="relative">
                                     <select
-                                        value={formData.teacherNip}
-                                        onChange={(e) => setFormData({ ...formData, teacherNip: e.target.value })}
+                                        value={formData.teacherNo}
+                                        onChange={(e) => setFormData({ ...formData, teacherNo: e.target.value })}
                                         className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#004AAD] transition-all appearance-none"
                                     >
                                         <option value="">-- Pilih Guru --</option>
                                         {availableTeachers.map((teach) => (
-                                            <option key={teach.no} value={teach.noPegawai}>{teach.nama}</option>
+                                            <option key={teach.no} value={teach.no.toString()}>{teach.nama}</option>
                                         ))}
                                     </select>
                                     <ChevronDown size={20} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                 </div>
-                                {formData.teacherNip && (
+                                {formData.teacherNo && (
                                     <div className="text-xs bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg inline-block font-bold font-mono">
-                                        NIP: {formData.teacherNip}
+                                        NIP: {availableTeachers.find(t => t.no.toString() === formData.teacherNo)?.noPegawai || '-'}
                                     </div>
                                 )}
                             </div>
