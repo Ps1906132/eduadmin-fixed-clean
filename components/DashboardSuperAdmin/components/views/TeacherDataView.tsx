@@ -226,7 +226,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                             </div>
                             <div class="credential-row">
                                 <span class="cred-label">Password</span>
-                                <span class="cred-val">${guru.password}</span>
+                                <span class="cred-val">${guru.password && (guru.password.startsWith('$2') || guru.password.length > 20) ? '••••••••' : guru.password}</span>
                             </div>
                         </div>
                     </div>
@@ -287,7 +287,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                             </div>
                             <div class="credential-row">
                                 <span class="cred-label">Password</span>
-                                <span class="cred-val">${guru.password}</span>
+                                <span class="cred-val">${guru.password && (guru.password.startsWith('$2') || guru.password.length > 20) ? '••••••••' : guru.password}</span>
                             </div>
                         </div>
                     </div>
@@ -564,7 +564,9 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                     </select>
                                 </td>
                                 <td className="p-4 text-slate-600">{guru.username}</td>
-                                <td className="p-4 text-slate-600 font-mono text-sm bg-slate-50 px-2 rounded border border-slate-100">{guru.password}</td>
+                                <td className="p-4 text-slate-600 font-mono text-sm bg-slate-50 px-2 rounded border border-slate-100">
+                                    {guru.password && (guru.password.startsWith('$2') || guru.password.length > 20) ? '••••••••' : guru.password}
+                                </td>
                                 <td className="p-4 flex justify-center gap-2">
                                     <button onClick={() => handlePrintSingleCard(guru)} title="Cetak Kartu Login" className="p-2 hover:bg-indigo-50 text-indigo-500 rounded-lg"><Printer size={16} /></button>
                                     <button onClick={() => handleEditItem(guru, 'Data Guru')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"><Edit size={16} /></button>

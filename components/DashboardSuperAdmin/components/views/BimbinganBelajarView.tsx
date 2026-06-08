@@ -510,7 +510,9 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                                     <div className="text-xs text-slate-500 mt-1">{t.scheduleDay}, {t.scheduleStart}-{t.scheduleEnd}</div>
                                                 </td>
                                                 <td className="p-4 font-mono text-slate-600 bg-slate-50/50">{t.username || '-'}</td>
-                                                <td className="p-4 font-mono text-slate-600 bg-slate-50/50">{t.password || '-'}</td>
+                                                <td className="p-4 font-mono text-slate-600 bg-slate-50/50">
+                                                    {t.password && (t.password.startsWith('$2') || t.password.length > 20) ? '••••••••' : (t.password || '-')}
+                                                </td>
                                                 <td className="p-4 text-center">
                                                     <div className="flex justify-center gap-3">
                                                         <button onClick={() => handleManageTutoringStudents(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Kelola Siswa"><UserPlus size={18} /></button>
