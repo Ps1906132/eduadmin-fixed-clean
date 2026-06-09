@@ -44,27 +44,33 @@ interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
   schoolSettings?: any;
+  userRole?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, toggleSidebar, schoolSettings }) => {
-  const menuItems = [
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, toggleSidebar, schoolSettings, userRole = '' }) => {
+  const allMenuItems = [
     { id: 'beranda', label: 'Beranda', icon: <LayoutDashboard size={18} /> },
-    { id: 'data-siswa', label: 'Data Siswa dan kelas', icon: <Users size={18} /> },
-    { id: 'data-guru', label: 'Data Guru & Staff', icon: <GraduationCap size={18} /> },
-    { id: 'kelas-wali', label: 'Kelas dan wali kelas', icon: <School size={18} /> },
-    { id: 'mata-pelajaran', label: 'Mata Pelajaran', icon: <BookMarked size={18} /> },
-    { id: 'jadwal', label: 'Jadwal', icon: <Calendar size={18} /> },
-    { id: 'absen', label: 'Absen', icon: <UserCheck size={18} /> },
-    { id: 'nilai', label: 'Nilai', icon: <BarChart3 size={18} /> },
-    { id: 'rapot', label: 'Rapot', icon: <ScrollText size={18} /> },
-    { id: 'keuangan', label: 'Keuangan', icon: <Wallet size={18} /> },
-    { id: 'tabungan', label: 'Tabungan', icon: <RupiahIcon size={18} /> },
-    { id: 'naik-kelas', label: 'Naik Kelas', icon: <ArrowUpCircle size={18} /> },
-    { id: 'bimbingan', label: 'Bimbingan belajar (les)', icon: <BookOpen size={18} /> },
-    { id: 'pengumuman', label: 'Pengumuman', icon: <Megaphone size={18} /> },
-    { id: 'laporan', label: 'Laporan', icon: <FileText size={18} /> },
-    { id: 'pengaturan', label: 'Pengaturan', icon: <Settings size={18} /> },
+    { id: 'data-siswa', label: 'Data Siswa dan kelas', icon: <Users size={18} />, roles: ['admin'] },
+    { id: 'data-guru', label: 'Data Guru & Staff', icon: <GraduationCap size={18} />, roles: ['admin'] },
+    { id: 'kelas-wali', label: 'Kelas dan wali kelas', icon: <School size={18} />, roles: ['admin', 'wk'] },
+    { id: 'mata-pelajaran', label: 'Mata Pelajaran', icon: <BookMarked size={18} />, roles: ['admin'] },
+    { id: 'jadwal', label: 'Jadwal', icon: <Calendar size={18} />, roles: ['admin', 'kurikulum', 'wk', 'gm'] },
+    { id: 'absen', label: 'Absen', icon: <UserCheck size={18} />, roles: ['admin', 'kurikulum', 'wk', 'gm'] },
+    { id: 'nilai', label: 'Nilai', icon: <BarChart3 size={18} />, roles: ['admin', 'kurikulum', 'wk', 'gm'] },
+    { id: 'rapot', label: 'Rapot', icon: <ScrollText size={18} />, roles: ['admin', 'kurikulum', 'wk'] },
+    { id: 'keuangan', label: 'Keuangan', icon: <Wallet size={18} />, roles: ['admin', 'keuangan'] },
+    { id: 'tabungan', label: 'Tabungan', icon: <RupiahIcon size={18} />, roles: ['admin', 'keuangan', 'ot'] },
+    { id: 'naik-kelas', label: 'Naik Kelas', icon: <ArrowUpCircle size={18} />, roles: ['admin', 'kurikulum'] },
+    { id: 'bimbingan', label: 'Bimbingan belajar (les)', icon: <BookOpen size={18} />, roles: ['admin', 'gb'] },
+    { id: 'pengumuman', label: 'Pengumuman', icon: <Megaphone size={18} />, roles: ['admin', 'kurikulum', 'keuangan'] },
+    { id: 'laporan', label: 'Laporan', icon: <FileText size={18} />, roles: ['admin', 'keuangan'] },
+    { id: 'pengaturan', label: 'Pengaturan', icon: <Settings size={18} />, roles: ['admin'] },
   ];
+
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.roles) return true; // Menu publik (Beranda)
+    return item.roles.includes(userRole.toLowerCase());
+  });
 
   return (
     <>

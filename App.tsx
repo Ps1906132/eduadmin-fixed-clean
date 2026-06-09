@@ -68,8 +68,8 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.roleCode) return parsed.roleCode;
-        if (parsed.role) return mapRoleToCode(parsed.role);
+        if (parsed.roleCode) return parsed.roleCode.toLowerCase();
+        if (parsed.role) return mapRoleToCode(parsed.role).toLowerCase();
       } catch (e) {
         console.error("Error parsing user data", e);
       }
@@ -84,7 +84,8 @@ const App: React.FC = () => {
       const { data: { user } } = await auth.getUser();
 
       if (user) {
-        setUserRole(user.roleCode || mapRoleToCode(user.role) || '');
+        const role = (user.roleCode || mapRoleToCode(user.role) || '').toLowerCase();
+        setUserRole(role);
         setCurrentUser(user);
         setIsLoggedIn(true);
       }
@@ -316,6 +317,7 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
         schoolSettings={schoolSettings}
+        userRole={userRole}
       />
 
       <div className="flex-1 flex flex-col min-w-0">

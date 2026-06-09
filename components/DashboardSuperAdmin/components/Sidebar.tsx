@@ -95,8 +95,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             );
         }
 
-        // Default to all for safety or fallback
-        return menuItems;
+        // Default: Only show dashboard for unrecognized/non-admin roles
+        return menuItems.filter(item => item.id === 'dashboard');
     }, [user]);
 
     const getLinkClass = (id: string) => {
