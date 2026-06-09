@@ -6,7 +6,10 @@ interface InputNilaiGuruProps {
     user?: any;
 }
 
+import { useGrades, GradeRecord } from './DashboardSuperAdmin/hooks/useGrades';
+
 const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
+    const { fetchGrades, saveGradesBatch, loading: syncing } = useGrades();
 
     // --- CONTEXT ---
     const isWaliKelas = user?.role === 'Wali Kelas' || user?.jabatan === 'Guru Kelas' || !!user?.kelas;
@@ -16,79 +19,100 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
     const [tpCount, setTpCount] = useState(4);
 
+    // Lists for mapping
+    const [classList, setClassList] = useState<any[]>([]);
+    const [subjectList, setSubjectList] = useState<any[]>([]);
+
+    useEffect(() => {
+        const savedClasses = localStorage.getItem('classes_data_v11');
+        if (savedClasses) setClassList(JSON.parse(savedClasses));
+        const savedSubjects = localStorage.getItem('subjects_data_v10');
+        if (savedSubjects) setSubjectList(JSON.parse(savedSubjects));
+    }, []);
+
     // --- DATA MANAGEMENT ---
     const [gradesData, setGradesData] = useState<any[]>([]);
 
-    // Load data based on Admin's Key Format
+    // Load data
     useEffect(() => {
-        // 1. Sync TP Count
-        const countKey = `tp_count_${selectedClass}_${selectedMapel}_${selectedSemester}`;
-        const savedCount = localStorage.getItem(countKey);
-        if (savedCount) {
-            setTpCount(parseInt(savedCount));
-        } else {
-            setTpCount(4);
-        }
+        const loadGrades = async () => {
+            // 1. Sync TP Count (Still local for UI state)
+            const countKey = `tp_count_${selectedClass}_${selectedMapel}_${selectedSemester}`;
+            const savedCount = localStorage.getItem(countKey);
+            setTpCount(savedCount ? parseInt(savedCount) : 4);
 
-        // 2. Load Grades
-        const key = `grades_v2_${selectedClass}_${selectedMapel}_${selectedSemester}`;
-        const saved = localStorage.getItem(key);
-
-        if (saved) {
-            setGradesData(JSON.parse(saved));
-        } else {
+            // 2. Fetch from API
+            const targetClass = classList.find(c => c.nama === selectedClass);
+            const targetSubject = subjectList.find(s => s.name === selectedMapel);
+            
+            // Get local students for the class to ensure we have a full list
             const studentsRaw = localStorage.getItem('students_data_v11');
             const allStudents = studentsRaw ? JSON.parse(studentsRaw) : [];
             const classStudents = allStudents.filter((s: any) => s.kelas === selectedClass);
 
+            const dbGrades = await fetchGrades({
+                classId: targetClass?.id,
+                subjectId: targetSubject?.id,
+                academicYearId: 'ay-2025-2026'
+            });
+
             if (classStudents.length > 0) {
-                const initialGrades = classStudents.map((s: any) => ({
-                    studentId: s.id,
-                    studentName: s.nama,
-                    studentNis: s.nis,
-                    tp1: 0, tp2: 0, tp3: 0, tp4: 0,
-                    avgSumatif: 0, pts: 0, pas: 0, pat: 0,
-                    finalScore: 0, predicate: '-', description: ''
-                }));
-                setGradesData(initialGrades);
+                const mergedGrades = classStudents.map((s: any) => {
+                    // Reconstruct student record from multiple possible grade entries (diff assessment types)
+                    const studentGrades = dbGrades.filter((g: any) => g.student_id === s.id.toString());
+                    
+                    const row: any = {
+                        studentId: s.id,
+                        studentName: s.nama,
+                        studentNis: s.nis,
+                        finalScore: 0, predicate: '-', description: ''
+                    };
+
+                    // Map assessment types to row fields
+                    studentGrades.forEach((g: any) => {
+                        row[g.assessment_type] = g.grade_value;
+                    });
+
+                    return row;
+                });
+                setGradesData(mergedGrades);
             } else {
                 setGradesData([]);
             }
+        };
+
+        if (classList.length > 0 && subjectList.length > 0) {
+            loadGrades();
         }
-    }, [selectedClass, selectedMapel, selectedSemester]);
+    }, [selectedClass, selectedMapel, selectedSemester, classList, subjectList, fetchGrades]);
 
-    const updateTpCount = () => {
-        const newCount = Math.min(tpCount + 1, 15);
-        setTpCount(newCount);
-        const countKey = `tp_count_${selectedClass}_${selectedMapel}_${selectedSemester}`;
-        localStorage.setItem(countKey, newCount.toString());
-        setTipeNilai(`tp${newCount}`);
-    };
+    const saveToStorage = async () => {
+        const targetClass = classList.find(c => c.nama === selectedClass);
+        const targetSubject = subjectList.find(s => s.name === selectedMapel);
 
-    const removeTpCount = () => {
-        if (tpCount <= 1) return;
-        const newCount = tpCount - 1;
-        setTpCount(newCount);
-        const countKey = `tp_count_${selectedClass}_${selectedMapel}_${selectedSemester}`;
-        localStorage.setItem(countKey, newCount.toString());
-        if (tipeNilai === `tp${tpCount}`) {
-            setTipeNilai(`tp${newCount}`);
+        if (!targetClass || !targetSubject) {
+            alert('Gagal memetakan ID Kelas/Mapel. Pastikan data master tersedia.');
+            return;
         }
-    };
 
-    const handleScoreChange = (studentId: number, val: string) => {
-        setGradesData(prev => prev.map(row => {
-            if (row.studentId === studentId) {
-                return { ...row, [tipeNilai]: Number(val) };
-            }
-            return row;
+        const records: GradeRecord[] = gradesData.map(row => ({
+            studentId: row.studentId.toString(),
+            subjectId: targetSubject.id.toString(),
+            classId: targetClass.id.toString(),
+            academicYearId: 'ay-2025-2026',
+            gradeValue: row[tipeNilai] || 0,
+            assessmentType: tipeNilai
         }));
-    };
 
-    const saveToStorage = () => {
-        const key = `grades_v2_${selectedClass}_${selectedMapel}_${selectedSemester}`;
-        localStorage.setItem(key, JSON.stringify(gradesData));
-        alert(`Nilai ${selectedMapel} untuk Kelas ${selectedClass} berhasil disimpan!`);
+        const result = await saveGradesBatch(records);
+        if (result.success) {
+            // Still save to local for legacy support/speed
+            const key = `grades_v2_${selectedClass}_${selectedMapel}_${selectedSemester}`;
+            localStorage.setItem(key, JSON.stringify(gradesData));
+            alert(`Nilai ${selectedMapel} berhasil disinkronkan ke server!`);
+        } else {
+            alert(`Gagal sinkronisasi: ${result.error}`);
+        }
     };
 
     return (

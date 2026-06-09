@@ -27,43 +27,37 @@ import { getColorClasses, type ColorName } from '../utils/tailwindHelpers';
 import { studentsDataGlobal, paymentHistoryGlobal } from '../data/sharedData';
 import { toast } from 'react-hot-toast';
 
+import { useFinance } from './DashboardSuperAdmin/hooks/useFinance';
+
 const Keuangan: React.FC = () => {
     const [activeTab, setActiveTab] = useState('penerimaan');
+    const { 
+        paymentHistory: payments, 
+        expenses, 
+        addPayment, 
+        addExpense,
+        refreshFinance 
+    } = useFinance();
 
-    // --- STATE MANAGEMENT ---
-    const [payments, setPayments] = useState<any[]>([]);
-    const [expenses, setExpenses] = useState<any[]>([]);
+    // Mapping API data to UI format if needed
+    const mappedPayments = (payments || []).map((p: any) => ({
+        id: p.id,
+        date: p.payment_date,
+        studentName: p.studentName || (p.student_id ? `Siswa ${p.student_id}` : 'Umum'),
+        type: p.type || 'SPP',
+        amount: p.amount,
+        status: 'Lunas',
+        method: p.notes
+    }));
 
-    // Load Data from LocalStorage
-    React.useEffect(() => {
-        const loadFinanceData = () => {
-            // Payments (Penerimaan)
-            const savedPayments = localStorage.getItem('payments_data_v1');
-            if (savedPayments) {
-                setPayments(JSON.parse(savedPayments));
-            } else {
-                setPayments(paymentHistoryGlobal);
-            }
-
-            // Expenses (Pengeluaran)
-            const savedExpenses = localStorage.getItem('expenses_data_v1');
-            if (savedExpenses) {
-                setExpenses(JSON.parse(savedExpenses));
-            } else {
-                setExpenses([]);
-            }
-        };
-        loadFinanceData();
-    }, []);
-
-    // Save Data to LocalStorage whenever they change
-    React.useEffect(() => {
-        if (payments.length > 0) localStorage.setItem('payments_data_v1', JSON.stringify(payments));
-    }, [payments]);
-
-    React.useEffect(() => {
-        if (expenses.length > 0) localStorage.setItem('expenses_data_v1', JSON.stringify(expenses));
-    }, [expenses]);
+    const mappedExpenses = (expenses || []).map((e: any) => ({
+        id: e.id,
+        date: e.date,
+        description: e.description,
+        category: e.category,
+        amount: e.amount,
+        proof: e.proof
+    }));
 
     // --- FORM STATES ---
     // Penerimaan
@@ -89,56 +83,52 @@ const Keuangan: React.FC = () => {
     });
 
     // --- HANDLERS ---
-    const handleAddIncome = () => {
+    const handleAddIncome = async () => {
         if (!incomeForm.amount || (!selectedStudent && incomeForm.category === 'SPP')) {
             toast.error('Mohon lengkapi data penerimaan!');
             return;
         }
 
-        const newPayment = {
-            id: Date.now(),
-            date: incomeForm.date.split('-').reverse().join(' '), // Format DD Mon YYYY roughly or just DD-MM-YYYY
-            month: new Date(incomeForm.date).toLocaleString('default', { month: 'long' }),
-            year: new Date(incomeForm.date).getFullYear(),
-            studentId: selectedStudent?.id || 0,
-            studentName: selectedStudent ? selectedStudent.nama : (incomeForm.note || 'Umum'),
-            type: incomeForm.category,
+        const res = await addPayment({
+            studentId: selectedStudent?.id || null,
             amount: Number(incomeForm.amount),
-            method: incomeForm.method,
-            status: 'Lunas'
-        };
+            type: incomeForm.category,
+            date: incomeForm.date,
+            method: incomeForm.method
+        });
 
-        const updatedPayments = [newPayment, ...payments];
-        setPayments(updatedPayments);
-        toast.success('Penerimaan berhasil dicatat!');
-
-        // Reset
-        setIncomeForm({ ...incomeForm, amount: '', note: '' });
-        setSelectedStudent(null);
-        setSearchStudent('');
+        if (res.success) {
+            toast.success('Penerimaan berhasil dicatat dan disinkronkan!');
+            setIncomeForm({ ...incomeForm, amount: '', note: '' });
+            setSelectedStudent(null);
+            setSearchStudent('');
+        } else {
+            toast.error(res.error || 'Gagal menyimpan transaksi');
+        }
     };
 
-    const handleAddExpense = () => {
+    const handleAddExpense = async () => {
         if (!expenseForm.amount || !expenseForm.description) {
             toast.error('Mohon lengkapi data pengeluaran!');
             return;
         }
 
-        const newExp = {
-            id: Date.now(),
+        const res = await addExpense({
             ...expenseForm,
             amount: Number(expenseForm.amount)
-        };
+        });
 
-        const updatedExpenses = [newExp, ...expenses];
-        setExpenses(updatedExpenses);
-        toast.success('Pengeluaran berhasil dicatat!');
-        setExpenseForm({ ...expenseForm, description: '', amount: '' });
+        if (res.success) {
+            toast.success('Pengeluaran berhasil dicatat dan disinkronkan!');
+            setExpenseForm({ ...expenseForm, description: '', amount: '' });
+        } else {
+            toast.error(res.error || 'Gagal menyimpan pengeluaran');
+        }
     };
 
     // Calculate Summaries
-    const totalIncome = payments.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-    const totalExpense = expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const totalIncome = mappedPayments.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    const totalExpense = mappedExpenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const balance = totalIncome - totalExpense;
 
     // Navigation Menu Items

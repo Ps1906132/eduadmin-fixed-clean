@@ -13,11 +13,14 @@ import {
     Filter
 } from 'lucide-react';
 
+import { useAttendance } from './DashboardSuperAdmin/hooks/useAttendance';
+
 interface Student {
     no: number;
     nis: string;
     nama: string;
     gender: string;
+    id?: string | number; // Added id
 }
 
 interface KelasItem {
@@ -44,6 +47,7 @@ const Absen: React.FC<AbsenProps> = ({
     setAttendanceData,
 
 }) => {
+    const { saveAttendanceBatch, saving } = useAttendance();
     const [selectedClassRaw, setSelectedClassRaw] = useState<string>('');
     const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -138,15 +142,27 @@ const Absen: React.FC<AbsenProps> = ({
         }
     };
 
-    const handleSave = () => {
-        const counts = Object.values(attendance).reduce((acc, curr) => {
-            const status = curr as AttendanceStatus;
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-        }, {} as Record<AttendanceStatus, number>);
+    const handleSave = async () => {
+        // Map records for API sync
+        const recordsToSync = currentStudents.map(student => ({
+            studentId: (student.id || student.nis).toString(),
+            classId: selectedClassRaw,
+            date: currentDate,
+            status: attendance[student.nis] || 'H',
+            note: ''
+        }));
 
-        console.log('Saving data:', { date: currentDate, class: selectedClassRaw, attendance });
-        setIsSaved(true);
+        if (recordsToSync.length === 0) return;
+
+        const result = await saveAttendanceBatch(recordsToSync);
+        
+        if (result.success) {
+            console.log('Absensi berhasil disinkronkan ke server');
+            setIsSaved(true);
+            setTimeout(() => setIsSaved(false), 3000);
+        } else {
+            alert(`Gagal sinkronisasi: ${result.error}`);
+        }
     };
 
     // Calculate counts for summary

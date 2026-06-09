@@ -34,6 +34,18 @@ const initialTutoringClasses: TutoringClass[] = [
     }
 ];
 
+import { tutoringEnrollmentsGlobal, updateTutoringEnrollmentsGlobal } from '../../../data/sharedData';
+
+export interface TutoringEnrollment {
+    id: string;
+    studentId: string;
+    studentName: string;
+    classId: number;
+    className: string;
+    enrollmentDate: string;
+    status: 'Menunggu' | 'Aktif' | 'Selesai';
+}
+
 export const useTutoring = () => {
     const [loading, setLoading] = useState(false);
     const [tutoringClasses, _setTutoringClasses] = useState<TutoringClass[]>(() => {
@@ -44,8 +56,16 @@ export const useTutoring = () => {
         return initialTutoringClasses;
     });
 
-    // Background sync to Cloudflare D1
-    const syncTutoringClasses = useCallback(async (prev: TutoringClass[], next: TutoringClass[]) => {
+    const [enrollments, _setEnrollments] = useState<TutoringEnrollment[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('tutoring_enrollments_v11');
+            if (saved) return JSON.parse(saved);
+        }
+        return tutoringEnrollmentsGlobal;
+    });
+
+    // Background sync Enrollments to Cloudflare D1
+    const syncEnrollments = useCallback(async (next: TutoringEnrollment[]) => {
         const token = localStorage.getItem('eduadmin_token');
         if (!token) return;
         const headers = {
@@ -54,80 +74,45 @@ export const useTutoring = () => {
         };
 
         try {
-            const currentIds = new Set(prev.map(c => c.id.toString()));
-            const nextIds = new Set(next.map(c => c.id.toString()));
+            // Fetch current to determine upsert/delete
+            const res = await fetch('/api/tutoring_enrollments', { headers });
+            const current = res.ok ? await res.json() : [];
+            const currentIds = new Set((current as any[]).map(e => e.id.toString()));
+            const nextIds = new Set(next.map(e => e.id.toString()));
 
-            // 1. Handle Deleted
+            // 1. Delete
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
-                const res = await fetch(`/api/tutoring_classes?id=eq.${id}`, { method: 'DELETE', headers });
-                if (!res.ok) throw new Error(`Failed to delete tutoring class ${id}`);
+                await fetch(`/api/tutoring_enrollments?id=eq.${id}`, { method: 'DELETE', headers });
             }
 
-            // 2. Handle Inserted
-            const inserted = next.filter(c => !currentIds.has(c.id.toString()));
-            for (const item of inserted) {
-                const computedSubject = item.title.includes('-') ? item.title.split('-')[0].trim() : 'Bimbel';
-                const res = await fetch('/api/tutoring_classes', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        id: item.id.toString(),
-                        name: item.title,
-                        teacher_id: item.teacher,
-                        subject: computedSubject,
-                        schedule: item.schedule,
-                        room: item.room,
-                        status: item.status,
-                        description: item.description,
-                        sessions: JSON.stringify(item.sessions || []),
-                        is_active: 1
-                    })
-                });
-                if (!res.ok) throw new Error(`Failed to create tutoring class ${item.title}`);
-            }
-
-            // 3. Handle Updated
-            const prevMap = new Map(prev.map(c => [c.id.toString(), c]));
+            // 2. Upsert
             for (const item of next) {
                 const idStr = item.id.toString();
-                const current = prevMap.get(idStr);
-                if (current) {
-                    const hasChanged =
-                        current.title !== item.title ||
-                        current.teacher !== item.teacher ||
-                        current.schedule !== item.schedule ||
-                        current.room !== item.room ||
-                        current.status !== item.status ||
-                        current.description !== item.description ||
-                        JSON.stringify(current.sessions) !== JSON.stringify(item.sessions);
+                const body = {
+                    id: idStr,
+                    student_id: item.studentId.toString(),
+                    tutoring_class_id: item.classId.toString(),
+                    enrollment_date: item.enrollmentDate,
+                    status: item.status
+                };
 
-                    if (hasChanged) {
-                        const computedSubject = item.title.includes('-') ? item.title.split('-')[0].trim() : 'Bimbel';
-                        const res = await fetch(`/api/tutoring_classes?id=eq.${idStr}`, {
-                            method: 'PATCH',
-                            headers,
-                            body: JSON.stringify({
-                                name: item.title,
-                                teacher_id: item.teacher,
-                                subject: computedSubject,
-                                schedule: item.schedule,
-                                room: item.room,
-                                status: item.status,
-                                description: item.description,
-                                sessions: JSON.stringify(item.sessions || [])
-                            })
-                        });
-                        if (!res.ok) throw new Error(`Failed to update tutoring class ${item.title}`);
-                    }
+                if (currentIds.has(idStr)) {
+                    await fetch(`/api/tutoring_enrollments?id=eq.${idStr}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+                } else {
+                    await fetch('/api/tutoring_enrollments', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
                 }
             }
         } catch (err) {
-            // ✅ ROLLBACK on error
-            console.error('Failed to sync tutoring classes with D1:', err);
-            _setTutoringClasses(prev);
-            localStorage.setItem('tutoring_classes_v10', JSON.stringify(prev));
-            alert(`Gagal menyimpan kelas bimbel: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            console.error('Failed to sync tutoring enrollments with D1:', err);
         }
     }, []);
 
@@ -138,44 +123,66 @@ export const useTutoring = () => {
             const token = localStorage.getItem('eduadmin_token');
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const res = await fetch('/api/tutoring_classes', { headers });
-            if (!res.ok) throw new Error('Gagal mengambil data kelas bimbel');
+            const [classesRes, enrollRes] = await Promise.all([
+                fetch('/api/tutoring_classes', { headers }),
+                fetch('/api/tutoring_enrollments', { headers })
+            ]);
 
-            const data = await res.json();
-            if (data && Array.isArray(data)) {
-                if (data.length > 0) {
-                    const mappedData: TutoringClass[] = (data as any[]).map(c => {
-                        let parsedSessions: TutoringSession[] = [];
-                        try {
-                            if (c.sessions) {
-                                parsedSessions = typeof c.sessions === 'string' ? JSON.parse(c.sessions) : c.sessions;
+            if (classesRes.ok) {
+                const data = await classesRes.json();
+                if (data && Array.isArray(data)) {
+                    if (data.length > 0) {
+                        const mappedData: TutoringClass[] = (data as any[]).map(c => {
+                            let parsedSessions: TutoringSession[] = [];
+                            try {
+                                if (c.sessions) {
+                                    parsedSessions = typeof c.sessions === 'string' ? JSON.parse(c.sessions) : c.sessions;
+                                }
+                            } catch (err) {
+                                console.error('Failed to parse sessions for tutoring class', c.id, err);
                             }
-                        } catch (err) {
-                            console.error('Failed to parse sessions for tutoring class', c.id, err);
-                        }
-                        return {
-                            id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) as number : Date.now(),
-                            title: c.name || '',
-                            teacher: c.teacher_id || '',
-                            schedule: c.schedule || '',
-                            room: c.room || '',
-                            status: c.status || 'Aktif',
-                            description: c.description || '',
-                            sessions: parsedSessions
-                        };
-                    });
-                    _setTutoringClasses(mappedData);
-                    localStorage.setItem('tutoring_classes_v10', JSON.stringify(mappedData));
-                } else {
-                    // D1 is completely empty! Let's seed initial data
-                    console.log('Seeding initial tutoring classes to D1...');
-                    await syncTutoringClasses([], initialTutoringClasses);
-                    _setTutoringClasses(initialTutoringClasses);
-                    localStorage.setItem('tutoring_classes_v10', JSON.stringify(initialTutoringClasses));
+                            return {
+                                id: c.id ? (isNaN(Number(c.id)) ? c.id : Number(c.id)) as number : Date.now(),
+                                title: c.name || '',
+                                teacher: c.teacher_id || '',
+                                schedule: c.schedule || '',
+                                room: c.room || '',
+                                status: c.status || 'Aktif',
+                                description: c.description || '',
+                                sessions: parsedSessions
+                            };
+                        });
+                        _setTutoringClasses(mappedData);
+                        localStorage.setItem('tutoring_classes_v10', JSON.stringify(mappedData));
+                    } else {
+                        // D1 is completely empty! Let's seed initial data
+                        console.log('Seeding initial tutoring classes to D1...');
+                        await syncTutoringClasses([], initialTutoringClasses);
+                        _setTutoringClasses(initialTutoringClasses);
+                        localStorage.setItem('tutoring_classes_v10', JSON.stringify(initialTutoringClasses));
+                    }
+                }
+            }
+
+            if (enrollRes.ok) {
+                const data = await enrollRes.json();
+                if (data && Array.isArray(data)) {
+                    const mapped: TutoringEnrollment[] = data.map(e => ({
+                        id: e.id.toString(),
+                        studentId: e.student_id,
+                        studentName: e.studentName || `Siswa ${e.student_id}`, // Joined in API or fallback
+                        classId: parseInt(e.tutoring_class_id),
+                        className: e.className || 'Kelas Bimbel',
+                        enrollmentDate: e.enrollment_date,
+                        status: e.status
+                    }));
+                    _setEnrollments(mapped);
+                    localStorage.setItem('tutoring_enrollments_v11', JSON.stringify(mapped));
+                    updateTutoringEnrollmentsGlobal(mapped);
                 }
             }
         } catch (err) {
-            console.error('Error fetching tutoring classes from D1:', err);
+            console.error('Error fetching tutoring data from D1:', err);
         } finally {
             setLoading(false);
         }
@@ -193,6 +200,16 @@ export const useTutoring = () => {
             return next;
         });
     }, [syncTutoringClasses]);
+
+    const setEnrollments = useCallback((val: TutoringEnrollment[] | ((prev: TutoringEnrollment[]) => TutoringEnrollment[])) => {
+        _setEnrollments(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            localStorage.setItem('tutoring_enrollments_v11', JSON.stringify(next));
+            updateTutoringEnrollmentsGlobal(next);
+            syncEnrollments(next);
+            return next;
+        });
+    }, [syncEnrollments]);
 
     // Actions for Guru Bimbel
     const addSession = (classId: number, session: TutoringSession) => {
@@ -212,6 +229,8 @@ export const useTutoring = () => {
     return {
         tutoringClasses,
         setTutoringClasses,
+        enrollments,
+        setEnrollments,
         addSession,
         updateClassInfo,
         loading,

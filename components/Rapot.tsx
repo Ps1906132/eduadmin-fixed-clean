@@ -15,13 +15,17 @@ interface RapotProps {
     };
 }
 
+import { useGrades } from './DashboardSuperAdmin/hooks/useGrades';
+import { toast } from 'react-hot-toast';
+
 const Rapot: React.FC<RapotProps> = ({
     studentsData,
     gradesData,
     attendanceData,
-
     schoolSettings
 }) => {
+    const { fetchReportData, saveReportData, loading: syncing } = useGrades();
+
     // Navigation & Selection Logic
     const [selectedReportType, setSelectedReportType] = React.useState<string | null>(null);
     const [selectedStudentNIS, setSelectedStudentNIS] = React.useState<string>('');
@@ -32,8 +36,52 @@ const Rapot: React.FC<RapotProps> = ({
     const [manageMode, setManageMode] = React.useState<'dinas' | 'yayasan'>('dinas'); // Toggle for input mode
 
     // Local state for Report Data (Sikap, Ekstra, Absen, Note, etc.)
-    // Keyed by NIS
     const [reportData, setReportData] = React.useState<any>({});
+
+    // Fetch data from server when student is selected
+    React.useEffect(() => {
+        const loadReportData = async () => {
+            if (!selectedStudentNIS || !selectedClassRaw) return;
+
+            const student = getStudentData(selectedStudentNIS);
+            const classesRaw = localStorage.getItem('classes_data_v11');
+            const classes = classesRaw ? JSON.parse(classesRaw) : [];
+            const targetClass = classes.find((c: any) => c.nama === selectedClassRaw);
+
+            if (student && targetClass) {
+                const data = await fetchReportData(targetClass.id.toString(), student.id.toString());
+                if (data) {
+                    setReportData((prev: any) => ({
+                        ...prev,
+                        [selectedStudentNIS]: data
+                    }));
+                }
+            }
+        };
+        loadReportData();
+    }, [selectedStudentNIS, selectedClassRaw]);
+
+    const handleSaveReportToCloud = async () => {
+        if (!selectedStudentNIS || !selectedClassRaw) return;
+
+        const student = getStudentData(selectedStudentNIS);
+        const classesRaw = localStorage.getItem('classes_data_v11');
+        const classes = classesRaw ? JSON.parse(classesRaw) : [];
+        const targetClass = classes.find((c: any) => c.nama === selectedClassRaw);
+
+        if (student && targetClass) {
+            const res = await saveReportData(
+                targetClass.id.toString(), 
+                student.id.toString(), 
+                reportData[selectedStudentNIS] || {}
+            );
+            if (res.success) {
+                toast.success('Data Rapot berhasil disinkronkan ke server!');
+            } else {
+                toast.error('Gagal sinkronisasi data rapot: ' + res.error);
+            }
+        }
+    };
 
     const handleReportDataChange = (nis: string, field: string, value: any) => {
         setReportData((prev: any) => ({
@@ -885,6 +933,18 @@ const Rapot: React.FC<RapotProps> = ({
                                             onChange={(e) => handleReportDataChange(selectedStudentNIS, 'catatan', e.target.value)}
                                         />
                                     </div>
+                                </div>
+
+                                {/* Floating Save Button for Manage View */}
+                                <div className="flex justify-center pt-6">
+                                    <button
+                                        onClick={handleSaveReportToCloud}
+                                        disabled={syncing}
+                                        className="w-full max-w-md bg-emerald-600 text-white py-4 rounded-[2rem] font-bold text-lg flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 active:scale-95 disabled:opacity-50"
+                                    >
+                                        <Save size={24} />
+                                        {syncing ? 'Menyinkronkan...' : 'Simpan Data Rapot ke Cloud'}
+                                    </button>
                                 </div>
 
                             </div>

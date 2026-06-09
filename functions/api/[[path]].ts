@@ -148,7 +148,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       });
     }
     
-    // Query profiles in database - Support both full email and username-only
+    // Query profiles in database - Support both full email, username-only, and NIP
     const trimmedUsername = username.trim();
     let queryEmail = trimmedUsername;
     
@@ -157,8 +157,16 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       queryEmail = `${trimmedUsername}@eduadmin.com`;
     }
 
-    const { results } = await env.DB.prepare('SELECT * FROM profiles WHERE (email = ? OR email = ?) AND is_active = 1')
-      .bind(trimmedUsername, queryEmail)
+    // Advanced search: Check profiles by email/username OR check staff table by NIP
+    const { results } = await env.DB.prepare(`
+      SELECT p.* 
+      FROM profiles p 
+      LEFT JOIN staff s ON p.id = s.profile_id
+      WHERE (p.email = ? OR p.email = ? OR s.nip = ?) 
+      AND p.is_active = 1
+      LIMIT 1
+    `)
+      .bind(trimmedUsername, queryEmail, trimmedUsername)
       .all();
     
     if (!results || results.length === 0) {

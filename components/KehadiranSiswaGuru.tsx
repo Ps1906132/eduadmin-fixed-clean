@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, UserCheck, Search, CheckCircle, XCircle, AlertCircle, CheckCircle2, Save, Users } from 'lucide-react';
 
 import { attendanceDataGlobal, updateAttendanceDataGlobal } from '../data/sharedData';
+import { useAttendance } from './DashboardSuperAdmin/hooks/useAttendance';
 
 interface KehadiranSiswaGuruProps {
     onBack: () => void;
@@ -9,6 +10,7 @@ interface KehadiranSiswaGuruProps {
 }
 
 const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user }) => {
+    const { saveAttendanceBatch, saving } = useAttendance();
     // --- CLASS SELECTION FOR GURU MAPEL ---
     const isWaliKelas = user?.role === 'Wali Kelas' || user?.jabatan === 'Guru Kelas' || !!user?.kelas;
     const [selectedClass, setSelectedClass] = useState(user?.kelas || '1A');
@@ -86,7 +88,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
                 newData[index] = { ...newData[index], status: 'Hadir' };
             } else {
                 newData.push({
-                    id: `att-${Date.now()}-${siswa.id}-${Math.floor(Math.random() * 1000)}`,
+                    id: `att-${todayStr}-${siswa.id}`,
                     studentId: siswa.id,
                     studentName: siswa.nama,
                     classId: selectedClass,
@@ -102,11 +104,38 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
         updateAttendanceDataGlobal(newData);
     };
 
-    const handleSave = () => {
-        localStorage.setItem('attendance_data_v2', JSON.stringify(attendanceData));
-        updateAttendanceDataGlobal(attendanceData);
-        alert('Data absensi berhasil disimpan dan disinkronkan!');
-        onBack();
+    const handleSave = async () => {
+        // Prepare records for API sync
+        // Map UI statuses to API codes: Hadir -> H, Sakit -> S, Izin -> I, Alpa -> A
+        const STATUS_TO_CODE: Record<string, 'H'|'S'|'I'|'A'> = {
+            'Hadir': 'H', 'Sakit': 'S', 'Izin': 'I', 'Alpa': 'A'
+        };
+
+        const recordsToSync = attendanceData
+            .filter(d => d.classId === selectedClass && d.date === todayStr)
+            .map(d => ({
+                studentId: d.studentId.toString(),
+                classId: selectedClass, // Should ideally be class UUID, but hook handles name-to-id mapping or uses it as-is
+                date: d.date,
+                status: STATUS_TO_CODE[d.status] || 'H',
+                note: d.note || ''
+            }));
+
+        if (recordsToSync.length === 0) {
+            alert('Tidak ada data absensi untuk disimpan.');
+            return;
+        }
+
+        const result = await saveAttendanceBatch(recordsToSync);
+        
+        if (result.success) {
+            localStorage.setItem('attendance_data_v2', JSON.stringify(attendanceData));
+            updateAttendanceDataGlobal(attendanceData);
+            alert('Data absensi berhasil disimpan dan disinkronkan ke server!');
+            onBack();
+        } else {
+            alert(`Gagal sinkronisasi ke server: ${result.error}. Data tersimpan sementara di perangkat ini.`);
+        }
     };
 
     return (

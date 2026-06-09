@@ -25,10 +25,14 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [tutoringActiveTab, setTutoringActiveTab] = useState('dashboard'); // dashboard, mapel, guru, materi
     const [tutoringSubjects, setTutoringSubjects] = useState<any[]>(tutoringSubjectsGlobal);
     const [tutoringTeachers, setTutoringTeachers] = useState<any[]>(tutoringTeachersGlobal);
-    const [tutoringEnrollments, setTutoringEnrollments] = useState<any[]>(tutoringEnrollmentsGlobal);
-    
     // Sync with Teacher's view via useTutoring hook
-    const { tutoringClasses, loading: tutoringLoading, setTutoringClasses } = useTutoring();
+    const { 
+        tutoringClasses, 
+        loading: tutoringLoading, 
+        setTutoringClasses,
+        enrollments: tutoringEnrollments,
+        setEnrollments: setTutoringEnrollments
+    } = useTutoring();
     
     // Derived state for materials from tutoringClasses sessions
     const tutoringMaterials = tutoringClasses.flatMap(cls => 

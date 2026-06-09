@@ -59,21 +59,26 @@ const Tabungan: React.FC = () => {
             const newSaver = {
                 id: studentToAdd.id,
                 nis: studentToAdd.nis,
-                nama: studentToAdd.nama,
-                kelas: studentToAdd.kelas,
-                saldo: 0,
-                status: 'Aktif',
-                joinDate: new Date().toISOString().split('T')[0]
+                studentName: studentToAdd.nama,
+                class: studentToAdd.kelas,
+                balance: 0,
+                status: 'Aktif'
             };
 
             setSavingsData([...savingsData, newSaver]);
-            toast.success('Nasabah berhasil ditambahkan');
+            toast.success('Nasabah berhasil ditambahkan secara lokal');
             setShowAddModal(false);
             setNewSaverId('');
         }
     };
 
-    const handleTransaction = (type: 'Setor' | 'Tarik') => {
+    const { 
+        savingsData, 
+        savingsTransactions, 
+        addSavingsTransaction 
+    } = useSavings();
+
+    const handleTransaction = async (type: 'Setor' | 'Tarik') => {
         if (!trxForm.studentId || !trxForm.amount) {
             toast.error('Mohon lengkapi data transaksi');
             return;
@@ -85,51 +90,37 @@ const Tabungan: React.FC = () => {
             return;
         }
 
-        // Find Saver (by ID or NIS? Form uses ID from select usually, or we search)
-        // Let's assume input text search -> we need to handle search properly.
-        // For simplicity in this step, let's use a Select box or just match exact NIS/Name if typed?
-        // The UI has "Cari Siswa" input. Let's make it state controlled.
-        // BUT for robustness, let's look up saver by fuzzy match if string, or exact if ID.
+        const saver = savingsData.find(s => 
+            s.studentName.toLowerCase().includes(trxForm.studentId.toLowerCase()) || 
+            s.nis === trxForm.studentId ||
+            s.studentId.toString() === trxForm.studentId
+        );
 
-        // Simpler: Let's assume user calculates ID. 
-        // Logic: Find object in savingsData
-        const saverIndex = savingsData.findIndex(s => s.nama.toLowerCase().includes(trxForm.studentId.toLowerCase()) || s.nis === trxForm.studentId);
-
-        if (saverIndex === -1) {
+        if (!saver) {
             toast.error('Nasabah tidak ditemukan!');
             return;
         }
 
-        const saver = savingsData[saverIndex];
-
-        if (type === 'Tarik' && saver.saldo < amount) {
+        if (type === 'Tarik' && (saver.balance || 0) < amount) {
             toast.error('Saldo tidak mencukupi!');
             return;
         }
 
-        // 1. Update Balance
-        const newSaldo = type === 'Setor' ? saver.saldo + amount : saver.saldo - amount;
-        const updatedSaver = { ...saver, saldo: newSaldo };
-
-        const newData = [...savingsData];
-        newData[saverIndex] = updatedSaver;
-        setSavingsData(newData);
-
-        // 2. Add History
-        const newTrx = {
-            id: `TRX-${Date.now()}`, // Unique ID
-            date: trxForm.date,
-            studentId: saver.id,
-            studentName: saver.nama,
-            type: type,
+        const res = await addSavingsTransaction({
+            studentId: saver.studentId,
+            accountId: saver.id,
+            type: type === 'Setor' ? 'setor' : 'tarik',
             amount: amount,
-            officer: 'Admin' // Hardcoded for now
-        };
+            date: trxForm.date,
+            description: trxForm.note
+        });
 
-        setSavingsTransactions([newTrx, ...savingsTransactions]);
-
-        toast.success(`Transaksi ${type} berhasil!`);
-        resetForm();
+        if (res.success) {
+            toast.success(`Transaksi ${type} berhasil disinkronkan ke server!`);
+            resetForm();
+        } else {
+            toast.error(res.error || `Gagal memproses transaksi ${type}`);
+        }
     };
 
 

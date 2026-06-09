@@ -127,6 +127,67 @@ export const useFinance = () => {
     // Auto-save & background sync effects
 
 
+    const addPayment = async (payment: any) => {
+        const token = localStorage.getItem('eduadmin_token');
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        };
+
+        try {
+            const res = await fetch('/api/payment_transactions', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    student_id: payment.studentId,
+                    amount: payment.amount,
+                    type: payment.type,
+                    payment_date: payment.date,
+                    status: 'success',
+                    notes: payment.method
+                })
+            });
+            if (res.ok) {
+                fetchFinanceData();
+                return { success: true };
+            }
+            return { success: false, error: 'Gagal menyimpan transaksi' };
+        } catch (err) {
+            console.error('Error saving payment:', err);
+            return { success: false, error: 'Terjadi kesalahan jaringan' };
+        }
+    };
+
+    const addExpense = async (expense: any) => {
+        const token = localStorage.getItem('eduadmin_token');
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        };
+
+        try {
+            const res = await fetch('/api/expenses', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    date: expense.date,
+                    amount: expense.amount,
+                    category: expense.category,
+                    description: expense.description,
+                    proof: expense.proof
+                })
+            });
+            if (res.ok) {
+                fetchFinanceData();
+                return { success: true };
+            }
+            return { success: false, error: 'Gagal menyimpan pengeluaran' };
+        } catch (err) {
+            console.error('Error saving expense:', err);
+            return { success: false, error: 'Terjadi kesalahan jaringan' };
+        }
+    };
+
     return {
         financialYear,
         setFinancialYear,
@@ -140,6 +201,8 @@ export const useFinance = () => {
         setExpenses,
         paymentHistory,
         setPaymentHistory,
+        addPayment,
+        addExpense,
         refreshFinance: fetchFinanceData
     };
 };

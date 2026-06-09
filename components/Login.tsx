@@ -129,17 +129,21 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                     
                     const serverRole = (result.user.role || '').toLowerCase();
                     
-                    // Map Server Role to UI Role Code
-                    if (serverRole.includes('admin') || serverRole.includes('kurikulum') || serverRole.includes('keuangan') || serverRole.includes('operator') || serverRole.includes('tata usaha')) {
-                        finalRole = 'admin';
-                    } else if (serverRole.includes('kepala sekolah')) {
+                    // Map Server Role to UI Role Code (Consistent with Fase 1 requirements)
+                    if (serverRole.includes('kepala sekolah') || serverRole === 'ks') {
                         finalRole = 'ks';
-                    } else if (serverRole.includes('wali kelas') || serverRole.includes('guru kelas')) {
+                    } else if (serverRole.includes('kurikulum') || serverRole.includes('wakil kurikulum')) {
+                        finalRole = 'admin'; // Kurikulum uses Admin dashboard features
+                    } else if (serverRole.includes('wali kelas') || serverRole.includes('guru kelas') || serverRole === 'wk') {
                         finalRole = 'wk';
-                    } else if (serverRole.includes('bimbel') || serverRole.includes('guru bimbel')) {
+                    } else if (serverRole.includes('bimbel') || serverRole.includes('guru bimbel') || serverRole === 'gb') {
                         finalRole = 'gb';
+                    } else if (['admin', 'operator', 'tata usaha', 'staff tu', 'keuangan', 'multimedia'].some(r => serverRole.includes(r))) {
+                        finalRole = 'admin';
                     } else if (serverRole.includes('orang tua') || serverRole.includes('ortu') || serverRole.includes('parent') || serverRole.includes('siswa')) {
                         finalRole = 'ot';
+                    } else {
+                        finalRole = 'gm'; // Default: Guru Mata Pelajaran
                     }
                     
                     const userData = { 
