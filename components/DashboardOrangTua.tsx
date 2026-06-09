@@ -33,16 +33,13 @@ import ChannelSekolahSiswa from './ChannelSekolahSiswa';
 import BelajarAISiswa from './BelajarAISiswa';
 import ProfilAkun from './ProfilAkun';
 import NotifikasiSiswa from './NotifikasiSiswa';
+import { announcementDataGlobal } from '../data/sharedData';
 
 interface DashboardOrangTuaProps {
     user: any;
     onLogout: () => void;
     schoolName?: string;
 }
-
-import { announcementDataGlobal } from '../data/sharedData';
-
-// ... (imports)
 
 const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, schoolName = "SD IT EduAdmin" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -149,19 +146,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                                     {menuItems.map((item) => (
                                         <button
                                             key={item.id}
-                                            onClick={() => {
-                                                if (item.id === 'jadwal') setActiveView('jadwal');
-                                                else if (item.id === 'ujian') setActiveView('ujian');
-                                                else if (item.id === 'hasil') setActiveView('hasil');
-                                                else if (item.id === 'absen') setActiveView('absen');
-                                                else if (item.id === 'bayar') setActiveView('bayar');
-                                                else if (item.id === 'tabungan') setActiveView('tabungan');
-                                                else if (item.id === 'bimbingan') setActiveView('bimbingan');
-                                                else if (item.id === 'latihan') setActiveView('latihan');
-                                                else if (item.id === 'quran') setActiveView('quran');
-                                                else if (item.id === 'channel') setActiveView('channel');
-                                                else if (item.id === 'ai') setActiveView('ai');
-                                            }}
+                                            onClick={() => setActiveView(item.id as typeof activeView)}
                                             className="flex flex-col items-center gap-3 group w-full"
                                         >
                                             <div className={`w-14 h-14 md:w-16 md:h-16 ${item.color} rounded-2xl md:rounded-3xl shadow-lg shadow-blue-900/5 text-white flex items-center justify-center transform group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300 relative overflow-hidden`}>

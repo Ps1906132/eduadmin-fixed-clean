@@ -53,13 +53,15 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   // --- UTILS ---
   const mapRoleToCode = (role: string) => {
-    const r = (role || '').toLowerCase();
-    if (r.includes('kepala sekolah')) return 'ks';
-    if (r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
-    if (r.includes('bimbel') || r.includes('les')) return 'gb';
-    if (r.includes('orang tua') || r.includes('wali murid') || r.includes('ortu') || r.includes('parent')) return 'ot';
-    if (r.includes('siswa') || r.includes('murid') || r.includes('student')) return 'ot'; // Siswa juga diarahkan ke dashboard yang sama dengan orang tua
-    if (['kurikulum', 'keuangan', 'multimedia', 'admin', 'tata usaha', 'operator'].some(x => r.includes(x))) return 'admin';
+    const r = (role || '').toLowerCase().trim();
+    // Prioritas Orang Tua / Siswa
+    if (r === 'ot' || r === 'ortu' || r.includes('orang tua') || r.includes('wali murid') || r.includes('parent') || r.includes('ortu')) return 'ot';
+    if (r === 'siswa' || r.includes('murid') || r.includes('student')) return 'ot';
+    
+    if (r === 'ks' || r.includes('kepala sekolah')) return 'ks';
+    if (r === 'wk' || r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
+    if (r === 'gb' || r.includes('bimbel') || r.includes('les')) return 'gb';
+    if (r === 'admin' || ['kurikulum', 'keuangan', 'multimedia', 'tata usaha', 'operator', 'super admin'].some(x => r.includes(x))) return 'admin';
     return 'gm'; // Default untuk guru mata pelajaran
   };
 
@@ -68,8 +70,7 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.roleCode) return parsed.roleCode.toLowerCase();
-        if (parsed.role) return mapRoleToCode(parsed.role).toLowerCase();
+        return mapRoleToCode(parsed.roleCode || parsed.role || '').toLowerCase();
       } catch (e) {
         console.error("Error parsing user data", e);
       }
@@ -84,7 +85,7 @@ const App: React.FC = () => {
       const { data: { user } } = await auth.getUser();
 
       if (user) {
-        const role = (user.roleCode || mapRoleToCode(user.role) || '').toLowerCase();
+        const role = mapRoleToCode(user.roleCode || user.role || '').toLowerCase();
         setUserRole(role);
         setCurrentUser(user);
         setIsLoggedIn(true);
@@ -202,12 +203,13 @@ const App: React.FC = () => {
   });
 
   const handleLogin = (role: string, user: any) => {
-    setUserRole(role);
+    const normalizedRole = mapRoleToCode(role || user?.roleCode || user?.role || '').toLowerCase();
+    setUserRole(normalizedRole);
     setCurrentUser(user);
     setIsLoggedIn(true);
-    localStorage.setItem('eduadmin_user', JSON.stringify({ ...user, roleCode: role }));
+    localStorage.setItem('eduadmin_user', JSON.stringify({ ...user, roleCode: normalizedRole }));
     // Fase 2: Audit log LOGIN — sesuai PERMISSION_MATRIX.md § Session Management
-    logAuthEvent({ action: 'LOGIN', user_id: user?.id, user_role: role });
+    logAuthEvent({ action: 'LOGIN', user_id: user?.id, user_role: normalizedRole });
   };
 
   const handleLogout = () => {

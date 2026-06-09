@@ -125,8 +125,18 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                 const result = await response.json();
                 if (result.token && result.user) {
                     localStorage.setItem('eduadmin_token', result.token);
-                    localStorage.setItem('eduadmin_user', JSON.stringify(result.user));
-                    onLogin(result.user.role, result.user);
+                    let finalRole = result.user.role || 'ot';
+                    // Normalize role from server
+                    const serverRole = finalRole.toLowerCase();
+                    if (serverRole.includes('orang tua') || serverRole.includes('ortu') || serverRole.includes('parent') || serverRole.includes('siswa')) {
+                        finalRole = 'ot';
+                    } else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator', 'tata usaha'].some(r => serverRole.includes(r))) {
+                        finalRole = 'admin';
+                    }
+                    
+                    const userData = { ...result.user, roleCode: finalRole };
+                    localStorage.setItem('eduadmin_user', JSON.stringify(userData));
+                    onLogin(finalRole, userData);
                     setIsLoading(false);
                     return;
                 }
