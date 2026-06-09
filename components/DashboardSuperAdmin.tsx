@@ -60,6 +60,8 @@ import { useTeachers } from './DashboardSuperAdmin/hooks/useTeachers';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 import { useSubjects } from './DashboardSuperAdmin/hooks/useSubjects';
 import { useSavings } from './DashboardSuperAdmin/hooks/useSavings';
+import { useSchedules } from './DashboardSuperAdmin/hooks/useSchedules';
+import { useExams } from './DashboardSuperAdmin/hooks/useExams';
 
 interface SuperAdminProps {
     user: any;
@@ -188,20 +190,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         localStorage.setItem('positions_data_v2', JSON.stringify(positions));
     }, [positions]);
 
-    // --- JADWAL STATE ---
-    const [schedules, setSchedules] = useState<MasterSchedule[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('schedules_data_v2');
-            if (saved) return JSON.parse(saved);
-        }
-        return schedulesDataGlobal;
-    });
-
-    // Sync Schedule to Global & LocalStorage
-    useEffect(() => {
-        localStorage.setItem('schedules_data_v2', JSON.stringify(schedules));
-        updateSchedulesDataGlobal(schedules);
-    }, [schedules]);
+    // --- JADWAL STATE (Using Custom Hook) ---
+    const { schedules, setSchedules, refreshSchedules } = useSchedules();
     const [activeScheduleId, setActiveScheduleId] = useState<number>(1);
     const [selectedJadwalClass, setSelectedJadwalClass] = useState<string>('1A');
     const [draggedItem, setDraggedItem] = useState<{ type: string, id: number | string, name: string } | null>(null);
@@ -274,14 +264,15 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [absenSearchQuery, setAbsenSearchQuery] = useState('');
     const [absenSemester, setAbsenSemester] = useState('Ganjil');
 
-    // --- UJIAN STATE ---
-    const [examSchedules, setExamSchedules] = useState<MasterExamSchedule[]>(examsDataGlobal);
+    // --- UJIAN STATE (Using Custom Hook) ---
+    const { examSchedules, setExamSchedules, refreshExams } = useExams();
 
+    const [activeExamId, setActiveExamId] = useState<number | null>(examsDataGlobal.length > 0 ? (examsDataGlobal[0].id as number) : null);
     useEffect(() => {
-        updateExamsDataGlobal(examSchedules);
-    }, [examSchedules]);
-
-    const [activeExamId, setActiveExamId] = useState<number | null>(examsDataGlobal.length > 0 ? examsDataGlobal[0].id : null);
+        if (examSchedules.length > 0 && activeExamId === null) {
+            setActiveExamId(examSchedules[0].id as number);
+        }
+    }, [examSchedules, activeExamId]);
     const [showExamModal, setShowExamModal] = useState(false);
     const [newExamData, setNewExamData] = useState<MasterExamSchedule>({
         id: 0,

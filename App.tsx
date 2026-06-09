@@ -151,15 +151,28 @@ const App: React.FC = () => {
   const { subjects, setSubjects } = useSubjects();
 
   // Derived / Mapped Data for Legacy Components
-  const kelasData = classes.map((c: { id: string | number; nama: string; tingkat: number; paralel: string }) => ({
-    id: typeof c.id === 'string' ? parseInt(c.id) || 0 : c.id as number,
-    kode: `KLS-${c.nama}`,
-    nama: isNaN(parseInt(c.nama[0])) ? c.nama : `Kelas ${c.nama}`,
-    tingkat: c.tingkat.toString(),
-    paralel: c.paralel,
-    wali: teachers.find((t: { wali?: string; nama: string }) => t.wali === c.nama)?.nama || 'Belum Ditentukan',
-    waliNip: teachers.find((t: { wali?: string; nip: string }) => t.wali === c.nama)?.nip || '-'
-  }));
+  const kelasData = classes.map((c: { id: string | number; nama: string; tingkat: number; paralel: string; teacher_id?: string }) => {
+    // Cari guru berdasarkan teacher_id jika ada, jika tidak fallback ke pencarian nama (legacy support)
+    let waliTeacher = null;
+    if (c.teacher_id) {
+      waliTeacher = teachers.find((t: any) => t.id?.toString() === c.teacher_id?.toString());
+    }
+    
+    // Jika tidak ditemukan via ID, coba via nama (untuk data lama/demo)
+    if (!waliTeacher) {
+      waliTeacher = teachers.find((t: { wali?: string; nama: string }) => t.wali === c.nama);
+    }
+
+    return {
+      id: typeof c.id === 'string' ? parseInt(c.id) || 0 : c.id as number,
+      kode: `KLS-${c.nama}`,
+      nama: isNaN(parseInt(c.nama[0])) ? c.nama : `Kelas ${c.nama}`,
+      tingkat: c.tingkat.toString(),
+      paralel: c.paralel,
+      wali: waliTeacher?.nama || 'Belum Ditentukan',
+      waliNip: waliTeacher?.nip || '-'
+    };
+  });
 
   const stafList = teachers.map((t: { nip: string; nama: string; jabatan: string; username: string; password: string }, idx: number) => ({
     no: idx + 1,

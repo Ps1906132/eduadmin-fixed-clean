@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { schedulesDataGlobal, subjectsDataGlobal, schedulePeriodsGlobal } from '../data/sharedData';
 
@@ -11,9 +11,16 @@ const JadwalPelajaran: React.FC<JadwalPelajaranProps> = ({ onBack, user }) => {
     const [selectedDay, setSelectedDay] = useState('Senin');
     const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jumat", 'Sabtu'];
 
-    const studentClass = user?.studentClass || user?.kelas || '1A';
+    // Normalisasi nama kelas untuk perbandingan yang lebih akurat
+    const normalizeClassName = (name: string) => {
+        if (!name) return '';
+        return name.toString().toLowerCase().replace(/kelas\s+/g, '').trim();
+    };
 
-    // 1. Get Master Schedule
+    const studentClass = user?.studentClass || user?.kelas || '';
+    const normalizedStudentClass = normalizeClassName(studentClass);
+
+    // 1. Get Master Schedule (with API Sync)
     const [masterSchedule, setMasterSchedule] = useState(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('schedules_data_v2');
@@ -25,13 +32,51 @@ const JadwalPelajaran: React.FC<JadwalPelajaranProps> = ({ onBack, user }) => {
         return schedulesDataGlobal.find(s => s.status === 'published') || schedulesDataGlobal[0];
     });
 
-    // 2. Filter Items for Class and Day
-    const items = masterSchedule.items
-        .filter((item: { id?: unknown; [key: string]: unknown }) => item.classId === studentClass && item.day === selectedDay)
-        .sort((a: { period?: number }, b: { period?: number }) => (a.period ?? 0) - (b.period ?? 0));
+    useEffect(() => {
+        const fetchSchedules = async () => {
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                if (!token) return;
+                const res = await fetch('/api/schedules', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        const mappedItems = data.map(item => ({
+                            id: item.id.toString(),
+                            classId: item.class_id,
+                            day: item.day_of_week,
+                            period: parseInt(item.period_id) || 0,
+                            subjectId: isNaN(Number(item.subject_id)) ? item.subject_id : Number(item.subject_id)
+                        }));
+                        setMasterSchedule((prev: any) => ({
+                            ...prev,
+                            items: mappedItems,
+                            status: 'published'
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error("Gagal sinkronisasi jadwal:", err);
+            }
+        };
+        fetchSchedules();
+    }, []);
+
+    // 2. Filter Items for Class and Day (with normalization)
+    const items = (masterSchedule?.items || [])
+        .filter((item: any) => {
+            const itemClass = normalizeClassName(item.classId);
+            return itemClass === normalizedStudentClass && item.day === selectedDay;
+        })
+        .sort((a: any, b: any) => (a.period ?? 0) - (b.period ?? 0));
 
     // 3. Get Daily Info (Uniform & Notes)
-    const dailyInfo = masterSchedule.dailyInfos?.find((info: { classId?: string; day?: string; [k: string]: unknown }) => info.classId === studentClass && info.day === selectedDay);
+    const dailyInfo = masterSchedule?.dailyInfos?.find((info: any) => {
+        const infoClass = normalizeClassName(info.classId);
+        return infoClass === normalizedStudentClass && info.day === selectedDay;
+    });
 
     // Helper: Get Subject Name
     const getSubjectName = (subjectId: number | string, customName?: string) => {

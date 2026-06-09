@@ -148,8 +148,18 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       });
     }
     
-    // Query profiles in database
-    const { results } = await env.DB.prepare('SELECT * FROM profiles WHERE email = ? AND is_active = 1').bind(username.trim()).all();
+    // Query profiles in database - Support both full email and username-only
+    const trimmedUsername = username.trim();
+    let queryEmail = trimmedUsername;
+    
+    // If no domain is provided, assume default domain for search
+    if (!trimmedUsername.includes('@')) {
+      queryEmail = `${trimmedUsername}@eduadmin.com`;
+    }
+
+    const { results } = await env.DB.prepare('SELECT * FROM profiles WHERE (email = ? OR email = ?) AND is_active = 1')
+      .bind(trimmedUsername, queryEmail)
+      .all();
     
     if (!results || results.length === 0) {
       return new Response(JSON.stringify({ error: 'Username atau password salah' }), {

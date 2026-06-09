@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { examsDataGlobal, classesDataGlobal } from '../data/sharedData';
+import { examsDataGlobal, classesDataGlobal, subjectsDataGlobal } from '../data/sharedData';
 
 interface JadwalUjianProps {
     onBack: () => void;
@@ -13,8 +13,44 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
 
     const studentClass = user?.studentClass || user?.kelas || '1A';
 
-    // 1. Get Master Exam Schedule (Filter for published status)
-    const masterExam = examsDataGlobal.find(e => e.status === 'published') || examsDataGlobal[0];
+    // 1. Get Master Exam Schedule (with API Sync)
+    const [masterExam, setMasterExam] = useState(() => {
+        return examsDataGlobal.find(e => e.status === 'published') || examsDataGlobal[0];
+    });
+
+    useEffect(() => {
+        const fetchExams = async () => {
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                if (!token) return;
+                const res = await fetch('/api/exam_schedules', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        const mappedItems = data.map(item => ({
+                            id: item.id.toString(),
+                            examId: parseInt(item.exam_id) || 1,
+                            classId: item.class_id,
+                            day: item.exam_date,
+                            timeSlotId: 0, // Fallback
+                            subjectName: item.subject_id,
+                            teacherName: item.teacher_id
+                        }));
+                        setMasterExam((prev: any) => ({
+                            ...prev,
+                            items: mappedItems,
+                            status: 'published'
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error("Gagal sinkronisasi jadwal ujian:", err);
+            }
+        };
+        fetchExams();
+    }, []);
 
     // 2. Filter Items for Class and Day
     const items = masterExam ? masterExam.items
