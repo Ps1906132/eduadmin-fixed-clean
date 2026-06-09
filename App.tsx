@@ -57,6 +57,8 @@ const App: React.FC = () => {
     if (r.includes('kepala sekolah')) return 'ks';
     if (r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
     if (r.includes('bimbel')) return 'gb';
+    if (r.includes('orang tua') || r.includes('wali murid') || r.includes('ortu')) return 'ot';
+    if (r.includes('siswa')) return 'ot'; // Siswa juga diarahkan ke dashboard yang sama dengan orang tua
     if (['kurikulum', 'keuangan', 'multimedia', 'admin', 'tata usaha'].some(x => r.includes(x))) return 'admin';
     return 'gm';
   };
@@ -294,7 +296,7 @@ const App: React.FC = () => {
   }
 
   // --- DASHBOARDS ---
-  if (userRole === 'ot') return <DashboardOrangTua user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
+  if (userRole === 'ot' || userRole === 'ortu' || userRole === 'orang-tua') return <DashboardOrangTua user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
   if (userRole === 'wk') return <DashboardWaliKelas user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
   if (userRole === 'gb') return <DashboardGuruBimbel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
   if (userRole === 'gm') return <DashboardGuruMapel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;

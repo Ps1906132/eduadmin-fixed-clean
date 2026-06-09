@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS tutoring_classes (
     is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (teacher_id) REFERENCES profiles(id),
     FOREIGN KEY (subject_id) REFERENCES subjects(id)
 );
 
