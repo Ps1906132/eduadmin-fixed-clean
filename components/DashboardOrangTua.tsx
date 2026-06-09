@@ -83,7 +83,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
     ];
 
     return (
-        <div className="h-screen bg-[#E0F2FE] font-sans flex flex-col relative overflow-hidden">
+        <div className="h-screen bg-[#E0F2FE] font-sans flex flex-col relative">
             {/* Background Decoration - Bubbles (Consistent with Login) */}
             <div className="fixed top-[-50px] left-[-50px] w-40 h-40 rounded-full border-[6px] border-[#BFDBFE] opacity-60 pointer-events-none"></div>
             <div className="fixed top-20 right-[-20px] w-24 h-24 rounded-full bg-[#BFDBFE] opacity-40 pointer-events-none"></div>
@@ -132,7 +132,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto relative z-10 p-4 md:p-8 w-full max-w-7xl mx-auto pb-28 sm:pb-28 scrollbar-hide">
+            <div className="flex-1 min-h-0 overflow-y-auto relative z-10 p-4 md:p-8 w-full max-w-7xl mx-auto pb-28 sm:pb-28 scrollbar-hide">
                 <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
                     {/* Left Column: Main Content Area */}
                     <div className="flex-1">
@@ -236,7 +236,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
             </div>
 
             {/* Bottom Navigation Bar */}
-            <div className="flex-none bg-white/95 backdrop-blur-lg border-t border-slate-200 px-6 py-3 pb-6 sm:pb-3 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-50">
+            <div className="flex-none sticky bottom-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 px-6 py-3 pb-6 sm:pb-3 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-50">
                 <div className="flex justify-around items-center max-w-lg mx-auto">
                     {/* Beranda */}
                     <button
