@@ -16,30 +16,31 @@ export const useClasses = () => {
     const [showAddClassModal, setShowAddClassModal] = useState(false);
     const [isOfflineMode, setIsOfflineMode] = useState(false);
 
-    // Fetch from D1
     const fetchClasses = useCallback(async () => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) {
+            // Try loading from localStorage if no token
+            try {
+                const cachedData = localStorage.getItem('classes_data_v11');
+                if (cachedData) {
+                    const parsedData = JSON.parse(cachedData);
+                    if (Array.isArray(parsedData) && parsedData.length > 0) {
+                        setClasses(parsedData);
+                        setIsOfflineMode(true);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            } catch (cacheErr) {
+                // Silent fail for cache
+            }
+            // Do not throw or log error if no token is found on mount (common before login)
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
-            const token = localStorage.getItem('eduadmin_token');
-            if (!token) {
-                // Try loading from localStorage if no token
-                try {
-                    const cachedData = localStorage.getItem('classes_data_v11');
-                    if (cachedData) {
-                        const parsedData = JSON.parse(cachedData);
-                        if (Array.isArray(parsedData) && parsedData.length > 0) {
-                            setClasses(parsedData);
-                            setIsOfflineMode(true);
-                            console.warn('Menggunakan data kelas dari cache lokal (no token)');
-                            setLoading(false);
-                            return;
-                        }
-                    }
-                } catch (cacheErr) {
-                    console.error('Error loading from cache:', cacheErr);
-                }
-                throw new Error('NO_TOKEN');
-            }
             const headers = { 'Authorization': `Bearer ${token}` };
 
             const [res, profRes] = await Promise.all([

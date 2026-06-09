@@ -20,9 +20,14 @@ export const useTeachers = () => {
     const [loading, setLoading] = useState(false);
 
     const fetchTeachers = useCallback(async () => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
-            const token = localStorage.getItem('eduadmin_token');
             const headers = { 'Authorization': `Bearer ${token}` };
 
             const profRes = await fetch('/api/profiles', { headers });

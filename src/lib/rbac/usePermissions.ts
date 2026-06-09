@@ -137,7 +137,9 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
     lowerRole === 'multimedia' || 
     lowerRole === 'admin multimedia' ||
     lowerRole.includes('tata usaha') ||
-    lowerRole.includes('staf tu')
+    lowerRole.includes('staf tu') ||
+    lowerRole === 'ks' ||
+    lowerRole.includes('kepala sekolah')
   ) {
     return 'admin';
   }
