@@ -40,9 +40,11 @@ export const useSavings = () => {
                     return {
                         id: a.id,
                         studentId: a.student_id,
-                        studentName: student.full_name || 'Siswa',
-                        class: className,
-                        balance: a.balance
+                        nis: student.nis || '',
+                        nama: student.full_name || 'Siswa',
+                        kelas: className,
+                        saldo: a.balance,
+                        status: a.is_active === 0 ? 'Nonaktif' : 'Aktif'
                     };
                 });
                 setSavingsData(mappedData);
@@ -59,10 +61,11 @@ export const useSavings = () => {
                         id: t.id,
                         studentId: account?.student_id || '',
                         studentName: student.full_name || 'Siswa',
-                        type: t.type === 'deposit' ? 'setor' : 'tarik',
+                        type: t.type === 'deposit' ? 'Setor' : 'Tarik',
                         amount: t.amount,
                         date: t.date || new Date().toISOString(),
-                        description: t.notes || ''
+                        description: t.notes || '',
+                        officer: t.officer || 'Sistem'
                     };
                 });
                 setSavingsTransactions(mappedTxs);

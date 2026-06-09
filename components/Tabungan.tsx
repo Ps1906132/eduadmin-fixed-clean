@@ -31,7 +31,13 @@ const Tabungan: React.FC = () => {
     const [selectedStudent, setSelectedStudent] = useState('');
 
     // --- CONNECT TO HOOK ---
-    const { savingsData, setSavingsData, savingsTransactions, setSavingsTransactions } = useSavings();
+    const { 
+        savingsData, 
+        setSavingsData, 
+        savingsTransactions, 
+        setSavingsTransactions,
+        addSavingsTransaction 
+    } = useSavings();
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [newSaverId, setNewSaverId] = useState('');
@@ -72,12 +78,6 @@ const Tabungan: React.FC = () => {
         }
     };
 
-    const { 
-        savingsData, 
-        savingsTransactions, 
-        addSavingsTransaction 
-    } = useSavings();
-
     const handleTransaction = async (type: 'Setor' | 'Tarik') => {
         if (!trxForm.studentId || !trxForm.amount) {
             toast.error('Mohon lengkapi data transaksi');
@@ -91,7 +91,7 @@ const Tabungan: React.FC = () => {
         }
 
         const saver = savingsData.find(s => 
-            s.studentName.toLowerCase().includes(trxForm.studentId.toLowerCase()) || 
+            s.nama.toLowerCase().includes(trxForm.studentId.toLowerCase()) || 
             s.nis === trxForm.studentId ||
             s.studentId.toString() === trxForm.studentId
         );
@@ -101,7 +101,7 @@ const Tabungan: React.FC = () => {
             return;
         }
 
-        if (type === 'Tarik' && (saver.balance || 0) < amount) {
+        if (type === 'Tarik' && (saver.saldo || 0) < amount) {
             toast.error('Saldo tidak mencukupi!');
             return;
         }
