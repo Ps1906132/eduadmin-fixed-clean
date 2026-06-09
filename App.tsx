@@ -56,19 +56,23 @@ const App: React.FC = () => {
     const r = (role || '').toLowerCase();
     if (r.includes('kepala sekolah')) return 'ks';
     if (r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
-    if (r.includes('bimbel')) return 'gb';
-    if (r.includes('orang tua') || r.includes('wali murid') || r.includes('ortu')) return 'ot';
-    if (r.includes('siswa')) return 'ot'; // Siswa juga diarahkan ke dashboard yang sama dengan orang tua
-    if (['kurikulum', 'keuangan', 'multimedia', 'admin', 'tata usaha'].some(x => r.includes(x))) return 'admin';
-    return 'gm';
+    if (r.includes('bimbel') || r.includes('les')) return 'gb';
+    if (r.includes('orang tua') || r.includes('wali murid') || r.includes('ortu') || r.includes('parent')) return 'ot';
+    if (r.includes('siswa') || r.includes('murid') || r.includes('student')) return 'ot'; // Siswa juga diarahkan ke dashboard yang sama dengan orang tua
+    if (['kurikulum', 'keuangan', 'multimedia', 'admin', 'tata usaha', 'operator'].some(x => r.includes(x))) return 'admin';
+    return 'gm'; // Default untuk guru mata pelajaran
   };
 
   const [userRole, setUserRole] = useState(() => {
     const saved = localStorage.getItem('eduadmin_user');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.roleCode) return parsed.roleCode;
-      if (parsed.role) return mapRoleToCode(parsed.role);
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.roleCode) return parsed.roleCode;
+        if (parsed.role) return mapRoleToCode(parsed.role);
+      } catch (e) {
+        console.error("Error parsing user data", e);
+      }
     }
     return '';
   });
