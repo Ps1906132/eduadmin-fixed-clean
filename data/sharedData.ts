@@ -58,6 +58,10 @@ export const addStudent = (student: any) => {
     studentsDataGlobal = [...studentsDataGlobal, student];
 };
 
+export const updateStudentsGlobal = (newData: any[]) => {
+    studentsDataGlobal = newData;
+};
+
 // --- 3. DATA GURU & STAFF (MASTER) ---
 // Data guru dikelola oleh Admin melalui panel dan disimpan di localStorage (teachers_data_v11).
 // Array ini sengaja dikosongkan agar tidak ada akun demo buatan AI yang masuk ke sistem.
@@ -68,10 +72,18 @@ export const addTeacher = (teacher: any) => {
     teachersDataGlobal = [...teachersDataGlobal, teacher];
 };
 
+export const updateTeachersGlobal = (newData: any[]) => {
+    teachersDataGlobal = newData;
+};
+
 // --- 4. DATA KELAS ---
 // Data kelas dikelola oleh Admin melalui panel dan disimpan di localStorage (classes_data_v11).
 // Array ini sengaja dikosongkan agar tidak ada data demo buatan AI.
 export let classesDataGlobal: any[] = [];
+
+export const updateClassesGlobal = (newData: any[]) => {
+    classesDataGlobal = newData;
+};
 
 
 // --- 5. DATA KEUANGAN & SPP ---
