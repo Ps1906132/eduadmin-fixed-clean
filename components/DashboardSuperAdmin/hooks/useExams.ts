@@ -92,8 +92,7 @@ export const useExams = () => {
                     teacher_id: item.teacherName || null,
                     exam_date: item.day,
                     start_time: '08:00', // Default
-                    end_time: '10:00', // Default
-                    is_active: 1
+                    end_time: '10:00' // Default
                 };
 
                 if (currentIds.has(idStr)) {

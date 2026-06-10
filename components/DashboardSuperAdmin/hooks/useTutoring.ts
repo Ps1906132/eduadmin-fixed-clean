@@ -116,6 +116,58 @@ export const useTutoring = () => {
         }
     }, []);
 
+    // Background sync Tutoring Classes to Cloudflare D1
+    const syncTutoringClasses = useCallback(async (prev: TutoringClass[], next: TutoringClass[]) => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        try {
+            const prevIds = new Set(prev.map(c => c.id.toString()));
+            const nextIds = new Set(next.map(c => c.id.toString()));
+
+            // 1. Delete
+            const deletedIds = [...prevIds].filter(id => !nextIds.has(id));
+            for (const id of deletedIds) {
+                await fetch(`/api/tutoring_classes?id=eq.${id}`, { method: 'DELETE', headers });
+            }
+
+            // 2. Upsert
+            for (const item of next) {
+                const idStr = item.id.toString();
+                const body = {
+                    id: idStr,
+                    name: item.title,
+                    teacher_id: item.teacher,
+                    schedule: item.schedule,
+                    room: item.room,
+                    status: item.status,
+                    description: item.description,
+                    sessions: JSON.stringify(item.sessions || [])
+                };
+
+                if (prevIds.has(idStr)) {
+                    await fetch(`/api/tutoring_classes?id=eq.${idStr}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+                } else {
+                    await fetch('/api/tutoring_classes', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Failed to sync tutoring classes with D1:', err);
+        }
+    }, []);
+
     // Fetch from D1
     const fetchTutoringClasses = useCallback(async () => {
         setLoading(true);
