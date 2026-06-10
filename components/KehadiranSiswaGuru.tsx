@@ -74,7 +74,6 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
             });
         }
         setAttendanceData(newData);
-        localStorage.setItem('attendance_data_v2', JSON.stringify(newData));
         updateAttendanceDataGlobal(newData);
     };
 
@@ -100,7 +99,6 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
             }
         });
         setAttendanceData(newData);
-        localStorage.setItem('attendance_data_v2', JSON.stringify(newData));
         updateAttendanceDataGlobal(newData);
     };
 

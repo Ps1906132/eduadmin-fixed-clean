@@ -18,12 +18,26 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [d1SchoolName, setD1SchoolName] = useState('');
+    const [d1Logo, setD1Logo] = useState('');
 
     // Mengambil Nama Sekolah/Yayasan dan Logo secara dinamis dari Identitas Sekolah (localStorage)
     const savedSettings = localStorage.getItem('school_settings_v10');
     const parsedSettings = savedSettings ? JSON.parse(savedSettings) : null;
-    const activeSchoolName = schoolName || parsedSettings?.name || "EduAdmin";
-    const activeLogo = logo || parsedSettings?.logo || null;
+    const activeSchoolName = schoolName || d1SchoolName || parsedSettings?.name || "EduAdmin";
+    const activeLogo = logo || d1Logo || parsedSettings?.logo || null;
+
+    useEffect(() => {
+        fetch('/api/school_settings')
+            .then(res => res.ok ? res.json() : [])
+            .then(data => {
+                if (data && data.length > 0) {
+                    if (data[0].school_name) setD1SchoolName(data[0].school_name);
+                    if (data[0].school_logo) setD1Logo(data[0].school_logo);
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         // Auto-migrate plaintext passwords to bcrypt hashes in LocalStorage

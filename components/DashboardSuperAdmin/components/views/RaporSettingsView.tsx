@@ -60,7 +60,30 @@ const RaporSettingsView: React.FC<RaporSettingsViewProps> = ({ setActiveView, sh
     // Save desc to local storage whenever it changes
     React.useEffect(() => {
         localStorage.setItem('mock_descriptions', JSON.stringify(descriptions));
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        fetch('/api/school_settings?id=eq.settings-school', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ rapor_descriptions: JSON.stringify(descriptions) })
+        }).catch(() => {});
     }, [descriptions]);
+
+    React.useEffect(() => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        fetch('/api/school_settings', { headers: { 'Authorization': `Bearer ${token}` } })
+            .then(res => res.ok ? res.json() : [])
+            .then(data => {
+                if (data && data.length > 0 && data[0].rapor_descriptions) {
+                    try {
+                        const parsed = JSON.parse(data[0].rapor_descriptions);
+                        if (Array.isArray(parsed) && parsed.length > 0) setDescriptions(parsed);
+                    } catch (e) {}
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     const handleAddDescription = () => {
         if (!selectedSubject) return toast.error("Mohon pilih Mata Pelajaran terlebih dahulu di filter atas.");

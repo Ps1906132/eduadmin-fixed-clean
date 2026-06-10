@@ -106,7 +106,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         setPromotionStudents(mappedStudents);
     };
 
-    const handleExecutePromotion = () => {
+    const handleExecutePromotion = async () => {
         if (!selectedPromotionClass || !targetPromotionClass) return;
 
         const toPromote = promotionStudents.filter(s => s.promoStatus === 'Naik');
@@ -132,13 +132,29 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
             }));
 
             setPromotionHistory([...newHistory, ...promotionHistory]);
+            const token = localStorage.getItem('eduadmin_token');
+            const d1Records = toPromote.map((s, idx) => ({
+                id: `promo-${Date.now()}-${s.id}`,
+                student_id: s.id.toString(),
+                from_class_id: selectedPromotionClass,
+                to_class_id: targetPromotionClass,
+                academic_year_id: 'ay-2025-2026',
+                promotion_date: new Date().toISOString().split('T')[0],
+                status: 'Naik Kelas',
+                processed_by: 'Admin'
+            }));
+            fetch('/api/promotion_history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(d1Records)
+            }).catch(err => console.error('Gagal simpan riwayat ke D1:', err));
             setPromotionStudents([]);
             setSelectedPromotionClass('');
             toast.success("Proses Kenaikan Kelas Berhasil! Data siswa telah diperbarui.");
         }
     };
 
-    const handleExecuteGraduation = () => {
+    const handleExecuteGraduation = async () => {
         const toGraduate = promotionStudents.filter(s => s.promoStatus === 'Lulus');
         const count = toGraduate.length;
 
@@ -162,6 +178,22 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
             }));
 
             setPromotionHistory([...newHistory, ...promotionHistory]);
+            const token = localStorage.getItem('eduadmin_token');
+            const d1Records = toGraduate.map((s, idx) => ({
+                id: `promo-${Date.now()}-${s.id}`,
+                student_id: s.id.toString(),
+                from_class_id: selectedPromotionClass,
+                to_class_id: 'Alumni',
+                academic_year_id: 'ay-2025-2026',
+                promotion_date: new Date().toISOString().split('T')[0],
+                status: 'Lulus',
+                processed_by: 'Admin'
+            }));
+            fetch('/api/promotion_history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(d1Records)
+            }).catch(err => console.error('Gagal simpan riwayat ke D1:', err));
             setPromotionStudents([]);
             setSelectedPromotionClass('');
             toast.success("Proses Kelulusan Berhasil! Siswa telah dipindahkan ke Alumni.");

@@ -106,9 +106,6 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
 
         const result = await saveGradesBatch(records);
         if (result.success) {
-            // Still save to local for legacy support/speed
-            const key = `grades_v2_${selectedClass}_${selectedMapel}_${selectedSemester}`;
-            localStorage.setItem(key, JSON.stringify(gradesData));
             alert(`Nilai ${selectedMapel} berhasil disinkronkan ke server!`);
         } else {
             alert(`Gagal sinkronisasi: ${result.error}`);

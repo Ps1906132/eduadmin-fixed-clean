@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Printer, User, ArrowLeft } from 'lucide-react';
 import { studentsDataGlobal, classesDataGlobal, schoolSettingsGlobal, teachersDataGlobal } from '../../../../data/sharedData';
+import { useGrades } from '../../hooks/useGrades';
 
 // Types for the Report Card Data
 interface RaporData {
@@ -38,6 +39,17 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
     const [selectedStudentId, setSelectedStudentId] = useState<number | string>('');
     const [raporType, setRaporType] = useState<'resmi' | 'yayasan'>('resmi');
+    const { fetchReportData } = useGrades();
+    const [d1ReportData, setD1ReportData] = useState<any>(null);
+
+    React.useEffect(() => {
+        if (!selectedStudentId || !selectedClass) return;
+        const targetClass = classes.find((c: any) => c.nama === selectedClass);
+        if (!targetClass) return;
+        fetchReportData(targetClass.id.toString(), selectedStudentId.toString())
+            .then(data => { if (data) setD1ReportData(data); })
+            .catch(() => {});
+    }, [selectedClass, selectedStudentId]);
 
     // Helper to get dynamic description from Settings (localStorage)
     const getDynamicDesc = (type: 'k' | 's', defaultVal: string) => {
@@ -115,6 +127,7 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
             ],
             note: "Pertahankan prestasimu dan tingkatkan belajarmu."
         };
+        if (d1ReportData) Object.assign(supp, d1ReportData);
 
         return {
             schoolName: schoolSettingsGlobal.name,

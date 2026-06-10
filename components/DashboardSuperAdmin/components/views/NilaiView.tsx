@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { studentsDataGlobal, classesDataGlobal } from '../../../../data/sharedData';
 import { toast } from 'react-hot-toast';
+import { useGrades, GradeRecord } from '../../hooks/useGrades';
 
 interface NilaiViewProps {
     setActiveView: (view: string) => void;
@@ -38,6 +39,7 @@ interface GradeRow {
 
 const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
     const role = user?.role || user?.role_type || user?.roleCode;
+    const { saveGradesBatch } = useGrades();
     const lowerRole = role?.toLowerCase();
     const isKurikulum = !role || lowerRole === 'kurikulum' || lowerRole === 'kepala sekolah';
 
@@ -239,14 +241,41 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
         setIsDirty(true);
     };
 
-    const handleSave = () => {
-        // Simulasi Save
+    const handleSave = async () => {
+        const targetClass = JSON.parse(localStorage.getItem('classes_data_v11') || '[]')
+            .find((c: any) => c.nama === selectedClass);
+        const targetSubject = JSON.parse(localStorage.getItem('subjects_data_v10') || '[]')
+            .find((s: any) => s.name === selectedSubject);
+
+        if (!targetClass || !targetSubject) {
+            toast.error('Gagal memetakan ID Kelas/Mapel. Pastikan data master tersedia.');
+            return;
+        }
+
+        const records: GradeRecord[] = grades.flatMap(row => {
+            const base = {
+                studentId: row.studentId.toString(),
+                subjectId: targetSubject.id.toString(),
+                classId: targetClass.id.toString(),
+                academicYearId: 'ay-2025-2026',
+            };
+            const result: GradeRecord[] = [];
+            for (let i = 1; i <= tpCount; i++) {
+                result.push({ ...base, gradeValue: row[`tp${i}`] || 0, assessmentType: `tp${i}` });
+            }
+            result.push({ ...base, gradeValue: row.pts || 0, assessmentType: 'pts' });
+            result.push({ ...base, gradeValue: row.pas || 0, assessmentType: 'pas' });
+            result.push({ ...base, gradeValue: row.pat || 0, assessmentType: 'pat' });
+            result.push({ ...base, gradeValue: row.finalScore || 0, assessmentType: 'final', remarks: row.description });
+            return result;
+        });
+
         toast.promise(
-            new Promise((resolve) => setTimeout(resolve, 1000)),
+            saveGradesBatch(records),
             {
-                loading: 'Menyimpan data nilai...',
+                loading: 'Menyimpan data nilai ke server...',
                 success: 'Data nilai berhasil disimpan ke Database!',
-                error: 'Gagal menyimpan.',
+                error: 'Gagal menyimpan ke server.',
             }
         );
         setIsDirty(false);
