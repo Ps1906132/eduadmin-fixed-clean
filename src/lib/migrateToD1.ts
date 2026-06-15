@@ -1,5 +1,5 @@
 import { db } from './db';
-import { hashPassword } from '../../utils/auth';
+import { hashPassword } from '../utils/auth';
 
 export interface MigrationStatus {
   success: boolean;

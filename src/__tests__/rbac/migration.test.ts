@@ -16,7 +16,7 @@ import {
   verifyMigration,
   rollbackMigration,
   getMigrationStatus,
-} from '../../lib/rbac/migration';
+} from '@/lib/rbac/migration';
 
 // =============================================================================
 // SETUP — Mock localStorage dengan data user "lama" (sebelum role_type)

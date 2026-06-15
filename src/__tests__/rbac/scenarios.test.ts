@@ -17,7 +17,7 @@ import {
   isModuleOwner,
   getOwnedModules,
   getAccessibleModules,
-} from '../../lib/rbac/permissionMatrix';
+} from '@/lib/rbac/permissionMatrix';
 
 // =============================================================================
 // SCENARIO A: WORKFLOW ADMIN — Master Data Management

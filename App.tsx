@@ -1,48 +1,44 @@
 
 import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import DataSiswa from './components/DataSiswa';
-import TambahKelas from './components/TambahKelas';
-import UploadSiswa from './components/UploadSiswa';
-import UploadPerkelas from './components/UploadPerkelas';
-import UploadSiswaBaru from './components/UploadSiswaBaru';
-import DataGuruStaff from './components/DataGuruStaff';
-import KelasWali from './components/KelasWali';
-import MataPelajaran from './components/MataPelajaran';
-import Jadwal from './components/Jadwal';
-import Absen from './components/Absen';
-import Nilai from './components/Nilai';
-import Rapot from './components/Rapot';
-import Keuangan from './components/Keuangan';
-import Tabungan from './components/Tabungan';
-import NaikKelas from './components/NaikKelas';
-import BimbinganBelajar from './components/BimbinganBelajar';
-import Pengumuman from './components/Pengumuman';
-import Laporan from './components/Laporan';
-import Pengaturan from './components/Pengaturan';
-import Login from './components/Login';
-import DashboardOrangTua from './components/DashboardOrangTua';
-import DashboardGuruMapel from './components/DashboardGuruMapel';
-import DashboardWaliKelas from './components/DashboardWaliKelas';
-import DashboardGuruBimbel from './components/DashboardGuruBimbel';
-import DashboardSuperAdmin from './components/DashboardSuperAdmin';
-import DashboardKepalaSekolah from './components/DashboardKepalaSekolah';
+import Header from '@/components/Header';
+import Dashboard from '@/components/Dashboard';
+import DataSiswa from '@/components/DataSiswa';
+import TambahKelas from '@/components/TambahKelas';
+import UploadSiswa from '@/components/UploadSiswa';
+import UploadPerkelas from '@/components/UploadPerkelas';
+import UploadSiswaBaru from '@/components/UploadSiswaBaru';
+import DataGuruStaff from '@/components/DataGuruStaff';
+import KelasWali from '@/components/KelasWali';
+import MataPelajaran from '@/components/MataPelajaran';
+import Jadwal from '@/components/Jadwal';
+import Absen from '@/components/Absen';
+import Nilai from '@/components/Nilai';
+import Rapot from '@/components/Rapot';
+import Keuangan from '@/components/Keuangan';
+import Tabungan from '@/components/Tabungan';
+import NaikKelas from '@/components/NaikKelas';
+import BimbinganBelajar from '@/components/BimbinganBelajar';
+import Pengumuman from '@/components/Pengumuman';
+import Laporan from '@/components/Laporan';
+import Pengaturan from '@/components/Pengaturan';
+import Login from '@/components/Login';
+import DashboardOrangTua from '@/components/DashboardOrangTua';
+import DashboardGuruMapel from '@/components/DashboardGuruMapel';
+import DashboardWaliKelas from '@/components/DashboardWaliKelas';
+import DashboardGuruBimbel from '@/components/DashboardGuruBimbel';
+import DashboardSuperAdmin from '@/components/DashboardSuperAdmin';
+import DashboardKepalaSekolah from '@/components/DashboardKepalaSekolah';
 
-// --- RBAC: Fase 1 & 2 — Permission Guard & Audit Log ---
-// Sumber: TEKNIS_DATABASE_CODE.md (Middleware), KODE_SIAP_PAKAI.md (Policy)
-import ProtectedModule from './components/ProtectedModule';
-import { logAuthEvent } from './src/lib/rbac/auditLog';
+import ProtectedModule from '@/components/ProtectedModule';
+import { logAuthEvent } from '@/lib/rbac/auditLog';
 
-import { schoolSettingsGlobal, updateAnnouncementsGlobal } from './data/sharedData';
+import { schoolSettingsGlobal, updateAnnouncementsGlobal } from '@/data/sharedData';
 
-
-import { useStudents } from './components/DashboardSuperAdmin/hooks/useStudents';
-import { useTeachers } from './components/DashboardSuperAdmin/hooks/useTeachers';
-import { useClasses } from './components/DashboardSuperAdmin/hooks/useClasses';
-import { useSubjects } from './components/DashboardSuperAdmin/hooks/useSubjects';
-import { db, auth, isConfigured as isDbConfigured } from './src/lib/db';
+import { useStudents } from '@/components/DashboardSuperAdmin/hooks/useStudents';
+import { useTeachers } from '@/components/DashboardSuperAdmin/hooks/useTeachers';
+import { useClasses } from '@/components/DashboardSuperAdmin/hooks/useClasses';
+import { useSubjects } from '@/components/DashboardSuperAdmin/hooks/useSubjects';
+import { db, auth, isConfigured as isDbConfigured } from '@/lib/db';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('beranda');
@@ -325,16 +321,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Sidebar - Mobile Responsive */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        schoolSettings={schoolSettings}
-        userRole={userRole}
-      />
-
       <div className="flex-1 flex flex-col min-w-0">
         <Header toggleSidebar={toggleSidebar} user={currentUser} onLogout={handleLogout} />
 

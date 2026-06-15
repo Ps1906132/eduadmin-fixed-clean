@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { usePermissions } from '../../lib/rbac/usePermissions';
+import { usePermissions } from '@/lib/rbac/usePermissions';
 
 // =============================================================================
 // MOCK USER SESSIONS — Sesuai skenario UAT di RINGKASAN_CHECKLIST.md § 5.3

@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 -- Insert Super Admin User
--- Username: admin@eduadmin.com
--- Password: EduAdmin@2026!
+-- Ganti password default segera setelah deployment pertama!
+-- Gunakan: scripts/generate-admin-seed.ts untuk generate hash baru
 INSERT OR REPLACE INTO profiles (
     id, 
     email, 

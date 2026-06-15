@@ -1,58 +1,6 @@
-// Helper to verify JWT using Web Crypto API (dependency-free)
-async function verifyJWT(token: string, secret: string): Promise<any | null> {
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  
-  const [encodedHeader, encodedPayload, encodedSignature] = parts;
-  const tokenInput = `${encodedHeader}.${encodedPayload}`;
-  
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
-  
-  const fromBase64Url = (str: string) => {
-    const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-    return atob(padded);
-  };
-  
-  try {
-    const signatureBin = fromBase64Url(encodedSignature);
-    const signatureBytes = new Uint8Array(signatureBin.length);
-    for (let i = 0; i < signatureBin.length; i++) {
-      signatureBytes[i] = signatureBin.charCodeAt(i);
-    }
-    
-    const isValid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      signatureBytes,
-      encoder.encode(tokenInput)
-    );
-    
-    if (!isValid) return null;
-    
-    const payloadJson = fromBase64Url(encodedPayload);
-    const payload = JSON.parse(payloadJson);
-    
-    if (payload.exp && Date.now() / 1000 > payload.exp) {
-      return null;
-    }
-    
-    return payload;
-  } catch (e) {
-    return null;
-  }
-}
+import { getJwtSecret, verifyJWT } from './_shared/jwt';
 
-export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string; JWT_SECRET?: string }> = async ({ request, env }) => {
-  // 1. JWT TOKEN VERIFICATION
+export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string; GEMINI_MODEL?: string; JWT_SECRET?: string }> = async ({ request, env }) => {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid token format' }), {
@@ -62,9 +10,11 @@ export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string; JWT_SECRET?:
   }
 
   const token = authHeader.substring(7);
-  const jwtSecret = env.JWT_SECRET;
-  if (!jwtSecret) {
-    return new Response(JSON.stringify({ error: 'Server Configuration Error: JWT_SECRET is not configured' }), {
+  let jwtSecret: string;
+  try {
+    jwtSecret = getJwtSecret(env);
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -79,20 +29,20 @@ export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string; JWT_SECRET?:
     });
   }
 
-  try {
-    const API_KEY = env.GEMINI_API_KEY;
-    
-    if (!API_KEY) {
-      return new Response(JSON.stringify({ error: 'Gemini API Key is not configured in environment variables' }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+  const API_KEY = env.GEMINI_API_KEY;
+  if (!API_KEY) {
+    return new Response(JSON.stringify({ error: 'Gemini API Key is not configured in environment variables' }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
+  const MODEL = env.GEMINI_MODEL || 'gemini-2.0-flash';
+
+  try {
     const body = await request.json();
-    
-    // Forward request to Google Gemini API
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,14 +51,45 @@ export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string; JWT_SECRET?:
       body: JSON.stringify(body)
     });
 
-    const data = await response.json();
-    
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      const text = await response.text();
+      return new Response(JSON.stringify({ error: 'Invalid response from Gemini API', details: text }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!response.ok) {
+      const geminiError = data?.error?.message || JSON.stringify(data);
+      const isModelError = response.status === 404 || geminiError.toLowerCase().includes('not found') || geminiError.toLowerCase().includes('not supported');
+      return new Response(JSON.stringify({
+        error: isModelError
+          ? 'Model AI yang dikonfigurasi sudah tidak tersedia, hubungi administrator untuk update konfigurasi'
+          : 'Gemini API returned an error',
+        model: MODEL,
+        details: geminiError
+      }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     return new Response(JSON.stringify(data), {
-      status: response.status,
+      status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: 'Internal Server Error', details: error.message }), { 
+    const message = error.message || 'Unknown error';
+    if (message.includes('fetch') || message.includes('ENOTFOUND') || message.includes('ECONNREFUSED')) {
+      return new Response(JSON.stringify({ error: 'Cannot reach Gemini API. Check network connectivity and API endpoint.' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return new Response(JSON.stringify({ error: 'Internal Server Error', details: message }), { 
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

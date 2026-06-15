@@ -19,8 +19,8 @@ import {
   getOwnedModules,
   PERMISSION_MATRIX,
   MODULE_OWNER,
-} from '../../lib/rbac/permissionMatrix';
-import type { AdminRoleType, AppModule, CrudAction } from '../../lib/rbac/types';
+} from '@/lib/rbac/permissionMatrix';
+import type { AdminRoleType, AppModule, CrudAction } from '@/lib/rbac/types';
 
 // =============================================================================
 // 1. TOTAL MODUL & ROLE VALIDATION

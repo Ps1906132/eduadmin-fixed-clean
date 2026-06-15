@@ -21,13 +21,19 @@ Sistem informasi lengkap untuk pengelolaan sekolah dasar (SD) yang mencakup mana
 - **Frontend**: React 19 + TypeScript + Vite
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
-- **AI**: Google Gemini API
+- **Backend**: Cloudflare Workers (API Routes via `functions/`)
+- **Database**: Cloudflare D1 (SQLite)
+- **Authentication**: JWT (bcryptjs)
+- **AI**: Google Gemini API (server-side)
 - **Build Tool**: Vite
+- **Deployment**: Cloudflare Pages
 
 ## 📋 Prerequisites
 
-- Node.js (versi 18+)
+- Node.js 18+
 - npm atau yarn
+- Wrangler CLI (`npm install -g wrangler`)
+- Cloudflare account
 
 ## 🚀 Instalasi & Menjalankan
 
@@ -42,31 +48,31 @@ Sistem informasi lengkap untuk pengelolaan sekolah dasar (SD) yang mencakup mana
    npm install
    ```
 
-4. **Setup Supabase Database**:
-   - Buat project baru di [Supabase](https://supabase.com)
-   - Jalankan SQL script dari `supabase_schema.sql` di SQL Editor
-   - Jalankan migration script dari `supabase_migration.sql`
-   - Copy environment variables ke `.env.local`
-
-5. **Install dependencies**:
+3. **Setup D1 Database** (lihat [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)):
    ```bash
-   npm install
+   wrangler login
+   wrangler d1 create eduadmin_db
+   wrangler d1 execute eduadmin_db --file d1_schema.sql
    ```
 
-6. **Setup environment variables**:
-   - Copy `.env.example` ke `.env.local`
-   - Isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`
-   - Isi `GEMINI_API_KEY` untuk fitur AI
-
-7. **Jalankan development server**:
+4. **Set JWT_SECRET**:
    ```bash
+   wrangler secret put JWT_SECRET
+   ```
+
+5. **Jalankan development server** (butuh 2 terminal):
+   ```bash
+   # Terminal 1: Backend (Wrangler)
+   wrangler dev
+
+   # Terminal 2: Frontend (Vite)
    npm run dev
    ```
 
-5. **Build untuk production**:
+6. **Build untuk production**:
    ```bash
    npm run build
-   npm run preview
+   wrangler pages deploy dist/
    ```
 
 ## 📁 Struktur Proyek
@@ -78,20 +84,26 @@ src/
 │   └── ...               # Komponen lainnya
 ├── data/                 # Data shared
 ├── utils/                # Utilities (tailwind helpers, dll)
-└── types.ts             # Type definitions
+├── types.ts             # Type definitions
+functions/
+├── api/                 # Cloudflare Workers API routes
+scripts/                 # Utility scripts (deploy, migrate, seed)
+d1_sql/                  # Per-table SQL files untuk D1
 ```
 
 ## 🔧 Konfigurasi
 
-- **Port**: 3000 (development)
-- **Environment**: `.env.local` untuk API keys
+- **Port**: 3000 (development frontend), 8788 (development backend)
+- **Database**: Cloudflare D1 via Wrangler
+- **Secrets**: JWT_SECRET via `wrangler secret put`
 - **Build output**: `dist/` folder
 
 ## 📊 Status Proyek
 
 ✅ **Phase 1-3 Completed**: Struktur modular, data hooks, UI components  
-🔄 **Phase 4**: Testing & optimization  
-📋 **Next**: Deployment setup, documentation lengkap
+✅ **Database**: Cloudflare D1 (25+ tables)  
+✅ **Deployment**: Cloudflare Pages + Workers  
+📋 **Next**: Testing & optimization lanjutan
 
 ## 🤝 Contributing
 

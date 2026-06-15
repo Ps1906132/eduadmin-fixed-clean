@@ -36,7 +36,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': path.resolve(__dirname, './src'),
     }
   },
   build: {
@@ -50,9 +50,9 @@ export default defineConfig({
           'animation-vendor': ['framer-motion'],
           // Split dashboard components for better loading
           'dashboards': [
-            './components/DashboardSuperAdmin',
-            './components/DashboardOrangTua',
-            './components/DashboardGuruMapel'
+            './src/components/DashboardSuperAdmin',
+            './src/components/DashboardOrangTua',
+            './src/components/DashboardGuruMapel'
           ]
         }
       }
