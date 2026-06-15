@@ -270,7 +270,7 @@ export const useStudents = () => {
                     body: JSON.stringify({
                         id: parentProfileId,
                         email: parentUsername,
-                        full_name: student.ayah || `Orang Tua ${student.nama}`,
+                        full_name: student.ayah || student.ibu || `Orang Tua ${student.nama}`,
                         password_hash: parentPasswordHash,
                         role: 'ortu',
                         is_active: 1
@@ -426,32 +426,43 @@ export const useStudents = () => {
                 }
             }
 
-            // Sync parent profile if parent name or NIS changed
-            if (updates.ayah !== undefined || updates.nis !== undefined) {
-                try {
-                    const studentData = students.find(s => s.id.toString() === idStr);
-                    const nis = updates.nis || studentData?.nis;
-                    if (nis) {
-                        const parentProfileId = `prof-ortu-${nis}`;
-                        const parentUsername = `ortu_${nis}`;
-                        const parentName = updates.ayah || studentData?.ayah || `Orang Tua ${studentData?.nama || ''}`;
+            // Sync parent profile on any update (upsert — creates if not exists)
+            try {
+                const studentData = students.find(s => s.id.toString() === idStr);
+                const nis = updates.nis || studentData?.nis;
+                if (nis) {
+                    const parentProfileId = `prof-ortu-${nis}`;
+                    const parentUsername = `ortu_${nis}`;
+                    const parentName = updates.ayah || studentData?.ayah || updates.ibu || studentData?.ibu || `Orang Tua ${studentData?.nama || ''}`;
 
-                        // Upsert parent profile
-                        await fetch('/api/profiles', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                            body: JSON.stringify({
-                                id: parentProfileId,
-                                email: parentUsername,
-                                full_name: parentName,
-                                role: 'ortu',
-                                is_active: 1
-                            })
-                        }).catch(() => null);
-                    }
-                } catch (parentErr) {
-                    console.warn('Gagal sync parent profile:', parentErr);
+                    // Upsert parent profile
+                    await fetch('/api/profiles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({
+                            id: parentProfileId,
+                            email: parentUsername,
+                            full_name: parentName,
+                            role: 'ortu',
+                            is_active: 1
+                        })
+                    }).catch(() => null);
+
+                    // Also ensure parent_students link exists
+                    await fetch('/api/parent_students', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({
+                            id: `ps-${idStr}-${parentProfileId}`,
+                            parent_id: parentProfileId,
+                            student_id: idStr,
+                            relationship: 'ayah',
+                            is_primary: 1
+                        })
+                    }).catch(() => null);
                 }
+            } catch (parentErr) {
+                console.warn('Gagal sync parent profile:', parentErr);
             }
         } catch (err) {
             console.error('Error updating student in D1:', err);

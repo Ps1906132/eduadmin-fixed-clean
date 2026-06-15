@@ -212,7 +212,8 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
           SELECT s.id as student_id, s.full_name as s_name, c.name as c_name, p.full_name as wali_name
           FROM parent_students ps
           JOIN students s ON ps.student_id = s.id
-          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
+          LEFT JOIN classes c ON cs.class_id = c.id
           LEFT JOIN profiles p ON c.teacher_id = p.id
           WHERE ps.parent_id = ?
           LIMIT 1
@@ -232,7 +233,8 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         const { results: sResults } = await env.DB.prepare(`
           SELECT s.full_name as s_name, c.name as c_name, p.full_name as wali_name
           FROM students s
-          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
+          LEFT JOIN classes c ON cs.class_id = c.id
           LEFT JOIN profiles p ON c.teacher_id = p.id
           WHERE s.profile_id = ?
           LIMIT 1
