@@ -199,6 +199,54 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
     };
     const token = await signJWT(payload, jwtSecret);
+
+    // Look up student context for parent (ortu) and student (siswa) roles
+    let studentName: string | null = null;
+    let studentClass: string | null = null;
+    let studentWali: string | null = null;
+
+    if (user.role === 'ortu') {
+      // For parents, find linked student(s) via parent_students
+      try {
+        const { results: psResults } = await env.DB.prepare(`
+          SELECT s.id as student_id, s.full_name as s_name, c.name as c_name, p.full_name as wali_name
+          FROM parent_students ps
+          JOIN students s ON ps.student_id = s.id
+          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN profiles p ON c.teacher_id = p.id
+          WHERE ps.parent_id = ?
+          LIMIT 1
+        `).bind(user.id).all();
+        if (psResults && psResults.length > 0) {
+          const ps = psResults[0] as any;
+          studentName = ps.s_name || null;
+          studentClass = ps.c_name || null;
+          studentWali = ps.wali_name || null;
+        }
+      } catch (e) {
+        console.error('Failed to look up parent student context:', e);
+      }
+    } else if (user.role === 'siswa') {
+      // For students, look up their own class info
+      try {
+        const { results: sResults } = await env.DB.prepare(`
+          SELECT s.full_name as s_name, c.name as c_name, p.full_name as wali_name
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN profiles p ON c.teacher_id = p.id
+          WHERE s.profile_id = ?
+          LIMIT 1
+        `).bind(user.id).all();
+        if (sResults && sResults.length > 0) {
+          const sr = sResults[0] as any;
+          studentName = sr.s_name || null;
+          studentClass = sr.c_name || null;
+          studentWali = sr.wali_name || null;
+        }
+      } catch (e) {
+        console.error('Failed to look up student context:', e);
+      }
+    }
     
     return new Response(JSON.stringify({
       token,
@@ -208,7 +256,8 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         email: user.email,
         role: user.position || user.role,
         db_role: user.role,
-        avatar: user.avatar_url || null
+        avatar: user.avatar_url || null,
+        ...(studentName ? { studentName, studentClass, studentWali } : {})
       }
     }), {
       headers: { 'Content-Type': 'application/json' }

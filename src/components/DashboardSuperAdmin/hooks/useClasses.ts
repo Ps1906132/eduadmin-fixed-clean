@@ -93,27 +93,14 @@ export const useClasses = () => {
                 const current = prevMap.get(idStr);
                 
                 // We only handle UPDATES here, as ADD and DELETE have their own methods
-                if (current && (current.nama !== cls.nama || current.tingkat !== cls.tingkat || current.teacher_id !== cls.teacher_id || current.wali !== cls.wali)) {
-                    
-                    // If teacher name was changed but teacher_id is the same, we might need to find the teacher_id
-                    let teacherId = cls.teacher_id;
-                    if (cls.wali && cls.wali !== '-' && !teacherId) {
-                         const profRes = await fetch(`/api/profiles?full_name=eq.${encodeURIComponent(cls.wali)}&role=eq.guru`, { headers });
-                         if (profRes.ok) {
-                             const profData = await profRes.json();
-                             if (Array.isArray(profData) && profData.length > 0) teacherId = profData[0].id;
-                         }
-                    } else if (cls.wali === '-') {
-                        teacherId = null;
-                    }
-
+                // NOTE: teacher_id (wali kelas) is managed by useTeachers.ts syncChanges — single source of truth
+                if (current && (current.nama !== cls.nama || current.tingkat !== cls.tingkat)) {
                     await fetch(`/api/classes?id=eq.${idStr}`, {
                         method: 'PATCH',
                         headers,
                         body: JSON.stringify({
                             name: cls.nama,
-                            grade_level: cls.tingkat,
-                            teacher_id: teacherId
+                            grade_level: cls.tingkat
                         })
                     });
                 }

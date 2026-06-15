@@ -96,6 +96,12 @@ export const useTeachers = () => {
             // 1. Handle Deleted:
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
+                // Clear teacher_id from classes first
+                await fetch(`/api/classes?teacher_id=eq.${id}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ teacher_id: null })
+                }).catch(() => null);
                 const res1 = await fetch(`/api/staff?profile_id=eq.${id}`, { method: 'DELETE', headers });
                 const res2 = await fetch(`/api/profiles?id=eq.${id}`, { method: 'DELETE', headers });
                 if (!res1.ok || !res2.ok) throw new Error(`Failed to delete teacher ${id}`);
@@ -118,6 +124,8 @@ export const useTeachers = () => {
                     dbRole = 'kurikulum';
                 } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara')) {
                     dbRole = 'keuangan';
+                } else if (jabatanLower.includes('wali kelas') || jabatanLower.includes('guru kelas')) {
+                    dbRole = 'wk';
                 } else {
                     dbRole = 'guru'; // Default for all teaching staff
                 }
@@ -191,6 +199,8 @@ export const useTeachers = () => {
                             dbRole2 = 'kurikulum';
                         } else if (jabatanLower2.includes('keuangan') || jabatanLower2.includes('bendahara')) {
                             dbRole2 = 'keuangan';
+                        } else if (jabatanLower2.includes('wali kelas') || jabatanLower2.includes('guru kelas')) {
+                            dbRole2 = 'wk';
                         } else {
                             dbRole2 = 'guru';
                         }

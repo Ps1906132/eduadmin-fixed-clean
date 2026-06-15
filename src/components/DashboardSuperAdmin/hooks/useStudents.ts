@@ -256,6 +256,42 @@ export const useStudents = () => {
                     console.warn('Gagal sync class_students:', csErr);
                 }
             }
+
+            // 3. Create parent profile for authentication
+            try {
+                const parentPassword = student.password || student.nis;
+                const parentPasswordHash = bcrypt.hashSync(parentPassword, 10);
+                const parentProfileId = `prof-ortu-${student.nis}`;
+                const parentUsername = `ortu_${student.nis}`;
+
+                await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: parentProfileId,
+                        email: parentUsername,
+                        full_name: student.ayah || `Orang Tua ${student.nama}`,
+                        password_hash: parentPasswordHash,
+                        role: 'ortu',
+                        is_active: 1
+                    })
+                });
+
+                // Link parent to student via parent_students
+                await fetch('/api/parent_students', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: `ps-${student.id}-${parentProfileId}`,
+                        parent_id: parentProfileId,
+                        student_id: student.id.toString(),
+                        relationship: 'ayah',
+                        is_primary: 1
+                    })
+                });
+            } catch (parentErr) {
+                console.warn('Parent profile creation failed or already exists:', parentErr);
+            }
         } catch (err) {
             console.error('Error adding student to D1:', err);
             setStudents(backupStudents);
@@ -389,6 +425,34 @@ export const useStudents = () => {
                     console.warn('Gagal update class_students:', csErr);
                 }
             }
+
+            // Sync parent profile if parent name or NIS changed
+            if (updates.ayah !== undefined || updates.nis !== undefined) {
+                try {
+                    const studentData = students.find(s => s.id.toString() === idStr);
+                    const nis = updates.nis || studentData?.nis;
+                    if (nis) {
+                        const parentProfileId = `prof-ortu-${nis}`;
+                        const parentUsername = `ortu_${nis}`;
+                        const parentName = updates.ayah || studentData?.ayah || `Orang Tua ${studentData?.nama || ''}`;
+
+                        // Upsert parent profile
+                        await fetch('/api/profiles', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify({
+                                id: parentProfileId,
+                                email: parentUsername,
+                                full_name: parentName,
+                                role: 'ortu',
+                                is_active: 1
+                            })
+                        }).catch(() => null);
+                    }
+                } catch (parentErr) {
+                    console.warn('Gagal sync parent profile:', parentErr);
+                }
+            }
         } catch (err) {
             console.error('Error updating student in D1:', err);
             setStudents(backupStudents);
@@ -448,6 +512,33 @@ export const useStudents = () => {
 
             try {
                 const token = localStorage.getItem('eduadmin_token');
+
+                // Clean up parent_students and parent profile
+                try {
+                    const psRes = await fetch(`/api/parent_students?student_id=eq.${targetIdStr}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (psRes.ok) {
+                        const psData = await psRes.json();
+                        if (Array.isArray(psData) && psData.length > 0) {
+                            for (const ps of psData) {
+                                await fetch(`/api/parent_students?id=eq.${ps.id}`, {
+                                    method: 'DELETE',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (ps.parent_id) {
+                                    await fetch(`/api/profiles?id=eq.${ps.parent_id}`, {
+                                        method: 'DELETE',
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                    }).catch(() => null);
+                                }
+                            }
+                        }
+                    }
+                } catch (cleanupErr) {
+                    console.warn('Gagal membersihkan data orang tua:', cleanupErr);
+                }
+
                 const res = await fetch(`/api/students?id=eq.${targetIdStr}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }

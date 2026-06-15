@@ -144,7 +144,7 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
           id: profileId,
           email,
           full_name: student.nama,
-          role: 'ot', // default role parent
+          role: 'siswa',
           is_active: 1
         }]);
         details.profiles++;

@@ -645,7 +645,14 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                         <KelasWaliView
                             derivedClasses={derivedClasses}
                             onEditClass={(kelas) => handleEditItem(kelas, 'Kelas')}
-                            onDeleteClass={(id) => handleDeleteClass(id as number)}
+                            onDeleteClass={async (id) => {
+                                // Clear wali teacher's assignment before deleting class
+                                const cls = classes.find(c => c.id === id);
+                                if (cls) {
+                                    setTeachers(prev => prev.map(t => t.wali === cls.nama ? { ...t, wali: '-' } : t));
+                                }
+                                return handleDeleteClass(id as number);
+                            }}
                         />
                     )}
 
@@ -779,14 +786,37 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         const customName = (form.elements.namedItem('className') as HTMLInputElement).value;
                                         const tingkat = (form.elements.namedItem('tingkat') as HTMLSelectElement).value;
                                         const paralel = (form.elements.namedItem('paralel') as HTMLInputElement).value;
+                                        const waliTeacherId = (form.elements.namedItem('waliTeacher') as HTMLSelectElement).value;
 
                                         if (editItem && editType === 'Kelas') {
+                                            const oldClassName = editItem.nama;
+                                            const newClassName = customName || `${tingkat}${paralel}`;
+                                            const oldWaliTeacher = teachers.find(t => t.wali === oldClassName);
+
+                                            // Update class data
                                             setClasses(prev => prev.map(c => c.id.toString() === editItem.id.toString() ? {
                                                 ...c,
-                                                nama: customName || `${tingkat}${paralel}`,
+                                                nama: newClassName,
                                                 tingkat: parseInt(tingkat),
                                                 paralel
                                             } : c));
+
+                                            // If wali teacher changed, update teacher's wali field
+                                            const oldWaliId = oldWaliTeacher?.id?.toString() || '';
+                                            if (waliTeacherId !== oldWaliId) {
+                                                // Clear old wali's assignment
+                                                if (oldWaliTeacher) {
+                                                    setTeachers(prev => prev.map(t => t.id === oldWaliTeacher.id ? { ...t, wali: '-' } : t));
+                                                }
+                                                // Assign new wali
+                                                if (waliTeacherId) {
+                                                    setTeachers(prev => prev.map(t => t.id.toString() === waliTeacherId ? { ...t, wali: newClassName } : t));
+                                                }
+                                            } else if (oldClassName !== newClassName && oldWaliTeacher) {
+                                                // Class renamed, update teacher's wali to match new name
+                                                setTeachers(prev => prev.map(t => t.id === oldWaliTeacher.id ? { ...t, wali: newClassName } : t));
+                                            }
+
                                             toast.success("Kelas berhasil diperbarui");
                                         } else {
                                             void handleAddClass(tingkat, paralel, customName).then(() => {
@@ -814,6 +844,16 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Paralel</label>
                                                 <input name="paralel" defaultValue={editItem && editType === 'Kelas' ? editItem.paralel : ''} className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none" placeholder="Contoh: A" />
                                             </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Wali Kelas</label>
+                                            <select name="waliTeacher" defaultValue={editItem && editType === 'Kelas' ? (teachers.find(t => t.wali === editItem.nama)?.id?.toString() || '') : ''} className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
+                                                <option value="">- Tidak Ada -</option>
+                                                {teachers.filter(t => t.jabatan === 'Guru Kelas' || t.jabatan === 'Wali Kelas' || t.wali === editItem?.nama).map(t => (
+                                                    <option key={t.id} value={t.id}>{t.nama} ({t.wali && t.wali !== '-' ? `Wali: ${t.wali}` : 'Belum jadi wali'})</option>
+                                                ))}
+                                            </select>
                                         </div>
 
                                         <button type="submit" className="w-full py-4 mt-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">{editItem && editType === 'Kelas' ? 'Update Kelas' : 'Simpan Kelas'}</button>
