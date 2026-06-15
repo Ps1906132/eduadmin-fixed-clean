@@ -14,6 +14,7 @@ import {
   Trash2,
   Edit,
   Eye,
+  EyeOff,
   ChevronDown,
   Info,
   List,
@@ -111,6 +112,7 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
   const [isStafModalOpen, setIsStafModalOpen] = useState(false);
   const [stafModalMode, setStafModalMode] = useState<'view' | 'edit' | 'add'>('add');
   const [stafForm, setStafForm] = useState({ id: null as number | null, noPegawai: '', nama: '', jabatan: '', username: '', password: '' });
+  const [showStafPassword, setShowStafPassword] = useState(false);
 
   // --- WALI KELAS ---
   // waliKelasList is now derived from kelasData
@@ -620,14 +622,23 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
                   <div className="space-y-1"><label className="text-sm font-bold text-slate-600">Username</label><input type="text" disabled={stafModalMode === 'view'} className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 font-mono" value={stafForm.username} onChange={e => setStafForm({ ...stafForm, username: e.target.value })} /></div>
                   <div className="space-y-1">
                     <label className="text-sm font-bold text-slate-600">Password</label>
-                    <input 
-                      type="text" 
-                      disabled={stafModalMode === 'view'} 
-                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 font-mono" 
-                      value={stafForm.password && stafForm.password.startsWith('$2') ? '' : stafForm.password} 
-                      onChange={e => setStafForm({ ...stafForm, password: e.target.value })} 
-                      placeholder={stafForm.password && stafForm.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Ketik password baru"}
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showStafPassword ? 'text' : 'password'}
+                        disabled={stafModalMode === 'view'} 
+                        className="w-full px-4 py-2 pr-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 font-mono" 
+                        value={stafForm.password && stafForm.password.startsWith('$2') ? '' : stafForm.password} 
+                        onChange={e => setStafForm({ ...stafForm, password: e.target.value })} 
+                        placeholder={stafForm.password && stafForm.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Ketik password baru"}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowStafPassword(!showStafPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                      >
+                        {showStafPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

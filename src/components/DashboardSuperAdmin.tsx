@@ -3,7 +3,7 @@ import {
     LayoutDashboard, Users, GraduationCap, School, CreditCard,
     Bell, Settings, ChevronRight, Search, MoreHorizontal,
     Calendar, BookOpen, FileText, BarChart2, Plus, Edit, Trash2,
-    UploadCloud, FolderPlus, UserPlus, Download, Save, SquarePen, Eye, X, Award, Star, AlertTriangle,
+    UploadCloud, FolderPlus, UserPlus, Download, Save, SquarePen, Eye, EyeOff, X, Award, Star, AlertTriangle,
     Zap, UserCheck, Info, ClipboardList, RotateCcw, ChevronLeft, ChevronDown, CheckSquare,
     File as FileIcon, Files as FilesIcon, Upload as UploadIcon, GripVertical, Shirt, Clock,
     Archive, Printer, Lock, PieChart, CheckCircle, TrendingDown, History, Video, List,
@@ -173,6 +173,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const { teachers, setTeachers, addTeacher } = useTeachers();
     const [newTeacher, setNewTeacher] = useState({ nama: '', nip: '', jabatan: 'Guru Mata Pelajaran', mapel: '', class: '', username: '', password: '' });
     const [showTeacherModal, setShowTeacherModal] = useState(false);
+    const [showTeacherPassword, setShowTeacherPassword] = useState(false);
+    const [showStudentPassword, setShowStudentPassword] = useState(false);
 
     const { classes, setClasses, showAddClassModal, setShowAddClassModal, handleAddClass, handleDeleteClass } = useClasses();
     const [confirmDeleteClassId, setConfirmDeleteClassId] = useState<string | number | null>(null);
@@ -960,14 +962,23 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password</label>
-                                            <input 
-                                                disabled={modalMode === 'view'} 
-                                                value={selectedStudent?.password && selectedStudent.password.startsWith('$2') ? '' : (selectedStudent?.password || '')} 
-                                                onChange={e => setSelectedStudent({ ...selectedStudent, password: e.target.value })} 
-                                                type="text" 
-                                                className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60 font-mono" 
-                                                placeholder={selectedStudent?.password && selectedStudent.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Password akun"} 
-                                            />
+                                            <div className="relative">
+                                                <input 
+                                                    disabled={modalMode === 'view'} 
+                                                    value={selectedStudent?.password && selectedStudent.password.startsWith('$2') ? '' : (selectedStudent?.password || '')} 
+                                                    onChange={e => setSelectedStudent({ ...selectedStudent, password: e.target.value })} 
+                                                    type={showStudentPassword ? 'text' : 'password'}
+                                                    className="w-full p-3 pr-10 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60 font-mono" 
+                                                    placeholder={selectedStudent?.password && selectedStudent.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Password akun"} 
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowStudentPassword(!showStudentPassword)}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    {showStudentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1265,17 +1276,26 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                      placeholder="Username untuk Login"
                                                  />
                                              </div>
-                                             <div>
-                                                 <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password</label>
-                                                 <input
-                                                     type="text"
-                                                     value={newTeacher.password && newTeacher.password.startsWith('$2') ? '' : newTeacher.password}
-                                                     onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
-                                                     required={!newTeacher.password || !newTeacher.password.startsWith('$2')}
-                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors font-mono"
-                                                     placeholder={newTeacher.password && newTeacher.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Password untuk Login"}
-                                                 />
-                                             </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type={showTeacherPassword ? 'text' : 'password'}
+                                                        value={newTeacher.password && newTeacher.password.startsWith('$2') ? '' : newTeacher.password}
+                                                        onChange={(e) => setNewTeacher({ ...newTeacher, password: e.target.value })}
+                                                        required={!newTeacher.password || !newTeacher.password.startsWith('$2')}
+                                                        className="w-full p-3 pr-10 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors font-mono"
+                                                        placeholder={newTeacher.password && newTeacher.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Password untuk Login"}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowTeacherPassword(!showTeacherPassword)}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                                                    >
+                                                        {showTeacherPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                    </button>
+                                                </div>
+                                            </div>
                                          </div>
 
                                          <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4 text-sm text-blue-800">

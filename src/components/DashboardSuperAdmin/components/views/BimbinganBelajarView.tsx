@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     LayoutDashboard, Book, UserCog, FileText, Plus, SquarePen, 
-    Trash2, UserPlus, Video, X, ChevronRight 
+    Trash2, UserPlus, Video, X, ChevronRight, Eye, EyeOff 
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -124,6 +124,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [showAddTutoringTeacher, setShowAddTutoringTeacher] = useState(false);
     const [newTutoringSubject, setNewTutoringSubject] = useState({ name: '', classes: [] as string[], meetings: 10, status: 'Aktif' });
     const [newTutoringTeacher, setNewTutoringTeacher] = useState({ name: '', source: 'internal', subjectId: '', classId: '', scheduleDay: 'Senin', scheduleStart: '14:00', scheduleEnd: '15:00', username: '', password: '' });
+    const [showTutoringPassword, setShowTutoringPassword] = useState(false);
     const [editingTutoringTeacherId, setEditingTutoringTeacherId] = useState<number | null>(null);
 
     const handleAddTutoringSubject = async () => {
@@ -758,13 +759,22 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-600 mb-1">Password (Opsional)</label>
-                                        <input
-                                            type="text"
-                                            className="w-full p-2.5 border border-slate-200 rounded-xl font-mono"
-                                            placeholder={newTutoringTeacher.password && newTutoringTeacher.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Otomatis jika kosong"}
-                                            value={newTutoringTeacher.password && newTutoringTeacher.password.startsWith('$2') ? '' : newTutoringTeacher.password}
-                                            onChange={(e) => setNewTutoringTeacher({ ...newTutoringTeacher, password: e.target.value })}
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showTutoringPassword ? 'text' : 'password'}
+                                                className="w-full p-2.5 pr-10 border border-slate-200 rounded-xl font-mono"
+                                                placeholder={newTutoringTeacher.password && newTutoringTeacher.password.startsWith('$2') ? "Sudah Terenkripsi (Ketik untuk ganti)" : "Otomatis jika kosong"}
+                                                value={newTutoringTeacher.password && newTutoringTeacher.password.startsWith('$2') ? '' : newTutoringTeacher.password}
+                                                onChange={(e) => setNewTutoringTeacher({ ...newTutoringTeacher, password: e.target.value })}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowTutoringPassword(!showTutoringPassword)}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                                            >
+                                                {showTutoringPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
                                     </div>
 
                                 </div>
