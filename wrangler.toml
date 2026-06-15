@@ -7,10 +7,10 @@ binding = "DB"
 database_name = "eduadmin_db"
 database_id = "77d7d271-5515-4cd1-8865-5cd676d4752b"
 
-[[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
-id = ""
-preview_id = ""
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "your-kv-id-here"  # Uncomment and set before deploying with rate limiting
+# preview_id = ""
 
 [vars]
 # Add environment variables here
