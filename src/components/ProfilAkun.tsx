@@ -8,12 +8,12 @@ interface ProfilAkunProps {
 }
 
 const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
-    // Mock State for Profile Data
-    const [namaAyah, setNamaAyah] = useState(user?.namaAyah || 'Budi Santoso');
-    const [namaIbu, setNamaIbu] = useState(user?.namaIbu || 'Siti Aminah');
-    const [namaAnak, setNamaAnak] = useState('Ananda Tercinta'); // Hardcoded based on dashboard header
-    const [tempatLahir, setTempatLahir] = useState('Samarinda');
-    const [tanggalLahir, setTanggalLahir] = useState('2015-05-20');
+    // Data from user context (populated by login API)
+    const [namaAyah, setNamaAyah] = useState(user?.parentName || 'Budi Santoso');
+    const [namaIbu, setNamaIbu] = useState(user?.motherName || 'Siti Aminah');
+    const [namaAnak, setNamaAnak] = useState(user?.studentName || 'Ananda Tercinta');
+    const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || 'Samarinda');
+    const [tanggalLahir, setTanggalLahir] = useState(user?.birthDate || '2015-05-20');
 
     // Photo State
     const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatar || null);

@@ -204,12 +204,15 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
     let studentName: string | null = null;
     let studentClass: string | null = null;
     let studentWali: string | null = null;
+    let parentName: string | null = null;
+    let motherName: string | null = null;
+    let birthPlace: string | null = null;
+    let birthDate: string | null = null;
 
-    if (user.role === 'ortu') {
-      // For parents, find linked student(s) via parent_students
-      try {
-        const { results: psResults } = await env.DB.prepare(`
-          SELECT s.id as student_id, s.full_name as s_name, c.name as c_name, p.full_name as wali_name
+    const studentQuery = user.role === 'ortu'
+      ? `
+          SELECT s.id as student_id, s.full_name as s_name, s.parent_name, s.mother_name, s.birth_place, s.birth_date,
+                 c.name as c_name, p.full_name as wali_name
           FROM parent_students ps
           JOIN students s ON ps.student_id = s.id
           LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
@@ -217,33 +220,39 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
           LEFT JOIN profiles p ON c.teacher_id = p.id
           WHERE ps.parent_id = ?
           LIMIT 1
-        `).bind(user.id).all();
-        if (psResults && psResults.length > 0) {
-          const ps = psResults[0] as any;
-          studentName = ps.s_name || null;
-          studentClass = ps.c_name || null;
-          studentWali = ps.wali_name || null;
-        }
-      } catch (e) {
-        console.error('Failed to look up parent student context:', e);
-      }
-    } else if (user.role === 'siswa') {
-      // For students, look up their own class info
+        `
+      : user.role === 'siswa'
+        ? `
+            SELECT s.full_name as s_name, s.parent_name, s.mother_name, s.birth_place, s.birth_date,
+                   c.name as c_name, p.full_name as wali_name
+            FROM students s
+            LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
+            LEFT JOIN classes c ON cs.class_id = c.id
+            LEFT JOIN profiles p ON c.teacher_id = p.id
+            WHERE s.profile_id = ?
+            LIMIT 1
+          `
+        : null;
+
+    if (studentQuery) {
       try {
-        const { results: sResults } = await env.DB.prepare(`
-          SELECT s.full_name as s_name, c.name as c_name, p.full_name as wali_name
-          FROM students s
-          LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
-          LEFT JOIN classes c ON cs.class_id = c.id
-          LEFT JOIN profiles p ON c.teacher_id = p.id
-          WHERE s.profile_id = ?
-          LIMIT 1
-        `).bind(user.id).all();
+        const { results: sResults } = await env.DB.prepare(studentQuery).bind(user.id).all();
         if (sResults && sResults.length > 0) {
           const sr = sResults[0] as any;
           studentName = sr.s_name || null;
           studentClass = sr.c_name || null;
           studentWali = sr.wali_name || null;
+          parentName = sr.parent_name || null;
+          motherName = sr.mother_name || null;
+          birthPlace = sr.birth_place || null;
+          if (sr.birth_date) {
+            try {
+              const d = new Date(sr.birth_date + 'T00:00:00');
+              birthDate = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+            } catch (_) {
+              birthDate = sr.birth_date;
+            }
+          }
         }
       } catch (e) {
         console.error('Failed to look up student context:', e);
@@ -259,7 +268,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         role: user.position || user.role,
         db_role: user.role,
         avatar: user.avatar_url || null,
-        ...(studentName ? { studentName, studentClass, studentWali } : {})
+        ...(studentName ? { studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate } : {})
       }
     }), {
       headers: { 'Content-Type': 'application/json' }
