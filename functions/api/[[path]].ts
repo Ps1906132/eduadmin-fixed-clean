@@ -75,7 +75,11 @@ const ALLOWED_TABLES = [
   'schedule_periods',
   'tutoring_subjects',
   'tutoring_teachers',
-  'tutoring_enrollments'
+  'tutoring_enrollments',
+  'materi',
+  'latihan_soal',
+  'bimbel_attendance',
+  'bimbel_progress'
 ];
 
 // Authentication login endpoint handler
@@ -489,7 +493,8 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
   // --- SERVER-SIDE ROLE-BASED ACCESS CONTROL (RBAC) GUARD ---
   const ADMIN_ONLY_TABLES = [
     'ai_api_keys', 'ai_providers', 'ai_system_settings',
-    'school_settings', 'multimedia_settings', 'audit_logs'
+    'school_settings', 'multimedia_settings', 'audit_logs',
+    'profiles', 'staff'
   ];
 
   if (ADMIN_ONLY_TABLES.includes(table) && userRole !== 'admin') {
@@ -508,6 +513,28 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
     if (userRole !== 'admin' && userRole !== 'keuangan') {
       writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-finance write to finance table' });
       return new Response(JSON.stringify({ error: `Forbidden: Hanya Admin atau Staff Keuangan yang dapat mengubah data finansial` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Fase 2: RBAC READ — Finansial hanya untuk admin, keuangan, ortu (data sendiri), siswa (data sendiri)
+  const FINANCE_READ_TABLES = [
+    'student_bills', 'payment_transactions', 'expenses', 'savings_accounts', 'savings_transactions'
+  ];
+  if (FINANCE_READ_TABLES.includes(table) && request.method === 'GET') {
+    if (userRole !== 'admin' && userRole !== 'keuangan' && userRole !== 'ortu' && userRole !== 'siswa') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-finance GET to finance table' });
+      return new Response(JSON.stringify({ error: 'Forbidden: Hanya Admin atau Staff Keuangan yang dapat melihat data finansial' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    // ortu/siswa only allowed on student-level tables (not expenses)
+    if ((userRole === 'ortu' || userRole === 'siswa') && table === 'expenses') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Ortu/siswa GET to expenses table' });
+      return new Response(JSON.stringify({ error: 'Forbidden: Hanya Admin atau Staff Keuangan yang dapat melihat data pengeluaran sekolah' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -533,6 +560,18 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
     if (userRole !== 'admin') {
       writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-admin write to student table' });
       return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mendaftarkan siswa` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Teacher-write tables: only admin & guru can modify
+  const TEACHER_WRITE_TABLES = ['materi', 'latihan_soal', 'bimbel_attendance', 'bimbel_progress'];
+  if (TEACHER_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'admin' && userRole !== 'guru') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-teacher write to materi/latihan table' });
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru atau Admin yang dapat mengubah materi dan latihan` }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -671,6 +710,12 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
         if (select === '*') {
           select = 'id, exam_id, subject_id, question_number, question_text, question_type, option_a, option_b, option_c, option_d, points, created_by, created_at, updated_at';
         }
+      }
+
+      // RBAC for materi/latihan_soal - siswa/ortu only see published items
+      if ((table === 'materi' || table === 'latihan_soal') && (userRole === 'siswa' || userRole === 'ortu')) {
+        whereClauses.push('status = ?');
+        whereValues.push('Terbit');
       }
 
       // Fase 0.4: RBAC for exam sessions/answers - siswa only sees own data

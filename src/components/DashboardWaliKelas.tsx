@@ -26,6 +26,7 @@ import ChannelSekolahSiswa from './ChannelSekolahSiswa';
 import BelajarAISiswa from './BelajarAISiswa';
 import NotifikasiSiswa from './NotifikasiSiswa';
 import JadwalMengajarGuru from './JadwalMengajarGuru';
+import JadwalUjian from './JadwalUjian';
 import KehadiranSiswaGuru from './KehadiranSiswaGuru';
 import InputNilaiGuru from './InputNilaiGuru';
 import MateriLatihanGuru from './MateriLatihanGuru';
@@ -43,7 +44,7 @@ interface DashboardWaliKelasProps {
 
 const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout, schoolName = "SD Normal Islam Samarinda" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'deskripsi' | 'raport' | 'latihan' | 'quran' | 'channel' | 'ai' | 'informasi' | 'notepad' | 'notifikasi' | 'profile'>('home');
+    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'kehadiran' | 'nilai' | 'deskripsi' | 'raport' | 'latihan' | 'quran' | 'channel' | 'ai' | 'informasi' | 'notepad' | 'notifikasi' | 'profile'>('home');
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -53,6 +54,7 @@ const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout,
     // Menu Items Data
     const menuItems = [
         { id: 'jadwal', label: 'Jadwal Mengajar', icon: <Calendar size={24} />, color: 'bg-blue-500' },
+        { id: 'ujian', label: 'Jadwal Ujian', icon: <FileText size={24} />, color: 'bg-indigo-500' },
         { id: 'kehadiran', label: 'Absensi Siswa', icon: <UserCheck size={24} />, color: 'bg-teal-500' },
         { id: 'nilai', label: 'Input Nilai', icon: <FolderInput size={24} />, color: 'bg-indigo-500' },
         { id: 'deskripsi', label: 'Master Deskripsi', icon: <FileText size={24} />, color: 'bg-amber-600' },
@@ -128,6 +130,7 @@ const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout,
                                             key={item.id}
                                             onClick={() => {
                                                 if (item.id === 'jadwal') setActiveView('jadwal');
+                                                else if (item.id === 'ujian') setActiveView('ujian');
                                                 else if (item.id === 'kehadiran') setActiveView('kehadiran');
                                                 else if (item.id === 'nilai') setActiveView('nilai');
                                                 else if (item.id === 'deskripsi') setActiveView('deskripsi');
@@ -196,6 +199,8 @@ const DashboardWaliKelas: React.FC<DashboardWaliKelasProps> = ({ user, onLogout,
                     <div className="flex-1">
                         {activeView === 'jadwal' ? (
                             <JadwalMengajarGuru user={user} onBack={() => setActiveView('home')} />
+                        ) : activeView === 'ujian' ? (
+                            <JadwalUjian onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'kehadiran' ? (
                             <KehadiranSiswaGuru user={user} onBack={() => setActiveView('home')} />
                         ) : activeView === 'nilai' ? (

@@ -38,6 +38,44 @@ INSERT OR REPLACE INTO profiles (
     1
 );
 
+-- Insert Staff Tata Usaha (Keuangan) User
+INSERT OR REPLACE INTO profiles (
+    id, 
+    email, 
+    full_name, 
+    password_hash, 
+    role, 
+    role_type,
+    is_active
+) VALUES (
+    'tu-001',
+    'tu@eduadmin.com',
+    'Staff Tata Usaha',
+    '$2b$10$Or6VxlRM/4hl2h.bPh5MfevcP.p.53gxW1fYPxoIuaRvZBtTB9HHW',
+    'keuangan',
+    'single',
+    1
+);
+
+-- Insert Kepala Sekolah User
+INSERT OR REPLACE INTO profiles (
+    id, 
+    email, 
+    full_name, 
+    password_hash, 
+    role, 
+    role_type,
+    is_active
+) VALUES (
+    'ks-001',
+    'kepsek@eduadmin.com',
+    'Kepala Sekolah',
+    '$2b$10$Or6VxlRM/4hl2h.bPh5MfevcP.p.53gxW1fYPxoIuaRvZBtTB9HHW',
+    'admin',
+    'single',
+    1
+);
+
 -- Index untuk faster lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);

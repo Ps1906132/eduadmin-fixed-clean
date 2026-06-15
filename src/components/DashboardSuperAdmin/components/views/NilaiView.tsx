@@ -38,7 +38,7 @@ interface GradeRow {
 }
 
 const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
-    const role = user?.role || user?.role_type || user?.roleCode;
+    const role = user?.roleCode || user?.role || user?.role_type;
     const { saveGradesBatch } = useGrades();
     const lowerRole = role?.toLowerCase();
     const isKurikulum = !role || lowerRole === 'kurikulum' || lowerRole === 'kepala sekolah';

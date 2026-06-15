@@ -37,3 +37,37 @@ INSERT OR REPLACE INTO staff (
     1
 );
 
+-- Insert Staff Record for Staff Tata Usaha
+INSERT OR REPLACE INTO staff (
+    id,
+    profile_id,
+    nip,
+    position,
+    department,
+    is_active
+) VALUES (
+    'tu-001',
+    'tu-001',
+    'TU001',
+    'Staff Tata Usaha',
+    'Keuangan',
+    1
+);
+
+-- Insert Staff Record for Kepala Sekolah
+INSERT OR REPLACE INTO staff (
+    id,
+    profile_id,
+    nip,
+    position,
+    department,
+    is_active
+) VALUES (
+    'ks-001',
+    'ks-001',
+    'KS001',
+    'Kepala Sekolah',
+    'Umum',
+    1
+);
+

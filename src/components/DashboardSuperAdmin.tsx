@@ -106,7 +106,7 @@ const ProtectedViewWrapper: React.FC<{
     }
     return (
         <ProtectedModule
-            userRole={user?.role || user?.role_type || user?.roleCode}
+            userRole={user?.roleCode || user?.role || user?.role_type}
             userId={user?.id}
             module={module as any}
             requiredAction="READ"

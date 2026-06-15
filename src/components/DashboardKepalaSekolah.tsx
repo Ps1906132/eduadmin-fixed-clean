@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard, FileText, Book, Tv,
-    LogOut, User, Bell, Printer, Download, ChevronRight,
+    LogOut, User, Bell, ChevronRight,
     Users, TrendingUp, Calendar, CheckSquare
 } from 'lucide-react';
 import { schoolSettingsGlobal } from '../data/sharedData';
@@ -29,11 +29,37 @@ const DashboardKepalaSekolah: React.FC<DashboardKepalaSekolahProps> = ({ user, o
     const { classes } = useClasses();
     const { announcements } = useAnnouncements();
 
+    const [todayAttendancePct, setTodayAttendancePct] = useState<number | null>(null);
+    const [todayAttendanceLabel, setTodayAttendanceLabel] = useState('Memuat...');
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => {
-            clearInterval(timer);
-        };
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const token = localStorage.getItem('eduadmin_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        Promise.all([
+            fetch(`/api/attendance?date=eq.${today}&select=status`, { headers }).then(r => r.json()),
+        ]).then(([records]) => {
+            if (Array.isArray(records) && records.length > 0) {
+                const total = records.length;
+                const hadir = records.filter((r: any) => r.status === 'hadir').length;
+                const pct = Math.round((hadir / total) * 100);
+                setTodayAttendancePct(pct);
+                setTodayAttendanceLabel(`${pct}% (${hadir}/${total} hadir)`);
+            } else {
+                setTodayAttendancePct(0);
+                setTodayAttendanceLabel('Belum ada data hari ini');
+            }
+        }).catch(() => {
+            setTodayAttendancePct(null);
+            setTodayAttendanceLabel('Gagal memuat');
+        });
     }, []);
 
     // Menu Data
@@ -43,13 +69,6 @@ const DashboardKepalaSekolah: React.FC<DashboardKepalaSekolahProps> = ({ user, o
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
         { id: 'channel', label: 'Channel Sekolah', icon: <Tv size={24} />, color: 'bg-red-600' },
     ];
-
-    // Dummy Laporan Data (Cleared)
-    const reports: any[] = [];
-
-    const handlePrint = (title: string) => {
-        alert(`Mencetak dokumen: ${title}... \n(Fitur cetak terhubung ke printer sistem)`);
-    };
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
@@ -148,23 +167,23 @@ const DashboardKepalaSekolah: React.FC<DashboardKepalaSekolahProps> = ({ user, o
                                         <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center"><CheckSquare size={24} /></div>
                                         <div>
                                             <p className="text-xs text-slate-500 font-bold uppercase">Kehadiran Siswa</p>
-                                            <h3 className="text-2xl font-bold text-slate-800">0%</h3>
+                                            <h3 className="text-2xl font-bold text-slate-800">{todayAttendancePct !== null ? `${todayAttendancePct}%` : '...'}</h3>
                                         </div>
                                     </div>
                                     <div className="mt-4 pt-4 border-t border-slate-50 text-xs text-slate-400 font-bold flex items-center gap-1">
-                                        <Calendar size={12} /> Belum ada data hari ini
+                                        <Calendar size={12} /> {todayAttendanceLabel}
                                     </div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center"><Calendar size={24} /></div>
+                                        <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center"><Bell size={24} /></div>
                                         <div>
-                                            <p className="text-xs text-slate-500 font-bold uppercase">Agenda Sekolah</p>
-                                            <h3 className="text-2xl font-bold text-slate-800">0</h3>
+                                            <p className="text-xs text-slate-500 font-bold uppercase">Pengumuman Terbaru</p>
+                                            <h3 className="text-2xl font-bold text-slate-800">{announcements.filter(a => a.status === 'Terbit').length}</h3>
                                         </div>
                                     </div>
                                     <div className="mt-4 pt-4 border-t border-slate-50 text-xs text-slate-400 font-bold flex items-center gap-1">
-                                        <Calendar size={12} /> Tidak ada agenda terdekat
+                                        <Calendar size={12} /> {announcements.filter(a => a.status === 'Terbit').length > 0 ? 'Ada pengumuman aktif' : 'Tidak ada pengumuman'}
                                     </div>
                                 </div>
                             </div>

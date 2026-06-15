@@ -1,19 +1,13 @@
-import { useState, FC } from 'react';
+import { useState, useEffect, FC } from 'react';
 import {
     ChevronRight,
     BookOpen,
     ExternalLink,
     FileText,
     HelpCircle,
-    Calendar,
-    ArrowRight,
-    Star,
-    AlertCircle,
     Layout
 } from 'lucide-react';
 import {
-    materiDataGlobal,
-    latihanDataGlobal,
     MateriItem,
     LatihanItem,
     QuestionPG,
@@ -28,10 +22,72 @@ interface LatihanSoalSiswaProps {
 const LatihanSoalSiswa: FC<LatihanSoalSiswaProps> = ({ onBack, userClass = "5A" }) => {
     const [activeTab, setActiveTab] = useState<'materi' | 'latihan'>('materi');
     const [selectedLatihan, setSelectedLatihan] = useState<LatihanItem | null>(null);
+    const [materiList, setMateriList] = useState<MateriItem[]>([]);
+    const [latihanList, setLatihanList] = useState<LatihanItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            const token = localStorage.getItem('eduadmin_token');
+            if (!token) { setLoading(false); return; }
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            try {
+                const [materiRes, latihanRes] = await Promise.all([
+                    fetch('/api/materi', { headers }),
+                    fetch('/api/latihan_soal', { headers })
+                ]);
+
+                if (materiRes.ok) {
+                    const data = await materiRes.json();
+                    if (Array.isArray(data)) {
+                        setMateriList(data.map((a: any) => ({
+                            id: a.id ? (isNaN(Number(a.id)) ? a.id : Number(a.id)) : Date.now(),
+                            title: a.title,
+                            classId: a.class_id,
+                            subjectName: a.subject_name || '',
+                            driveLink: a.drive_link,
+                            publishDate: a.publish_date,
+                            status: (a.status || 'Draft') as 'Terbit' | 'Draft',
+                        })));
+                    }
+                }
+
+                if (latihanRes.ok) {
+                    const data = await latihanRes.json();
+                    if (Array.isArray(data)) {
+                        setLatihanList(data.map((a: any) => {
+                            let questions: (QuestionPG | QuestionEssay)[] = [];
+                            try {
+                                if (typeof a.questions === 'string') questions = JSON.parse(a.questions);
+                                else if (Array.isArray(a.questions)) questions = a.questions;
+                            } catch (_) {}
+                            return {
+                                id: a.id ? (isNaN(Number(a.id)) ? a.id : Number(a.id)) : Date.now(),
+                                title: a.title,
+                                classId: a.class_id,
+                                subjectName: a.subject_name || '',
+                                type: (a.type || 'PG') as 'PG' | 'Essay',
+                                questions,
+                                publishDate: a.publish_date,
+                                status: (a.status || 'Draft') as 'Terbit' | 'Draft',
+                            };
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error('Gagal memuat materi/latihan:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     // Filter data based on student class
-    const filteredMateri = materiDataGlobal.filter(m => m.classId === userClass && m.status === 'Terbit');
-    const filteredLatihan = latihanDataGlobal.filter(l => l.classId === userClass && l.status === 'Terbit');
+    const filteredMateri = materiList.filter(m => m.classId === userClass && m.status === 'Terbit');
+    const filteredLatihan = latihanList.filter(l => l.classId === userClass && l.status === 'Terbit');
 
     return (
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col h-full">
@@ -65,7 +121,12 @@ const LatihanSoalSiswa: FC<LatihanSoalSiswaProps> = ({ onBack, userClass = "5A" 
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
-                {selectedLatihan ? (
+                {loading ? (
+                    <div className="h-60 flex flex-col items-center justify-center text-slate-300">
+                        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                        <p className="text-sm font-bold">Memuat data...</p>
+                    </div>
+                ) : selectedLatihan ? (
                     // VIEW: LATIHAN DETAIL (ESSAY/PG VIEWER FOR PARENTS)
                     <div className="animate-in fade-in duration-300">
                         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm mb-6">

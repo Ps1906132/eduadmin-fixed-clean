@@ -122,7 +122,7 @@ export const useTeachers = () => {
                     dbRole = 'admin';
                 } else if (jabatanLower.includes('kurikulum')) {
                     dbRole = 'kurikulum';
-                } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara')) {
+                } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara') || jabatanLower.includes('tata usaha')) {
                     dbRole = 'keuangan';
                 } else if (jabatanLower.includes('wali kelas') || jabatanLower.includes('guru kelas')) {
                     dbRole = 'wk';

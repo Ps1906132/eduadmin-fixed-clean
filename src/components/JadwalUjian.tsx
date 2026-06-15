@@ -11,7 +11,7 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
     const [selectedDay, setSelectedDay] = useState('Senin');
     const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jumat", 'Sabtu'];
 
-    const studentClass = user?.studentClass || user?.kelas || '1A';
+    const studentClass = user?.studentClass || user?.kelas || '';
 
     // 1. Get Master Exam Schedule (with API Sync)
     const [masterExam, setMasterExam] = useState(() => {
@@ -84,7 +84,10 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
     
     // 2. Filter Items for Class and Day
     const items = masterExam ? masterExam.items
-        .filter(item => item.classId === studentClass && item.day === selectedDay)
+        .filter(item => {
+            if (!studentClass) return item.day === selectedDay;
+            return item.classId === studentClass && item.day === selectedDay;
+        })
         .sort((a, b) => a.timeSlotId - b.timeSlotId) : [];
 
     // 3. Get Daily Info (Uniform & Notes from standard or specific exam notes)
@@ -110,7 +113,7 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
                 <div className="flex-1">
                     <h3 className="font-bold text-slate-800 text-lg">Jadwal Ujian</h3>
                     <p className="text-xs text-slate-500">
-                        Kelas {studentClass} • {masterExam ? `${masterExam.type} ${masterExam.semester} ${masterExam.year}` : 'Tidak ada jadwal aktif'}
+                        {studentClass ? `Kelas ${studentClass} • ` : ''}{masterExam ? `${masterExam.type} ${masterExam.semester} ${masterExam.year}` : 'Tidak ada jadwal aktif'}
                     </p>
                 </div>
             </div>

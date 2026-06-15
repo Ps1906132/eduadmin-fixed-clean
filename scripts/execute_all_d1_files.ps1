@@ -5,7 +5,7 @@
 
 Write-Host "🚀 STARTING D1 DATABASE SETUP" -ForegroundColor Green
 Write-Host "Database ID: 77d7d271-5515-4cd1-8865-5cd676d4752b" -ForegroundColor Cyan
-Write-Host "Total Tables: 28" -ForegroundColor Cyan
+Write-Host "Total Tables: 30" -ForegroundColor Cyan
 Write-Host ""
 
 # Array of files to execute
@@ -38,7 +38,9 @@ $files = @(
     "d1_sql/26_multimedia_settings.sql",
     "d1_sql/27_promotion_history.sql",
     "d1_sql/28_audit_logs.sql",
-    "d1_sql/35_tutoring_tables.sql"
+    "d1_sql/35_tutoring_tables.sql",
+    "d1_sql/36_bimbel_attendance.sql",
+    "d1_sql/37_bimbel_progress.sql"
 )
 
 # Counter

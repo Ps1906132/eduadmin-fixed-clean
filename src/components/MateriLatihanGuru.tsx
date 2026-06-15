@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, BookOpen, ExternalLink, FileText, Plus, Save, X, Trash2, Send, FilePlus, HelpCircle } from 'lucide-react';
 import {
-    materiDataGlobal,
-    updateMateriDataGlobal,
-    latihanDataGlobal,
-    updateLatihanDataGlobal,
     MateriItem,
     LatihanItem,
     QuestionPG,
     QuestionEssay,
     classesDataGlobal
 } from '../data/sharedData';
+import { useMateri } from './DashboardSuperAdmin/hooks/useMateri';
 import toast from 'react-hot-toast';
 
 interface MateriLatihanGuruProps {
@@ -20,21 +17,10 @@ interface MateriLatihanGuruProps {
 
 const MateriLatihanGuru: React.FC<MateriLatihanGuruProps> = ({ onBack, user }) => {
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
+    const { materi: materiList, latihan: latihanList, loading, createMateri, deleteMateri, createLatihan, deleteLatihan } = useMateri();
 
     // Default class based on user info if available
     const defaultClass = user?.kelas || user?.studentClass || '1A';
-
-    // --- STATE DATA ---
-    const [materiList, setMateriList] = useState<MateriItem[]>(materiDataGlobal);
-    const [latihanList, setLatihanList] = useState<LatihanItem[]>(latihanDataGlobal);
-
-    useEffect(() => {
-        updateMateriDataGlobal(materiList);
-    }, [materiList]);
-
-    useEffect(() => {
-        updateLatihanDataGlobal(latihanList);
-    }, [latihanList]);
 
     // --- MODAL STATE ---
     const [showMateriModal, setShowMateriModal] = useState(false);
@@ -66,40 +52,49 @@ const MateriLatihanGuru: React.FC<MateriLatihanGuruProps> = ({ onBack, user }) =
     }, [defaultClass]);
 
     // --- HANDLERS ---
-    const handleSaveMateri = () => {
+    const handleSaveMateri = async () => {
         if (!materiForm.title || !materiForm.driveLink) {
             toast.error("Harap isi Judul dan Link Drive!");
             return;
         }
 
-        const newMateri: MateriItem = {
-            id: Date.now(),
-            ...materiForm,
-            publishDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-        };
-
-        setMateriList([newMateri, ...materiList]);
-        setShowMateriModal(false);
-        setMateriForm({ title: '', classId: defaultClass, subjectName: user?.mapel || '', driveLink: '', status: 'Terbit' });
-        toast.success("Materi berhasil diupload!");
+        try {
+            await createMateri({
+                title: materiForm.title,
+                classId: materiForm.classId,
+                subjectName: materiForm.subjectName || user?.mapel || '',
+                driveLink: materiForm.driveLink,
+                status: materiForm.status,
+            });
+            setShowMateriModal(false);
+            setMateriForm({ title: '', classId: defaultClass, subjectName: user?.mapel || '', driveLink: '', status: 'Terbit' });
+            toast.success("Materi berhasil diupload!");
+        } catch {
+            toast.error("Gagal menyimpan materi!");
+        }
     };
 
-    const handleSaveLatihan = () => {
+    const handleSaveLatihan = async () => {
         if (!latihanForm.title || latihanForm.questions.length === 0) {
             toast.error("Harap isi Judul dan minimal 1 pertanyaan!");
             return;
         }
 
-        const newLatihan: LatihanItem = {
-            id: Date.now(),
-            ...latihanForm,
-            publishDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-        };
-
-        setLatihanList([newLatihan, ...latihanList]);
-        setShowLatihanModal(false);
-        setLatihanForm({ title: '', classId: defaultClass, subjectName: user?.mapel || '', type: 'PG', questions: [], status: 'Terbit' });
-        toast.success("Latihan soal berhasil dibuat!");
+        try {
+            await createLatihan({
+                title: latihanForm.title,
+                classId: latihanForm.classId,
+                subjectName: latihanForm.subjectName || user?.mapel || '',
+                type: latihanForm.type,
+                questions: latihanForm.questions,
+                status: latihanForm.status,
+            });
+            setShowLatihanModal(false);
+            setLatihanForm({ title: '', classId: defaultClass, subjectName: user?.mapel || '', type: 'PG', questions: [], status: 'Terbit' });
+            toast.success("Latihan soal berhasil dibuat!");
+        } catch {
+            toast.error("Gagal menyimpan latihan!");
+        }
     };
 
     const addQuestion = () => {
@@ -150,17 +145,25 @@ const MateriLatihanGuru: React.FC<MateriLatihanGuruProps> = ({ onBack, user }) =
         setLatihanForm({ ...latihanForm, questions: updated });
     };
 
-    const handleDeleteMateri = (id: number) => {
+    const handleDeleteMateri = async (id: number) => {
         if (confirm("Hapus materi ini?")) {
-            setMateriList(materiList.filter(m => m.id !== id));
-            toast.success("Materi dihapus");
+            try {
+                await deleteMateri(id);
+                toast.success("Materi dihapus");
+            } catch {
+                toast.error("Gagal menghapus materi!");
+            }
         }
     };
 
-    const handleDeleteLatihan = (id: number) => {
+    const handleDeleteLatihan = async (id: number) => {
         if (confirm("Hapus latihan ini?")) {
-            setLatihanList(latihanList.filter(l => l.id !== id));
-            toast.success("Latihan dihapus");
+            try {
+                await deleteLatihan(id);
+                toast.success("Latihan dihapus");
+            } catch {
+                toast.error("Gagal menghapus latihan!");
+            }
         }
     };
 

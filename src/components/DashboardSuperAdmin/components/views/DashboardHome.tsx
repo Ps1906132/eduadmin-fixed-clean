@@ -24,7 +24,7 @@ interface DashboardHomeProps {
 }
 
 const DashboardHome: React.FC<DashboardHomeProps> = ({ students, classes, teachers, setActiveView, user }) => {
-    const role = user?.role || user?.role_type || user?.roleCode || '';
+    const role = user?.roleCode || user?.role || user?.role_type || '';
     const lowerRole = role.toLowerCase();
 
     let quickAccessItems = [

@@ -65,7 +65,9 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                         finalRole = 'wk';
                     } else if (serverRole.includes('bimbel') || serverRole.includes('guru bimbel') || serverRole === 'gb') {
                         finalRole = 'gb';
-                    } else if (['admin', 'operator', 'tata usaha', 'staff tu', 'keuangan', 'multimedia'].some(r => serverRole.includes(r))) {
+                    } else if (serverRole.includes('tata usaha') || serverRole.includes('staff tu') || serverRole.includes('keuangan')) {
+                        finalRole = 'keuangan';
+                    } else if (['admin', 'operator', 'multimedia'].some(r => serverRole.includes(r))) {
                         finalRole = 'admin';
                     } else if (serverRole.includes('orang tua') || serverRole.includes('ortu') || serverRole.includes('parent') || serverRole.includes('siswa')) {
                         finalRole = 'ot';

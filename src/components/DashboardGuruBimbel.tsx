@@ -41,12 +41,16 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'latihan' | 'quran' | 'channel' | 'ai' | 'informasi' | 'notepad' | 'notifikasi' | 'profile'>('home');
 
-    const { tutoringClasses, addSession } = useTutoring();
+    const { tutoringClasses, enrollments, addSession } = useTutoring();
 
-    // Prediksi kelas yang diajar oleh guru ini (Simulasi filter)
+    // Filter kelas yang diajar oleh guru ini
     const myTutoringClasses = tutoringClasses.filter(c =>
         c.teacher.includes(user?.nama || '') || user?.role === 'admin'
     );
+
+    // Filter enrollments untuk kelas yang diajar guru ini
+    const myClassIds = myTutoringClasses.map(c => c.id);
+    const myEnrollments = enrollments.filter(e => myClassIds.includes(e.classId));
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -57,7 +61,7 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
     const menuItems = [
         { id: 'jadwal', label: 'Jadwal Bimbel', icon: <Calendar size={24} />, color: 'bg-blue-500' },
         { id: 'kehadiran', label: 'Cek kehadiran Siswa', icon: <UserCheck size={24} />, color: 'bg-teal-500' },
-        { id: 'nilai', label: 'Input Nilai', icon: <FolderInput size={24} />, color: 'bg-indigo-500' },
+        { id: 'nilai', label: 'Input Perkembangan', icon: <FolderInput size={24} />, color: 'bg-indigo-500' },
         { id: 'latihan', label: 'Materi dan Latihan', icon: <BookOpen size={24} />, color: 'bg-rose-500' },
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
         { id: 'channel', label: 'Chanel sekolah ku', icon: <Tv size={24} />, color: 'bg-red-600' },
@@ -176,11 +180,11 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                         ) : activeView === 'channel' ? (
                             <ChannelSekolahSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'jadwal' ? (
-                            <JadwalBimbelGuru onBack={() => setActiveView('home')} user={user} />
+                            <JadwalBimbelGuru onBack={() => setActiveView('home')} user={user} classes={myTutoringClasses} />
                         ) : activeView === 'kehadiran' ? (
-                            <KehadiranBimbelGuru onBack={() => setActiveView('home')} />
+                            <KehadiranBimbelGuru onBack={() => setActiveView('home')} classes={myTutoringClasses} enrollments={myEnrollments} />
                         ) : activeView === 'nilai' ? (
-                            <InputNilaiBimbelGuru onBack={() => setActiveView('home')} />
+                            <InputNilaiBimbelGuru onBack={() => setActiveView('home')} classes={myTutoringClasses} enrollments={myEnrollments} />
                         ) : activeView === 'latihan' ? (
                             <InputMateriBimbelLengkap
                                 onBack={() => setActiveView('home')}

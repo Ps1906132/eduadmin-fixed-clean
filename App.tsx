@@ -57,7 +57,10 @@ const App: React.FC = () => {
     if (r === 'ks' || r.includes('kepala sekolah')) return 'ks';
     if (r === 'wk' || r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
     if (r === 'gb' || r.includes('bimbel') || r.includes('les')) return 'gb';
-    if (r === 'admin' || ['kurikulum', 'keuangan', 'multimedia', 'tata usaha', 'operator', 'super admin'].some(x => r.includes(x))) return 'admin';
+    if (r === 'kurikulum' || r.includes('wakil kurikulum') || r.includes('waka kurikulum')) return 'kurikulum';
+    if (r === 'keuangan' || r.includes('bendahara') || r.includes('tata usaha') || r.includes('staff keuangan')) return 'keuangan';
+    if (r === 'multimedia') return 'multimedia';
+    if (r === 'admin' || r === 'operator' || r === 'super admin') return 'admin';
     return 'gm'; // Default untuk guru mata pelajaran
   };
 

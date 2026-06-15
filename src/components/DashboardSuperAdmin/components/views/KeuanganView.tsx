@@ -21,9 +21,9 @@ interface KeuanganViewProps {
 
 const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user }) => {
     const students = Array.isArray(rawStudents) ? rawStudents : [];
-    const role = user?.role || user?.role_type || user?.roleCode;
+    const role = user?.roleCode || user?.role || user?.role_type;
     const lowerRole = role?.toLowerCase();
-    const isKeuangan = !role || lowerRole === 'keuangan' || lowerRole === 'staff tata usaha';
+    const isKeuangan = !role || lowerRole.includes('keuangan') || lowerRole.includes('tata usaha');
 
     // --- KEUANGAN STATE ---
     const [financeActiveTab, setFinanceActiveTab] = useState('dashboard'); // dashboard, data, tagihan, pembayaran, pengeluaran, kas, laporan, pengaturan

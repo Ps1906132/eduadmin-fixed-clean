@@ -135,9 +135,6 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
     lowerRole === 'operator' || 
     lowerRole === 'operator data' || 
     lowerRole === 'multimedia' || 
-    lowerRole === 'admin multimedia' ||
-    lowerRole.includes('tata usaha') ||
-    lowerRole.includes('staf tu') ||
     lowerRole === 'ks' ||
     lowerRole.includes('kepala sekolah')
   ) {
@@ -158,7 +155,9 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
   if (
     lowerRole === 'keuangan' || 
     lowerRole.includes('bendahara') || 
-    lowerRole.includes('staf keuangan')
+    lowerRole.includes('staf keuangan') ||
+    lowerRole.includes('tata usaha') ||
+    lowerRole.includes('staf tu')
   ) {
     return 'keuangan';
   }

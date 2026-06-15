@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Clock, MapPin, User, BookOpen, ChevronRight, PlayCircle, FileText, Video, Download, Link } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, Clock, MapPin, User, BookOpen, ChevronRight, PlayCircle, FileText, Video, Download, Link, CheckCircle, XCircle, AlertCircle, TrendingUp, Award } from 'lucide-react';
 import CBTSiswa from './CBTSiswa';
 import { useTutoring } from './DashboardSuperAdmin/hooks/useTutoring';
 
@@ -14,14 +14,49 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
     const [selectedClass, setSelectedClass] = useState<any>(null);
     const [selectedSession, setSelectedSession] = useState<any>(null);
     const [showCBT, setShowCBT] = useState(false);
+    const [attendanceStats, setAttendanceStats] = useState<{ hadir: number; sakit: number; izin: number; alpa: number }>({ hadir: 0, sakit: 0, izin: 0, alpa: 0 });
+    const [latestProgress, setLatestProgress] = useState<any[]>([]);
 
     // Filter classes if user info exists (Simulasi: Siswa hanya lihat kelas mereka)
     // Untuk demo, kita tampilkan semua kelas yang 'Aktif'
     const classes = tutoringClasses;
 
+    const studentId = user?.studentId;
+
+    const fetchBimbelData = async (clsId: number) => {
+        if (!studentId) return;
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            const [attRes, progRes] = await Promise.all([
+                fetch(`/api/bimbel_attendance?student_id=eq.${studentId}&tutoring_class_id=eq.${clsId}`, { headers }),
+                fetch(`/api/bimbel_progress?student_id=eq.${studentId}&tutoring_class_id=eq.${clsId}`, { headers })
+            ]);
+
+            if (attRes.ok) {
+                const attData = await attRes.json();
+                const records = Array.isArray(attData) ? attData : [];
+                const stats = { hadir: 0, sakit: 0, izin: 0, alpa: 0 };
+                records.forEach((r: any) => {
+                    if (r.status in stats) stats[r.status as keyof typeof stats]++;
+                });
+                setAttendanceStats(stats);
+            }
+
+            if (progRes.ok) {
+                const progData = await progRes.json();
+                setLatestProgress(Array.isArray(progData) ? progData.slice(-3).reverse() : []);
+            }
+        } catch (e) {
+            console.error('Failed to fetch bimbel data:', e);
+        }
+    };
+
     const handleClassClick = (cls: any) => {
         setSelectedClass(cls);
         setView('detail');
+        fetchBimbelData(cls.id);
     };
 
     const handleSessionClick = (session: any) => {
@@ -93,7 +128,7 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
                                     </div>
 
                                     <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-semibold text-[#004AAD]">
-                                        <span className="flex items-center gap-1"><Clock size={14} /> Sesi Berikutnya: Senin, 27 Okt</span>
+                                        <span className="flex items-center gap-1"><Clock size={14} /> Sesi Berikutnya: {cls.sessions && cls.sessions.length > 0 ? cls.sessions[0].date : 'Belum ada jadwal'}</span>
                                     </div>
                                 </div>
                             ))}
@@ -113,6 +148,58 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
                         <div className="bg-purple-50 p-5 rounded-2xl border border-purple-100 text-slate-700 text-sm leading-relaxed">
                             {selectedClass.description}
                         </div>
+
+                        {/* Attendance Stats */}
+                        {studentId && (
+                            <div>
+                                <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                    <CheckCircle size={18} className="text-green-500" />
+                                    Kehadiran
+                                </h4>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {[
+                                        { label: 'Hadir', count: attendanceStats.hadir, color: 'green' },
+                                        { label: 'Sakit', count: attendanceStats.sakit, color: 'yellow' },
+                                        { label: 'Izin', count: attendanceStats.izin, color: 'blue' },
+                                        { label: 'Alpa', count: attendanceStats.alpa, color: 'red' },
+                                    ].map(({ label, count, color }) => (
+                                        <div key={label} className={`bg-${color}-50 p-3 rounded-xl text-center border border-${color}-100`}>
+                                            <span className={`text-xl font-bold text-${color}-600 block`}>{count}</span>
+                                            <span className={`text-[10px] font-bold text-${color}-500`}>{label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Latest Progress */}
+                        {latestProgress.length > 0 && (
+                            <div>
+                                <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                    <TrendingUp size={18} className="text-indigo-500" />
+                                    Perkembangan Terbaru
+                                </h4>
+                                <div className="space-y-2">
+                                    {latestProgress.map((p: any) => (
+                                        <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="font-bold text-sm text-slate-700">
+                                                    {p.report_type === 'tryout' ? p.title : `Evaluasi ${p.month}`}
+                                                </span>
+                                                {p.score && (
+                                                    <span className="font-bold text-lg text-indigo-600">{p.score}</span>
+                                                )}
+                                            </div>
+                                            {p.notes && <p className="text-xs text-slate-600">{p.notes}</p>}
+                                            {p.recommendation && (
+                                                <p className="text-xs text-indigo-500 mt-1">Rekomendasi: {p.recommendation}</p>
+                                            )}
+                                            <p className="text-[10px] text-slate-400 mt-1">{p.score_date || p.month}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Sessions List */}
                         <div>

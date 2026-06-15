@@ -206,9 +206,10 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             toast.success("Data guru diperbarui");
 
             try {
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
                 await fetch(`/api/tutoring_teachers?id=eq.${editingTutoringTeacherId}`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    headers,
                     body: JSON.stringify({
                         name: updatedTeacher.name,
                         source: updatedTeacher.source,
@@ -221,6 +222,23 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         username: updatedTeacher.username,
                         password: updatedTeacher.password
                     })
+                });
+
+                // Sync profile if exists
+                const profileId = `bimbel_${editingTutoringTeacherId}`;
+                const profilePatch: any = { full_name: updatedTeacher.name };
+                if (updatedTeacher.username) {
+                    profilePatch.email = `${updatedTeacher.username}@eduadmin.com`;
+                }
+                if (updatedTeacher.password && !updatedTeacher.password.startsWith('$2')) {
+                    profilePatch.password_hash = await hashPassword(updatedTeacher.password);
+                } else if (updatedTeacher.password && updatedTeacher.password.startsWith('$2')) {
+                    profilePatch.password_hash = updatedTeacher.password;
+                }
+                await fetch(`/api/profiles?id=eq.${profileId}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify(profilePatch)
                 });
             } catch (e) {
                 console.error(e);
@@ -260,9 +278,10 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             toast.success(`Guru bimbel berhasil ditambahkan. Username: ${newTutoringTeacher.username}`, { duration: 5000 });
 
             try {
+                const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
                 await fetch('/api/tutoring_teachers', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    headers,
                     body: JSON.stringify({
                         id: id.toString(),
                         name: newTeacher.name,
@@ -279,6 +298,36 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         status: newTeacher.status
                     })
                 });
+
+                // Create profiles + staff entries so teacher can login
+                const profileId = `bimbel_${id}`;
+                const profileRes = await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: profileId,
+                        email: `${username}@eduadmin.com`,
+                        full_name: newTeacher.name,
+                        password_hash: hashedPassword,
+                        role: 'guru',
+                        is_active: 1
+                    })
+                });
+
+                if (profileRes.ok) {
+                    await fetch('/api/staff', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            id: `staff_bimbel_${id}`,
+                            profile_id: profileId,
+                            nip: `BIM${id}`,
+                            position: 'Guru Bimbel',
+                            is_active: 1
+                        })
+                    });
+                    toast.success(`Akun login: username="${username}", password="${rawPassword}"`, { duration: 8000 });
+                }
             } catch (e) {
                 console.error(e);
             }
@@ -313,9 +362,21 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
 
             try {
                 const token = localStorage.getItem('eduadmin_token');
+                const headers = { 'Authorization': `Bearer ${token}` };
                 await fetch(`/api/tutoring_teachers?id=eq.${id}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers
+                });
+
+                // Cleanup associated profiles + staff
+                const profileId = `bimbel_${id}`;
+                await fetch(`/api/staff?profile_id=eq.${profileId}`, {
+                    method: 'DELETE',
+                    headers
+                });
+                await fetch(`/api/profiles?id=eq.${profileId}`, {
+                    method: 'DELETE',
+                    headers
                 });
             } catch (e) {
                 console.error(e);

@@ -8,7 +8,7 @@ import {
     School,
     BookOpen,
     Calendar,
-    CirclePlus,
+    UserCheck,
     ClipboardList,
     BarChart2,
     Book,
@@ -19,6 +19,7 @@ import {
     Megaphone,
     FileText,
     Video,
+    Cpu,
     Settings,
     Shield
 } from 'lucide-react';
@@ -41,7 +42,7 @@ const menuItems: MenuItem[] = [
     { id: 'kelas_wali', label: 'Kelas dan wali kelas', icon: <School size={20} /> },
     { id: 'mapel', label: 'Mata Pelajaran', icon: <BookOpen size={20} /> },
     { id: 'jadwal', label: 'Jadwal', icon: <Calendar size={20} /> },
-    { id: 'absen', label: 'Absen', icon: <CirclePlus size={20} /> },
+    { id: 'absen', label: 'Absen', icon: <UserCheck size={20} /> },
     { id: 'ujian', label: 'Jadwal Ujian', icon: <ClipboardList size={20} /> },
     { id: 'nilai', label: 'Manajemen Nilai', icon: <BarChart2 size={20} /> },
     { id: 'rapot', label: 'Rapot', icon: <Book size={20} /> },
@@ -52,7 +53,7 @@ const menuItems: MenuItem[] = [
     { id: 'pengumuman', label: 'Pengumuman', icon: <Megaphone size={20} /> },
     { id: 'laporan', label: 'Laporan', icon: <FileText size={20} /> },
     { id: 'multimedia', label: 'Manajemen Multimedia', icon: <Video size={20} /> },
-    { id: 'ai_management', label: 'Manajemen AI', icon: <BookHeart size={20} /> },
+    { id: 'ai_management', label: 'Manajemen AI', icon: <Cpu size={20} /> },
     { id: 'audit_log', label: 'Audit Log', icon: <Shield size={20} /> },
     { id: 'settings', label: 'Pengaturan', icon: <Settings size={20} /> },
 ];
@@ -67,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     // Filter Menu Items based on Role (Jabatan)
     const filteredMenuItems = React.useMemo(() => {
-        const rawRole = (user?.role || user?.role_type || user?.roleCode || '').toLowerCase();
+        const rawRole = (user?.roleCode || user?.role || user?.role_type || '').toLowerCase();
 
         // Admin / Super Admin / Operator Data (9 Modul Admin Utama)
         if (rawRole === 'admin' || rawRole === 'super admin' || rawRole === 'operator data') {
@@ -76,15 +77,15 @@ const Sidebar: React.FC<SidebarProps> = ({
             );
         }
 
-        // Kurikulum / Wakil Kurikulum (6 Modul Akademik Utama)
+        // Kurikulum / Wakil Kurikulum (6 Modul Akademik Utama + View Data Master + Laporan)
         if (rawRole === 'kurikulum' || rawRole === 'wakil kurikulum') {
             return menuItems.filter(item =>
-                ['dashboard', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas'].includes(item.id)
+                ['dashboard', 'data_siswa', 'mapel', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas', 'laporan'].includes(item.id)
             );
         }
 
         // Keuangan / Staff Tata Usaha (3 Modul Keuangan Utama)
-        if (rawRole === 'keuangan' || rawRole === 'staff tata usaha') {
+        if (rawRole.includes('keuangan') || rawRole.includes('tata usaha')) {
             return menuItems.filter(item =>
                 ['dashboard', 'keuangan', 'tabungan', 'laporan'].includes(item.id)
             );
@@ -103,7 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const getLinkClass = (id: string) => {
         const base = "flex items-center gap-3 px-4 py-2.5 transition-all duration-300 font-medium relative group cursor-pointer text-sm";
-        if (activeView === id || (id === 'data_siswa' && ['tambah_kelas_view', 'upload_siswa_view', 'upload_perkelas_view', 'upload_kelas_satu_view'].includes(activeView))) {
+        if (activeView === id || (id === 'data_siswa' && ['cetak_kartu_login', 'tambah_kelas_view', 'upload_siswa_view', 'upload_perkelas_view', 'upload_kelas_satu_view'].includes(activeView))) {
             return `${base} text-blue-800 bg-slate-50 rounded-l-full ml-4`;
         }
         return `${base} text-blue-100 hover:text-white hover:bg-white/10 mx-4 rounded-xl`;
@@ -129,13 +130,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             <nav className="flex-1 overflow-y-auto py-2 space-y-1 custom-scrollbar">
                 {filteredMenuItems.map((item) => (
                     <div key={item.id} onClick={() => setActiveView(item.id)} className={getLinkClass(item.id)}>
-                        <span className={activeView === item.id || (item.id === 'data_siswa' && ['tambah_kelas_view', 'upload_siswa_view', 'upload_perkelas_view', 'upload_kelas_satu_view'].includes(activeView)) ? 'text-[#1E3A8A]' : ''}>{item.icon}</span>
+                        <span className={activeView === item.id || (item.id === 'data_siswa' && ['cetak_kartu_login', 'tambah_kelas_view', 'upload_siswa_view', 'upload_perkelas_view', 'upload_kelas_satu_view'].includes(activeView)) ? 'text-[#1E3A8A]' : ''}>{item.icon}</span>
                         {isSidebarOpen && <span className="truncate text-sm font-medium">{item.label}</span>}
                         {isSidebarOpen && item.id === 'pengumuman' && (
                             <span className="ml-auto flex items-center justify-center bg-red-500 text-white text-[10px] w-5 h-5 rounded-full font-bold animate-pulse shadow-sm">0</span>
                         )}
                         {/* Decorative Curve */}
-                        {(activeView === item.id || (item.id === 'data_siswa' && ['tambah_kelas_view', 'upload_siswa_view', 'upload_perkelas_view', 'upload_kelas_satu_view'].includes(activeView))) && (
+                        {(activeView === item.id || (item.id === 'data_siswa' && ['cetak_kartu_login', 'tambah_kelas_view', 'upload_siswa_view', 'upload_perkelas_view', 'upload_kelas_satu_view'].includes(activeView))) && (
                             <>
                                 <div className="absolute right-0 -top-8 w-8 h-8 bg-transparent rounded-br-full shadow-[5px_5px_0_5px_#F8FAFC]"></div>
                                 <div className="absolute right-0 -bottom-8 w-8 h-8 bg-transparent rounded-tr-full shadow-[5px_-5px_0_5px_#F8FAFC]"></div>
