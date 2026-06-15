@@ -577,7 +577,6 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-r border-slate-200">Nama Lengkap</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-r border-slate-200">Jabatan</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-r border-slate-200">Username</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-r border-slate-200">Password</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Aksi</th>
                 </tr>
               </thead>
@@ -589,9 +588,6 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
                     <td className="px-6 py-4 text-sm font-bold text-slate-700 border-r border-slate-50 capitalize">{item.nama}</td>
                     <td className="px-6 py-4 text-sm text-slate-600 border-r border-slate-50"><span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] uppercase font-bold tracking-wide">{item.jabatan}</span></td>
                     <td className="px-6 py-4 text-sm text-slate-600 border-r border-slate-50">{item.username}</td>
-                    <td className="px-6 py-4 text-sm text-slate-400 border-r border-slate-50 font-mono tracking-widest">
-                      {item.password && (item.password.startsWith('$2') || item.password.length > 20) ? '••••••••' : (item.password || '-')}
-                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => handleViewStaf(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-all" title="Lihat"><Eye size={16} /></button>

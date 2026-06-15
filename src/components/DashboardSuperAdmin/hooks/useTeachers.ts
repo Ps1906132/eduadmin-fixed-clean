@@ -62,7 +62,7 @@ export const useTeachers = () => {
                             mapel: s.department || '-',
                             wali: teacherClassMap.get(p.id?.toString()) || '-',
                             username: p.email ? p.email.split('@')[0] : p.full_name.toLowerCase().replace(/\s+/g, ''),
-                            password: p.password_hash || 'password123',
+                            password: '••••••••',
                             role: p.role
                         };
                     });

@@ -256,7 +256,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 sessions: []
             }]);
 
-            toast.success(`Guru berhasil ditambahkan. Password: ${rawPassword}`, { duration: 10000 });
+            toast.success(`Guru bimbel berhasil ditambahkan. Username: ${newTutoringTeacher.username}`, { duration: 5000 });
 
             try {
                 await fetch('/api/tutoring_teachers', {
@@ -539,7 +539,6 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                             <th className="p-4 border-b">Nama Lengkap</th>
                                             <th className="p-4 border-b">Kelas Bimbingan</th>
                                             <th className="p-4 border-b">Username</th>
-                                            <th className="p-4 border-b">Password</th>
                                             <th className="p-4 border-b text-center">Aksi</th>
                                         </tr>
                                     </thead>
@@ -553,9 +552,6 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                                     <div className="text-xs text-slate-500 mt-1">{t.scheduleDay}, {t.scheduleStart}-{t.scheduleEnd}</div>
                                                 </td>
                                                 <td className="p-4 font-mono text-slate-600 bg-slate-50/50">{t.username || '-'}</td>
-                                                <td className="p-4 font-mono text-slate-600 bg-slate-50/50">
-                                                    {t.password && (t.password.startsWith('$2') || t.password.length > 20) ? '••••••••' : (t.password || '-')}
-                                                </td>
                                                 <td className="p-4 text-center">
                                                     <div className="flex justify-center gap-3">
                                                         <button onClick={() => handleManageTutoringStudents(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Kelola Siswa"><UserPlus size={18} /></button>

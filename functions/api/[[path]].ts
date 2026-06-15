@@ -641,7 +641,18 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
         stmt = stmt.bind(...whereValues);
       }
       const { results } = await stmt.all();
-      return new Response(JSON.stringify(results), {
+
+      // Security: redact sensitive columns from GET responses
+      const SENSITIVE_COLUMNS = ['password_hash'];
+      const filteredResults = (results || []).map((row: any) => {
+        const filtered = { ...row };
+        for (const col of SENSITIVE_COLUMNS) {
+          delete filtered[col];
+        }
+        return filtered;
+      });
+
+      return new Response(JSON.stringify(filteredResults), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
