@@ -201,6 +201,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
     const token = await signJWT(payload, jwtSecret);
 
     // Look up student context for parent (ortu) and student (siswa) roles
+    let studentId: string | null = null;
     let studentName: string | null = null;
     let studentClass: string | null = null;
     let studentWali: string | null = null;
@@ -223,7 +224,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         `
       : user.role === 'siswa'
         ? `
-            SELECT s.full_name as s_name, s.parent_name, s.mother_name, s.birth_place, s.birth_date,
+            SELECT s.id as student_id, s.full_name as s_name, s.parent_name, s.mother_name, s.birth_place, s.birth_date,
                    c.name as c_name, p.full_name as wali_name
             FROM students s
             LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
@@ -239,6 +240,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         const { results: sResults } = await env.DB.prepare(studentQuery).bind(user.id).all();
         if (sResults && sResults.length > 0) {
           const sr = sResults[0] as any;
+          studentId = sr.student_id || null;
           studentName = sr.s_name || null;
           studentClass = sr.c_name || null;
           studentWali = sr.wali_name || null;
@@ -268,7 +270,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         role: user.position || user.role,
         db_role: user.role,
         avatar: user.avatar_url || null,
-        ...(studentName ? { studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate } : {})
+        ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate } : {})
       }
     }), {
       headers: { 'Content-Type': 'application/json' }

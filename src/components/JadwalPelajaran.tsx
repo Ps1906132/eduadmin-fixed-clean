@@ -37,18 +37,38 @@ const JadwalPelajaran: React.FC<JadwalPelajaranProps> = ({ onBack, user }) => {
             try {
                 const token = localStorage.getItem('eduadmin_token');
                 if (!token) return;
-                const res = await fetch('/api/schedules', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        const mappedItems = data.map(item => ({
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                // Fetch schedules, classes (for mapping class_id → class name), and subjects in parallel
+                const [schedRes, classRes, subjRes] = await Promise.all([
+                    fetch('/api/schedules', { headers }),
+                    fetch('/api/classes', { headers }),
+                    fetch('/api/subjects', { headers })
+                ]);
+
+                if (schedRes.ok && classRes.ok) {
+                    const schedData = await schedRes.json();
+                    const classData = classRes.ok ? await classRes.json() : [];
+                    const subjData = subjRes.ok ? await subjRes.json() : [];
+
+                    // Build lookup maps
+                    const classMap = new Map();
+                    if (Array.isArray(classData)) {
+                        classData.forEach(c => classMap.set(c.id?.toString(), c.name));
+                    }
+                    const subjectMap = new Map();
+                    if (Array.isArray(subjData)) {
+                        subjData.forEach(s => subjectMap.set(s.id?.toString(), s.name));
+                    }
+
+                    if (Array.isArray(schedData)) {
+                        const mappedItems = schedData.map(item => ({
                             id: item.id.toString(),
-                            classId: item.class_id,
+                            classId: classMap.get(item.class_id?.toString()) || item.class_id,
                             day: item.day_of_week,
                             period: parseInt(item.period_id) || 0,
-                            subjectId: isNaN(Number(item.subject_id)) ? item.subject_id : Number(item.subject_id)
+                            subjectId: item.subject_id?.toString(),
+                            subjectName: subjectMap.get(item.subject_id?.toString()) || 'Mata Pelajaran'
                         }));
                         setMasterSchedule((prev: any) => ({
                             ...prev,
@@ -82,6 +102,10 @@ const JadwalPelajaran: React.FC<JadwalPelajaranProps> = ({ onBack, user }) => {
     const getSubjectName = (subjectId: number | string, customName?: string) => {
         if (customName) return customName;
         if (subjectId === 'custom' && customName) return customName;
+
+        // Check if subjectName was already resolved from API
+        const item = Array.isArray(masterSchedule?.items) ? masterSchedule.items.find((i: any) => i.subjectId === subjectId?.toString()) : null;
+        if (item?.subjectName && item.subjectName !== 'Mata Pelajaran') return item.subjectName;
 
         const subject = subjectsDataGlobal.find(s => s.id === Number(subjectId));
         return subject ? subject.nama : 'Mata Pelajaran';

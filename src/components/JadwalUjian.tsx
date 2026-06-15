@@ -18,25 +18,55 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
         return examsDataGlobal.find(e => e.status === 'published') || examsDataGlobal[0];
     });
 
+    const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jumat", 'Sabtu', 'Minggu'];
+
+    const getDayName = (dateStr: string) => {
+        if (!dateStr) return '';
+        if (dayNames.includes(dateStr)) return dateStr; // Already a day name
+        try {
+            const d = new Date(dateStr + 'T00:00:00');
+            return dayNames[d.getDay() === 0 ? 6 : d.getDay() - 1] || ''; // JS Sunday=0 → Monday=0
+        } catch (_) {
+            return dateStr;
+        }
+    };
+
     useEffect(() => {
         const fetchExams = async () => {
             try {
                 const token = localStorage.getItem('eduadmin_token');
                 if (!token) return;
-                const res = await fetch('/api/exam_schedules', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                const [examRes, classRes, subjRes, profRes] = await Promise.all([
+                    fetch('/api/exam_schedules', { headers }),
+                    fetch('/api/classes', { headers }),
+                    fetch('/api/subjects', { headers }),
+                    fetch('/api/profiles', { headers })
+                ]);
+
+                if (examRes.ok) {
+                    const data = await examRes.json();
+                    const classData = classRes.ok ? await classRes.json() : [];
+                    const subjData = subjRes.ok ? await subjRes.json() : [];
+                    const profData = profRes.ok ? await profRes.json() : [];
+
+                    const classMap = new Map();
+                    classData.forEach((c: any) => classMap.set(c.id?.toString(), c.name));
+                    const subjectMap = new Map();
+                    subjData.forEach((s: any) => subjectMap.set(s.id?.toString(), s.name));
+                    const teacherMap = new Map();
+                    profData.forEach((p: any) => teacherMap.set(p.id?.toString(), p.full_name));
+
                     if (Array.isArray(data) && data.length > 0) {
                         const mappedItems = data.map(item => ({
                             id: item.id.toString(),
-                            examId: parseInt(item.exam_id) || 1,
-                            classId: item.class_id,
-                            day: item.exam_date,
-                            timeSlotId: 0, // Fallback
-                            subjectName: item.subject_id,
-                            teacherName: item.teacher_id
+                            examId: item.exam_id?.toString() || '',
+                            classId: classMap.get(item.class_id?.toString()) || item.class_id,
+                            day: getDayName(item.exam_date),
+                            timeSlotId: 0,
+                            subjectName: subjectMap.get(item.subject_id?.toString()) || 'Mata Pelajaran',
+                            teacherName: teacherMap.get(item.teacher_id?.toString()) || '-'
                         }));
                         setMasterExam((prev: any) => ({
                             ...prev,
@@ -51,20 +81,10 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
         };
         fetchExams();
     }, []);
-
+    
     // 2. Filter Items for Class and Day
     const items = masterExam ? masterExam.items
-        .filter(item => {
-            // If user is a student/parent, filter by class
-            if (user?.role === 'Orang Tua' || user?.role === 'Siswa' || user?.studentClass) {
-                return item.classId === studentClass && item.day === selectedDay;
-            }
-            // If user is a teacher, show their subjects across all classes (for the teacher view)
-            if (user?.role === 'Guru' || user?.nip) {
-                return item.teacherName === user.nama && item.day === selectedDay;
-            }
-            return item.classId === studentClass && item.day === selectedDay;
-        })
+        .filter(item => item.classId === studentClass && item.day === selectedDay)
         .sort((a, b) => a.timeSlotId - b.timeSlotId) : [];
 
     // 3. Get Daily Info (Uniform & Notes from standard or specific exam notes)

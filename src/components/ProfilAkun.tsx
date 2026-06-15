@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Camera, LogOut, Save, MapPin, Calendar, Edit2, UserCheck } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface ProfilAkunProps {
     user: any;
@@ -8,21 +9,62 @@ interface ProfilAkunProps {
 }
 
 const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
-    // Data from user context (populated by login API)
-    const [namaAyah, setNamaAyah] = useState(user?.parentName || 'Budi Santoso');
-    const [namaIbu, setNamaIbu] = useState(user?.motherName || 'Siti Aminah');
-    const [namaAnak, setNamaAnak] = useState(user?.studentName || 'Ananda Tercinta');
-    const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || 'Samarinda');
-    const [tanggalLahir, setTanggalLahir] = useState(user?.birthDate || '2015-05-20');
-
-    // Photo State
+    const [namaAyah, setNamaAyah] = useState(user?.parentName || '');
+    const [namaIbu, setNamaIbu] = useState(user?.motherName || '');
+    const [namaAnak, setNamaAnak] = useState(user?.studentName || '');
+    const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || '');
+    const [tanggalLahir, setTanggalLahir] = useState(user?.birthDate || '');
     const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatar || null);
+    const [saving, setSaving] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             const url = URL.createObjectURL(file);
             setPreviewUrl(url);
+        }
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            if (!token) { toast.error('Sesi habis, silakan login ulang'); return; }
+            const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+            // Update parent name in profiles table
+            if (namaAyah && namaAyah !== user?.parentName) {
+                const profileRes = await fetch(`/api/profiles?id=eq.${user?.id}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ full_name: namaAyah })
+                });
+                if (!profileRes.ok) throw new Error('Gagal update profil');
+            }
+
+            // Update parent_name in students table if we have studentId
+            const studentId = user?.studentId;
+            if (studentId) {
+                const updateData: any = {};
+                if (namaAyah) updateData.parent_name = namaAyah;
+                if (namaIbu) updateData.mother_name = namaIbu;
+
+                if (Object.keys(updateData).length > 0) {
+                    const studentRes = await fetch(`/api/students?id=eq.${studentId}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify(updateData)
+                    });
+                    if (!studentRes.ok) throw new Error('Gagal update data siswa');
+                }
+            }
+
+            toast.success('Profil berhasil disimpan!');
+        } catch (err) {
+            toast.error('Gagal menyimpan profil');
+            console.error(err);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -33,20 +75,18 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                     <User className="text-[#004AAD]" />
                     Profil Akun
                 </h2>
-                {/* Save Button (Mock) */}
-                <button className="flex items-center gap-2 px-4 py-2 bg-[#004AAD] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 hover:scale-105 transition-transform">
+                <button onClick={handleSave} disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#004AAD] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 hover:scale-105 transition-transform disabled:opacity-50">
                     <Save size={16} />
-                    Simpan
+                    {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>
             </div>
 
             <div className="space-y-8">
-                {/* Bagian Atas: Data Orang Tua (Pemilik Akun) & Foto Profil */}
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-400 to-blue-600 opacity-10"></div>
 
                     <div className="relative z-10 flex flex-col items-center">
-                        {/* Foto Profil Orang Tua */}
                         <div className="relative group cursor-pointer mb-6">
                             <div className="w-28 h-28 rounded-full border-4 border-white shadow-xl overflow-hidden bg-slate-200">
                                 {previewUrl ? (
@@ -63,7 +103,6 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                             </label>
                         </div>
 
-                        {/* Input Data Orang Tua */}
                         <div className="w-full space-y-4">
                             <h3 className="font-bold text-slate-800 text-lg text-center mb-2">Data Orang Tua</h3>
 
@@ -71,13 +110,8 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Nama Ayah</label>
                                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-blue-500 transition-colors">
                                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">A</div>
-                                    <input
-                                        type="text"
-                                        value={namaAyah}
-                                        onChange={(e) => setNamaAyah(e.target.value)}
-                                        className="bg-transparent w-full outline-none font-medium text-slate-700"
-                                        placeholder="Nama Ayah"
-                                    />
+                                    <input type="text" value={namaAyah} onChange={(e) => setNamaAyah(e.target.value)}
+                                        className="bg-transparent w-full outline-none font-medium text-slate-700" placeholder="Nama Ayah" />
                                     <Edit2 size={14} className="text-slate-300" />
                                 </div>
                             </div>
@@ -86,13 +120,8 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Nama Ibu</label>
                                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-pink-500 transition-colors">
                                     <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xs shrink-0">I</div>
-                                    <input
-                                        type="text"
-                                        value={namaIbu}
-                                        onChange={(e) => setNamaIbu(e.target.value)}
-                                        className="bg-transparent w-full outline-none font-medium text-slate-700"
-                                        placeholder="Nama Ibu"
-                                    />
+                                    <input type="text" value={namaIbu} onChange={(e) => setNamaIbu(e.target.value)}
+                                        className="bg-transparent w-full outline-none font-medium text-slate-700" placeholder="Nama Ibu" />
                                     <Edit2 size={14} className="text-slate-300" />
                                 </div>
                             </div>
@@ -100,7 +129,6 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                     </div>
                 </div>
 
-                {/* Bagian Bawah: Data Siswa (Anak) */}
                 <div className="space-y-4">
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                         <UserCheck size={20} className="text-[#004AAD]" />
@@ -113,12 +141,8 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Nama Siswa</label>
                                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                     <User size={18} className="text-slate-400" />
-                                    <input
-                                        type="text"
-                                        value={namaAnak}
-                                        onChange={(e) => setNamaAnak(e.target.value)}
-                                        className="bg-transparent w-full outline-none font-bold text-slate-700"
-                                    />
+                                    <input type="text" value={namaAnak} onChange={(e) => setNamaAnak(e.target.value)}
+                                        className="bg-transparent w-full outline-none font-bold text-slate-700" readOnly />
                                     <Edit2 size={14} className="text-slate-300" />
                                 </div>
                             </div>
@@ -128,24 +152,16 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Tempat Lahir</label>
                                     <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                         <MapPin size={16} className="text-slate-400" />
-                                        <input
-                                            type="text"
-                                            value={tempatLahir}
-                                            onChange={(e) => setTempatLahir(e.target.value)}
-                                            className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm"
-                                        />
+                                        <input type="text" value={tempatLahir} readOnly
+                                            className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm" />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Tanggal Lahir</label>
                                     <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                         <Calendar size={16} className="text-slate-400" />
-                                        <input
-                                            type="date"
-                                            value={tanggalLahir}
-                                            onChange={(e) => setTanggalLahir(e.target.value)}
-                                            className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm"
-                                        />
+                                        <input type="text" value={tanggalLahir} readOnly
+                                            className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm" />
                                     </div>
                                 </div>
                             </div>
@@ -153,11 +169,8 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                     </div>
                 </div>
 
-                {/* Logout Button */}
-                <button
-                    onClick={onLogout}
-                    className="w-full flex items-center justify-center gap-2 p-4 mt-8 bg-red-50 text-red-600 rounded-2xl font-bold hover:bg-red-100 hover:scale-[1.02] active:scale-95 transition-all border border-red-100 shadow-sm"
-                >
+                <button onClick={onLogout}
+                    className="w-full flex items-center justify-center gap-2 p-4 mt-8 bg-red-50 text-red-600 rounded-2xl font-bold hover:bg-red-100 hover:scale-[1.02] active:scale-95 transition-all border border-red-100 shadow-sm">
                     <LogOut size={20} />
                     Keluar dari Aplikasi
                 </button>
