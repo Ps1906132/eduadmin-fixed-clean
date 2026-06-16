@@ -309,9 +309,9 @@ async function incrementRateLimit(kv: KVNamespace, key: string, maxAttempts: num
   }
 }
 
-export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RATE_LIMIT_KV?: KVNamespace }> = async ({ request, env, params }) => {
+export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RATE_LIMIT_KV?: KVNamespace; ENABLE_DIAGNOSTIC?: string }> = async ({ request, env, params }) => {
   const url = new URL(request.url);
-  const path = params.path as string[];
+  const path = (params as any).path as string[];
   const table = path[0];
 
   if (!table) return new Response('Endpoint not specified', { status: 400 });
@@ -397,7 +397,7 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
       const updateStmts: { id: string; score: number }[] = [];
 
       for (const answer of answers as any[]) {
-        const question = questionMap.get(answer.question_id);
+        const question: any = questionMap.get(answer.question_id);
         if (!question) continue;
 
         const points = question.points || 1;

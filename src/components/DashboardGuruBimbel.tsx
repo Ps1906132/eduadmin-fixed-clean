@@ -70,14 +70,22 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
         fetchTeacherProfile();
     }, [user]);
 
-    // Filter kelas yang diajar oleh guru ini
+    // Ambil ID guru dari profile (format: bimbel_{teacherId})
+    const myTeacherId = (() => {
+        if (typeof user?.id === 'string' && user.id.startsWith('bimbel_')) {
+            return parseInt(user.id.replace('bimbel_', ''), 10);
+        }
+        return null;
+    })();
+
+    // Filter kelas yang diajar oleh guru ini (cocokkan berdasarkan ID, bukan nama)
     const myTutoringClasses = tutoringClasses.filter(c =>
-        c.teacher === user?.nama || user?.role === 'admin'
+        c.id === myTeacherId || user?.role === 'admin'
     );
 
     // Filter enrollments untuk kelas yang diajar guru ini
     const myClassIds = myTutoringClasses.map(c => c.id);
-    const myEnrollments = enrollments.filter(e => myClassIds.includes(e.classId));
+    const myEnrollments = enrollments.filter(e => myClassIds.includes(e.groupId));
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);

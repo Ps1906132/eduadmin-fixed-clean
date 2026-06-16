@@ -1,0 +1,2 @@
+Analisis dan audit Bimbingan Belajar (Les) -dashboard - Mata Pelajaran - Guru Bimbel (  tambah Guru - edit guru bimbel -terdapat Kolom Nama Lengkap - Pilih Mata Pelajaran Bimbel-Kelas asuhan , Hari jadwal (belum sinkron pada Jadwal Pelajaran berupa Listdi akun guru bimbel) Jam Mulai - Jam Selesai (Belum sinkron dengan jadwal pelajaran diakun Guru bimbel)  - Materi, pada aksi terdapat ikon Kelolah Siswa Bimbingan (Belum Sinkron dengan Kehadiran les,), 
+materi dan latihan belum sinkron dengan setiap siswa yang di pilih ke akun orang tua yang terdapat ikon bimbingan belajar, 

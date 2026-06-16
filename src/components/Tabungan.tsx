@@ -22,7 +22,7 @@ import {
     X
 } from 'lucide-react';
 import { getColorClasses, type ColorName } from '../utils/tailwindHelpers';
-import { studentsDataGlobal } from '../data/sharedData';
+import { studentsDataGlobal, SavingsData } from '../data/sharedData';
 import { useSavings } from './DashboardSuperAdmin/hooks/useSavings';
 import { toast } from 'react-hot-toast';
 
@@ -62,12 +62,12 @@ const Tabungan: React.FC = () => {
                 return;
             }
 
-            const newSaver = {
+            const newSaver: SavingsData = {
                 id: studentToAdd.id,
                 nis: studentToAdd.nis,
-                studentName: studentToAdd.nama,
-                class: studentToAdd.kelas,
-                balance: 0,
+                nama: studentToAdd.nama,
+                kelas: studentToAdd.kelas,
+                saldo: 0,
                 status: 'Aktif'
             };
 

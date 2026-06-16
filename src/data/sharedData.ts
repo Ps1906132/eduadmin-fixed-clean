@@ -121,6 +121,7 @@ export const schoolSettingsGlobal = {
 // --- 8. DATA TABUNGAN (GLOBAL SYNC) ---
 export interface SavingsData {
     id: number;
+    studentId?: string | number;
     nis: string;
     nama: string;
     kelas: string;
@@ -218,6 +219,7 @@ export interface MasterExamSchedule {
     items: ExamScheduleItem[]; // The actual schedule items
     timeSlots: { id: number; start: string; end: string }[];
     dailyNotes?: Record<string, string>; // Notes per day
+    dailyUniforms?: Record<string, string>; // Uniform per day
 }
 
 export let examsDataGlobal: MasterExamSchedule[] = [];

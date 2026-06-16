@@ -94,7 +94,7 @@ const KehadiranSiswa: React.FC<KehadiranSiswaProps> = ({ onBack, user }) => {
                 </button>
                 <div className="flex-1">
                     <h3 className="font-bold text-slate-800 text-lg">Kehadiran Siswa</h3>
-                    <p className="text-xs text-slate-500">{studentName}</p>
+                    <p className="text-xs text-slate-500">{user?.studentName || user?.nama || ''}</p>
                 </div>
             </div>
 

@@ -21,13 +21,13 @@ export const useSavings = () => {
 
             // Fetch students to map account names
             const resStudents = await fetch('/api/students', { headers });
-            const students = resStudents.ok ? await resStudents.json() : [];
-            const studentMap = new Map((students || []).map((s: any) => [s.id, s]));
+            const students: any[] = resStudents.ok ? await resStudents.json() : [];
+            const studentMap = new Map(students.map((s: any) => [s.id, s]));
 
             // Fetch classes to map classes
             const resClasses = await fetch('/api/classes', { headers });
-            const classes = resClasses.ok ? await resClasses.json() : [];
-            const classMap = new Map((classes || []).map((c: any) => [c.id, c.name]));
+            const classes: any[] = resClasses.ok ? await resClasses.json() : [];
+            const classMap = new Map(classes.map((c: any) => [c.id, c.name]));
 
             // 1. Fetch Accounts
             let accounts: any[] = [];
@@ -35,7 +35,7 @@ export const useSavings = () => {
             if (resAccounts.ok) {
                 accounts = await resAccounts.json();
                 const mappedData: SavingsData[] = accounts.map((a: any) => {
-                    const student = studentMap.get(a.student_id) || {};
+                    const student: any = studentMap.get(a.student_id) || {};
                     const className = student.class_id ? classMap.get(student.class_id) || '-' : '-';
                     return {
                         id: a.id,

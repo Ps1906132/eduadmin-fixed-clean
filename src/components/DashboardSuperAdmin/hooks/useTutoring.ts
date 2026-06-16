@@ -34,16 +34,19 @@ const initialTutoringClasses: TutoringClass[] = [
     }
 ];
 
-import { tutoringEnrollmentsGlobal, updateTutoringEnrollmentsGlobal } from '../../../data/sharedData';
+import { 
+    tutoringEnrollmentsGlobal, updateTutoringEnrollmentsGlobal,
+    TutoringEnrollment as SharedTutoringEnrollment 
+} from '../../../data/sharedData';
 
-export interface TutoringEnrollment {
-    id: string;
-    studentId: string;
-    studentName: string;
-    classId: number;
-    className: string;
-    enrollmentDate: string;
-    status: 'Menunggu' | 'Aktif' | 'Selesai';
+// Extended enrollment type for teacher dashboard
+export interface TutoringEnrollment extends SharedTutoringEnrollment {
+    id?: string;
+    studentName?: string;
+    classId?: number;
+    className?: string;
+    enrollmentDate?: string;
+    status?: 'Menunggu' | 'Aktif' | 'Selesai';
 }
 
 export const useTutoring = () => {
@@ -62,11 +65,20 @@ export const useTutoring = () => {
         };
 
         try {
+            // Handle both { groupId, studentId } and { id, studentId, classId } shapes
+            const getGroupId = (item: TutoringEnrollment) => (item as any).groupId || (item as any).classId || 0;
+            const getStudentId = (item: TutoringEnrollment) => item.studentId.toString();
+            const getEnrollmentId = (item: TutoringEnrollment) => {
+                const id = (item as any).id;
+                if (id) return id.toString();
+                return `${getGroupId(item)}-${getStudentId(item)}`;
+            };
+
             // Fetch current to determine upsert/delete
             const res = await fetch('/api/tutoring_enrollments', { headers });
-            const current = res.ok ? await res.json() : [];
-            const currentIds = new Set((current as any[]).map(e => e.id.toString()));
-            const nextIds = new Set(next.map(e => e.id.toString()));
+            const current: any[] = res.ok ? await res.json() : [];
+            const currentIds = new Set(current.map((e: any) => e.id.toString()));
+            const nextIds = new Set(next.map(getEnrollmentId));
 
             // 1. Delete
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
@@ -76,13 +88,11 @@ export const useTutoring = () => {
 
             // 2. Upsert
             for (const item of next) {
-                const idStr = item.id.toString();
+                const idStr = getEnrollmentId(item);
                 const body = {
                     id: idStr,
-                    student_id: item.studentId.toString(),
-                    tutoring_class_id: item.classId.toString(),
-                    enrollment_date: item.enrollmentDate,
-                    status: item.status
+                    student_id: getStudentId(item),
+                    group_id: getGroupId(item).toString()
                 };
 
                 if (currentIds.has(idStr)) {
@@ -206,10 +216,11 @@ export const useTutoring = () => {
                 const data = await enrollRes.json();
                 if (data && Array.isArray(data)) {
                     const mapped: TutoringEnrollment[] = data.map(e => ({
-                        id: e.id.toString(),
-                        studentId: e.student_id,
-                        studentName: e.studentName || `Siswa ${e.student_id}`, // Joined in API or fallback
-                        classId: parseInt(e.tutoring_class_id),
+                        groupId: parseInt(e.group_id || e.tutoring_class_id || 0),
+                        studentId: parseInt(e.student_id),
+                        id: e.id?.toString(),
+                        studentName: e.studentName || `Siswa ${e.student_id}`,
+                        classId: parseInt(e.tutoring_class_id || e.group_id || 0),
                         className: e.className || 'Kelas Bimbel',
                         enrollmentDate: e.enrollment_date,
                         status: e.status

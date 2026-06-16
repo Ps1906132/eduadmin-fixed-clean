@@ -14,6 +14,9 @@ export interface MigrationStatus {
   };
 }
 
+// Helper: ensure thenable db calls resolve as proper Promises
+const exec = (p: any): Promise<any> => Promise.resolve(p);
+
 export async function migrateLocalStorageToD1(forceReset = false): Promise<MigrationStatus> {
   const details = {
     profiles: 0,
@@ -27,12 +30,12 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
   try {
     if (forceReset) {
       // Clear relevant tables in D1 to avoid duplication/corruption
-      await db.from('student_bills').delete().neq('id', 'none');
-      await db.from('expenses').delete().neq('id', 'none');
-      await db.from('students').delete().neq('id', 'none');
-      await db.from('classes').delete().neq('id', 'none');
-      await db.from('staff').delete().neq('id', 'none');
-      await db.from('profiles').delete().neq('email', 'admin@eduadmin.com');
+      await exec(db.from('student_bills').delete().neq('id', 'none'));
+      await exec(db.from('expenses').delete().neq('id', 'none'));
+      await exec(db.from('students').delete().neq('id', 'none'));
+      await exec(db.from('classes').delete().neq('id', 'none'));
+      await exec(db.from('staff').delete().neq('id', 'none'));
+      await exec(db.from('profiles').delete().neq('email', 'admin@eduadmin.com'));
     }
     // 1. Migrate Teachers & Staff -> profiles & staff tables
     const teachersRaw = localStorage.getItem('teachers_data_v11') || localStorage.getItem('teachers_data_v10');
@@ -60,37 +63,37 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
         : await hashPassword(passwordPlain);
 
       // Check if profile already exists in DB
-      const { data: existingProfile } = await db.from('profiles').select('id').eq('email', email).single();
+      const { data: existingProfile } = await exec(db.from('profiles').select('id').eq('email', email).single());
       
       let profileId = id;
       if (existingProfile) {
         profileId = existingProfile.id;
       } else {
-        await db.from('profiles').insert([{
+        await exec(db.from('profiles').insert([{
           id: profileId,
           email,
           full_name: teacher.nama || 'Nama Guru',
           role,
           avatar_url: teacher.avatar || null,
-          password_hash: passwordHash, // Store inside D1
+          password_hash: passwordHash,
           is_active: 1
-        }]);
+        }]));
         details.profiles++;
       }
 
       staffNameToIdMap[teacher.nama] = profileId;
 
       // Create staff record
-      const { data: existingStaff } = await db.from('staff').select('id').eq('profile_id', profileId).single();
+      const { data: existingStaff } = await exec(db.from('staff').select('id').eq('profile_id', profileId).single());
       if (!existingStaff) {
-        await db.from('staff').insert([{
-          id: profileId, // use same UUID
+        await exec(db.from('staff').insert([{
+          id: profileId,
           profile_id: profileId,
           nip: teacher.nip || `NIP-${Math.floor(Math.random() * 1000000)}`,
           position: teacher.jabatan || 'Guru',
           department: teacher.mapel || 'Umum',
           is_active: 1
-        }]);
+        }]));
         details.staff++;
       }
     }
@@ -104,13 +107,13 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
       const id = cls.id ? cls.id.toString() : `class-${Math.random().toString(36).substring(2, 9)}`;
       const homeroomTeacherId = cls.wali ? (staffNameToIdMap[cls.wali] || null) : null;
       
-      const { data: existingClass } = await db.from('classes').select('id').eq('name', cls.nama).single();
+      const { data: existingClass } = await exec(db.from('classes').select('id').eq('name', cls.nama).single());
       
       let classId = id;
       if (existingClass) {
         classId = existingClass.id;
       } else {
-        await db.from('classes').insert([{
+        await exec(db.from('classes').insert([{
           id: classId,
           name: cls.nama,
           grade_level: parseInt(cls.tingkat) || 1,
@@ -118,7 +121,7 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
           homeroom_teacher_id: homeroomTeacherId,
           capacity: parseInt(cls.kuota) || 30,
           is_active: 1
-        }]);
+        }]));
         details.classes++;
       }
       classNameToIdMap[cls.nama] = classId;
@@ -134,27 +137,27 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
       const id = student.id ? student.id.toString() : `prof-stud-${Math.random().toString(36).substring(2, 9)}`;
       const classId = classNameToIdMap[student.kelas] || null;
 
-      const { data: existingStudentProfile } = await db.from('profiles').select('id').eq('email', email).single();
+      const { data: existingStudentProfile } = await exec(db.from('profiles').select('id').eq('email', email).single());
       
       let profileId = id;
       if (existingStudentProfile) {
         profileId = existingStudentProfile.id;
       } else {
-        await db.from('profiles').insert([{
+        await exec(db.from('profiles').insert([{
           id: profileId,
           email,
           full_name: student.nama,
           role: 'siswa',
           is_active: 1
-        }]);
+        }]));
         details.profiles++;
       }
 
       studentOldIdToNewIdMap[student.id] = profileId;
 
-      const { data: existingStudent } = await db.from('students').select('id').eq('profile_id', profileId).single();
+      const { data: existingStudent } = await exec(db.from('students').select('id').eq('profile_id', profileId).single());
       if (!existingStudent) {
-        await db.from('students').insert([{
+        await exec(db.from('students').insert([{
           id: profileId,
           profile_id: profileId,
           nis: student.nis || `NIS-${Math.floor(Math.random() * 10000)}`,
@@ -163,7 +166,7 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
           parent_name: student.ayah || student.ibu || 'Orang Tua',
           class_id: classId,
           status: 'active'
-        }]);
+        }]));
         details.students++;
       }
     }
@@ -174,16 +177,16 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
 
     for (const bill of bills) {
       const studentId = studentOldIdToNewIdMap[bill.studentId] || bill.studentId;
-      const { data: existingBill } = await db.from('student_bills').select('id').eq('id', bill.id.toString()).single();
+      const { data: existingBill } = await exec(db.from('student_bills').select('id').eq('id', bill.id.toString()).single());
 
       if (!existingBill) {
-        await db.from('student_bills').insert([{
+        await exec(db.from('student_bills').insert([{
           id: bill.id.toString(),
           student_id: studentId,
           payment_type_id: bill.paymentName,
           amount: bill.amount,
           status: bill.status === 'Lunas' ? 'paid' : 'unpaid'
-        }]);
+        }]));
         details.bills++;
       }
     }
@@ -192,16 +195,16 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
     const expenses = expensesRaw ? JSON.parse(expensesRaw) : [];
 
     for (const exp of expenses) {
-      const { data: existingExpense } = await db.from('expenses').select('id').eq('id', exp.id.toString()).single();
+      const { data: existingExpense } = await exec(db.from('expenses').select('id').eq('id', exp.id.toString()).single());
 
       if (!existingExpense) {
-        await db.from('expenses').insert([{
+        await exec(db.from('expenses').insert([{
           id: exp.id.toString(),
           category: exp.category,
           amount: exp.amount,
           expense_date: exp.date || new Date().toISOString().split('T')[0],
           description: exp.description
-        }]);
+        }]));
         details.expenses++;
       }
     }

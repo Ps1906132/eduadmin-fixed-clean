@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollText, Printer, FileText, Download, School, BookOpen, X, ArrowLeft, Home } from 'lucide-react';
+import { ScrollText, Printer, FileText, Download, Save, School, BookOpen, X, ArrowLeft, Home } from 'lucide-react';
 
 interface RapotProps {
     studentsData: any;

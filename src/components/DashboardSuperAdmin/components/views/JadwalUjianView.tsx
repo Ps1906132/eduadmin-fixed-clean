@@ -494,9 +494,9 @@ const JadwalUjianView: React.FC<JadwalUjianViewProps> = ({
                 isOpen={showExamUniformModal}
                 onClose={() => setShowExamUniformModal(false)}
                 selectedDay={selectedDayForExamUniform}
-                tempUniform={tempExamUniform}
-                setTempUniform={setTempExamUniform}
-                examDailyUniforms={examDailyUniforms}
+                tempExamUniform={tempExamUniform}
+                setTempExamUniform={setTempExamUniform}
+                currentUniform={tempExamUniform}
                 setExamDailyUniforms={setExamDailyUniforms}
             />
 
@@ -513,9 +513,8 @@ const JadwalUjianView: React.FC<JadwalUjianViewProps> = ({
                 isOpen={showExamNoteModal}
                 onClose={() => setShowExamNoteModal(false)}
                 selectedDay={selectedDayForExamNote}
-                tempNote={tempExamNote}
-                setTempNote={setTempNote}
-                examDailyNotes={examDailyNotes}
+                tempExamNote={tempExamNote}
+                setTempExamNote={setTempExamNote}
                 setExamDailyNotes={setExamDailyNotes}
             />
         </div>

@@ -21,17 +21,17 @@ async function main() {
   const id = `admin-${Date.now()}`;
 
   console.log(`-- Generated on ${new Date().toISOString()}`);
-  console.log(`-- Run: wrangler d1 execute eduadmin_db --command="...");
+  console.log('-- Run: wrangler d1 execute eduadmin_db --command="..."');
   console.log();
-  console.log(`INSERT OR REPLACE INTO profiles (id, email, full_name, password_hash, role, role_type, is_active) VALUES (`);
+  console.log('INSERT OR REPLACE INTO profiles (id, email, full_name, password_hash, role, role_type, is_active) VALUES (');
   console.log(`  '${id}',`);
   console.log(`  '${email}',`);
-  console.log(`  'Super Administrator',`);
+  console.log("  'Super Administrator',");
   console.log(`  '${hash}',`);
-  console.log(`  'admin',`);
-  console.log(`  'single',`);
-  console.log(`  1`);
-  console.log(`);`);
+  console.log("  'admin',");
+  console.log("  'single',");
+  console.log('  1');
+  console.log(');');
   console.log();
   console.log('-- Password has been hashed with bcrypt salt rounds=10');
   console.log('-- KEEP THIS OUTPUT SECURE - delete terminal history after use');

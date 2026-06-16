@@ -270,10 +270,11 @@ const DataGuruStaff: React.FC<DataGuruStaffProps> = ({
   const handleAddWali = () => {
     setWaliForm({
       id: null,
-      kode: 'KLS-1A', // Preview default
-      nama: 'Kelas 1 A', // Preview default
+      kode: 'KLS-1A',
+      nama: 'Kelas 1 A',
       wali: '',
       nip: '',
+      teacher_id: '',
       tingkat: '1',
       paralel: 'A'
     });

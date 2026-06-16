@@ -1,5 +1,19 @@
 # Changelog
 
+## Fase 4 — Sinkronisasi Modul Bimbingan Belajar (Les)
+
+### 4.1 Sinkronisasi Jadwal Guru Bimbel
+- `DashboardGuruBimbel.tsx` — filter kelas berdasarkan ID profile (`bimbel_{id}`) bukan string nama guru
+- `DashboardGuruBimbel.tsx` — gunakan `parseInt(user?.id?.replace('bimbel_', ''))` untuk mencocokkan dengan `TutoringClass.id`
+
+### 4.2 Rekap Kehadiran Admin
+- `BimbinganBelajarView.tsx` — tab "Rekap Kehadiran" ditambahkan ke navigasi tabs
+- `BimbinganBelajarView.tsx` — fungsi `getStudentName` untuk menampilkan nama siswa dari prop `students`
+- `BimbinganBelajarView.tsx` — fix type signature `fetchAttendance(groupId: number | '', date)` agar kompatibel dengan nilai filter kosong
+
+### 4.4 Filter Kelas Siswa
+- `BimbinganBelajarSiswa.tsx` — filter `tutoringClasses` berdasarkan `tutoringEnrollmentsGlobal` yang cocok dengan `studentId` user
+
 ## Fase 2 — Pembenahan Struktur Direktori & Konfigurasi
 
 ### 2.1 Konsolidasi Struktur `components/` ke `src/`

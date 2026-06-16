@@ -302,7 +302,7 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
 
         // Save to D1
         try {
-            await db.from('audit_logs').insert(newLogEntry);
+            await (db.from('audit_logs').insert(newLogEntry) as any);
         } catch (e) {
             console.error("Failed to save audit log to D1", e);
         }
@@ -343,7 +343,7 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
             // But usually we just send what we think is there.
             // Diagnosis: icon_url, accreditation, school_status might be missing from D1.
             
-            await db.from('school_settings').update(updateData).eq('id', 'settings-school');
+            await (db.from('school_settings').update(updateData).eq('id', 'settings-school') as any);
 
             // Sync to Global
             Object.assign(schoolSettingsGlobal, {
@@ -370,11 +370,11 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
     const handleSaveAdmin = async () => {
         try {
             // Update D1 Profiles
-            await db.from('profiles').update({
+            await (db.from('profiles').update({
                 full_name: adminProfile.name,
                 email: adminProfile.email,
                 updated_at: new Date().toISOString()
-            }).eq('id', adminProfile.id);
+            }).eq('id', adminProfile.id) as any);
 
             // Update LocalStorage Legacy
             const localTeachers = localStorage.getItem('teachers_data_v11');
@@ -416,7 +416,7 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
         }
 
         try {
-            const { data: profile } = await db.from('profiles').select('password_hash').eq('id', adminProfile.id).single();
+            const { data: profile } = await (db.from('profiles').select('password_hash').eq('id', adminProfile.id).single() as any);
             
             if (!profile) {
                 toast.error('Akun admin tidak ditemukan!');
@@ -431,10 +431,10 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
 
             const hashed = await hashPassword(security.newPass);
             
-            await db.from('profiles').update({
+            await (db.from('profiles').update({
                 password_hash: hashed,
                 updated_at: new Date().toISOString()
-            }).eq('id', adminProfile.id);
+            }).eq('id', adminProfile.id) as any);
 
             // Update Local Legacy
             const localTeachers = localStorage.getItem('teachers_data_v11');

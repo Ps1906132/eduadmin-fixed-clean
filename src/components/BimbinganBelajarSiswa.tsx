@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Clock, MapPin, User, BookOpen, ChevronRight, PlayCircle, FileText, Video, Download, Link, CheckCircle, XCircle, AlertCircle, TrendingUp, Award } from 'lucide-react';
 import CBTSiswa from './CBTSiswa';
 import { useTutoring } from './DashboardSuperAdmin/hooks/useTutoring';
+import { tutoringEnrollmentsGlobal } from './../data/sharedData';
 
 interface BimbinganBelajarSiswaProps {
     onBack: () => void;
     user?: any;
+    studentId?: number | string | null;
 }
 
-const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, user }) => {
+const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, user, studentId: propStudentId }) => {
     const { tutoringClasses } = useTutoring();
     const [view, setView] = useState<'list' | 'detail' | 'session'>('list');
     const [selectedClass, setSelectedClass] = useState<any>(null);
@@ -17,11 +19,14 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
     const [attendanceStats, setAttendanceStats] = useState<{ hadir: number; sakit: number; izin: number; alpa: number }>({ hadir: 0, sakit: 0, izin: 0, alpa: 0 });
     const [latestProgress, setLatestProgress] = useState<any[]>([]);
 
-    // Filter classes if user info exists (Simulasi: Siswa hanya lihat kelas mereka)
-    // Untuk demo, kita tampilkan semua kelas yang 'Aktif'
-    const classes = tutoringClasses;
-
-    const studentId = user?.studentId;
+    // Filter kelas berdasarkan enrollment siswa
+    const studentId = propStudentId || user?.studentId || user?.id;
+    const myEnrolledGroupIds = studentId
+        ? new Set(tutoringEnrollmentsGlobal.filter(e => e.studentId === Number(studentId)).map(e => e.groupId))
+        : new Set<number>();
+    const classes = studentId
+        ? tutoringClasses.filter(c => myEnrolledGroupIds.has(c.id))
+        : tutoringClasses;
 
     const fetchBimbelData = async (clsId: number) => {
         if (!studentId) return;

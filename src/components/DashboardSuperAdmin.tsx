@@ -167,7 +167,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
     // --- PLOTTING STATE ---
     const [mapelViewMode, setMapelViewMode] = useState<'master' | 'plotting'>('plotting'); // Default to plotting as requested
-    const [teacherAssignments, setTeacherAssignments] = useState<{ id?: number; classNama: string; subjectIds: number[]; teacherId: string | number }[]>([]);
+    const [teacherAssignments, setTeacherAssignments] = useState<{ id?: number; classNama: string; subjectIds: (string | number)[]; teacherId: string | number }[]>([]);
     const [showPlottingModal, setShowPlottingModal] = useState(false);
     const [showPositionModal, setShowPositionModal] = useState(false);
     const { teachers, setTeachers, addTeacher } = useTeachers();
@@ -713,7 +713,6 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                         activeView === 'tabungan' && (
                             <TabunganView 
                                 students={students}
-                                classes={classes}
                                 user={user}
                             />
                         )

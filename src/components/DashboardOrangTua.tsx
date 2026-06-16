@@ -44,6 +44,28 @@ interface DashboardOrangTuaProps {
 const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, schoolName = "SD IT EduAdmin" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'hasil' | 'absen' | 'bayar' | 'tabungan' | 'bimbingan' | 'latihan' | 'quran' | 'channel' | 'ai' | 'profile' | 'notifikasi'>('home');
+    const [parentStudentId, setParentStudentId] = useState<number | null>(null);
+
+    // Fetch studentId jika user parent tidak punya studentId
+    useEffect(() => {
+        if (!user?.studentId && user?.id) {
+            const fetchStudentId = async () => {
+                try {
+                    const token = localStorage.getItem('eduadmin_token');
+                    const headers = { 'Authorization': `Bearer ${token}` };
+                    const res = await fetch(`/api/parent_students?parent_id=eq.${user.id}`, { headers });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data) && data.length > 0) {
+                            const sid = Number(data[0].student_id);
+                            if (sid) setParentStudentId(sid);
+                        }
+                    }
+                } catch { /* ignore */ }
+            };
+            fetchStudentId();
+        }
+    }, [user?.id, user?.studentId]);
 
     const { announcements } = useAnnouncements();
 
@@ -158,7 +180,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                         ) : activeView === 'tabungan' ? (
                             <TabunganSiswa onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'bimbingan' ? (
-                            <BimbinganBelajarSiswa onBack={() => setActiveView('home')} user={user} />
+                            <BimbinganBelajarSiswa onBack={() => setActiveView('home')} user={user} studentId={user?.studentId || parentStudentId} />
                         ) : activeView === 'latihan' ? (
                             <LatihanSoalSiswa onBack={() => setActiveView('home')} userClass={user?.studentClass || '5A'} />
                         ) : activeView === 'quran' ? (

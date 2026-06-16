@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, BookOpen, ExternalLink, FileText, Plus, Save, X, Trash2, Send, FilePlus, HelpCircle } from 'lucide-react';
 import {
     MateriItem,

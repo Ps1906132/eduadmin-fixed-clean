@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
     LayoutDashboard, Book, UserCog, FileText, Plus, SquarePen, 
-    Trash2, UserPlus, Video, X, ChevronRight, Eye, EyeOff 
+    Trash2, UserPlus, Video, X, ChevronRight, Eye, EyeOff,
+    UserCheck, Calendar, CheckCircle, AlertCircle, Clock, XCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -22,7 +23,11 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     students,
     classes
 }) => {
-    const [tutoringActiveTab, setTutoringActiveTab] = useState('dashboard'); // dashboard, mapel, guru, materi
+    const [tutoringActiveTab, setTutoringActiveTab] = useState('dashboard');
+    const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attendanceData, setAttendanceData] = useState<any[]>([]);
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
+    const [selectedAttendanceGroup, setSelectedAttendanceGroup] = useState<number | ''>('');
     const [tutoringSubjects, setTutoringSubjects] = useState<any[]>(tutoringSubjectsGlobal);
     const [tutoringTeachers, setTutoringTeachers] = useState<any[]>(tutoringTeachersGlobal);
     // Sync with Teacher's view via useTutoring hook
@@ -116,6 +121,24 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
         }
     };
 
+    const fetchAttendance = async (groupId: number | '', date: string) => {
+        if (!groupId) return;
+        setAttendanceLoading(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+            const res = await fetch(`/api/bimbel_attendance?tutoring_class_id=eq.${groupId}&date=eq.${date}`, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                setAttendanceData(Array.isArray(data) ? data : []);
+            }
+        } catch (e) {
+            console.error('Gagal mengambil data kehadiran:', e);
+        } finally {
+            setAttendanceLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchTutoringData();
     }, []);
@@ -126,6 +149,12 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [newTutoringTeacher, setNewTutoringTeacher] = useState({ name: '', source: 'internal', subjectId: '', classId: '', scheduleDay: 'Senin', scheduleStart: '14:00', scheduleEnd: '15:00', username: '', password: '' });
     const [showTutoringPassword, setShowTutoringPassword] = useState(false);
     const [editingTutoringTeacherId, setEditingTutoringTeacherId] = useState<number | null>(null);
+
+    const getStudentName = (studentId: number | string) => {
+        const sid = Number(studentId);
+        const student = (students || []).find(s => Number(s.id || s.nis || s.student_id) === sid);
+        return student?.nama || student?.name || student?.student_name || `Siswa #${sid}`;
+    };
 
     const handleAddTutoringSubject = async () => {
         const newSubject = { ...newTutoringSubject, id: Date.now(), classes: newTutoringSubject.classes || [] };
@@ -515,6 +544,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                 { id: 'mapel', label: 'Mata Pelajaran', icon: <Book size={16} /> },
                                 { id: 'guru', label: 'Guru Bimbel', icon: <UserCog size={16} /> },
                                 { id: 'materi', label: 'Materi Kelas', icon: <FileText size={16} /> },
+                                { id: 'kehadiran', label: 'Rekap Kehadiran', icon: <UserCheck size={16} /> },
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -646,7 +676,110 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         </div>
                     )}
 
-                    {/* 4. MATERI KELAS */}
+                    {/* 4. REKAP KEHADIRAN */}
+                    {tutoringActiveTab === 'kehadiran' && (
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="p-5 border-b border-slate-100 bg-slate-50">
+                                <h3 className="font-bold text-slate-800">Rekap Kehadiran Les</h3>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <div className="flex gap-4 flex-wrap">
+                                    <div className="flex-1 min-w-[200px]">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Pilih Guru Bimbel</label>
+                                        <select
+                                            className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50"
+                                            value={selectedAttendanceGroup}
+                                            onChange={(e) => {
+                                                const val = e.target.value ? Number(e.target.value) : '';
+                                                setSelectedAttendanceGroup(val);
+                                                if (val) fetchAttendance(val, attendanceDate);
+                                            }}
+                                        >
+                                            <option value="">-- Pilih Guru --</option>
+                                            {tutoringTeachers.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name} - {t.subjectName}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Tanggal</label>
+                                        <input
+                                            type="date"
+                                            className="p-2.5 border border-slate-200 rounded-xl bg-slate-50"
+                                            value={attendanceDate}
+                                            onChange={(e) => {
+                                                setAttendanceDate(e.target.value);
+                                                if (selectedAttendanceGroup) fetchAttendance(selectedAttendanceGroup, e.target.value);
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <button
+                                            onClick={() => selectedAttendanceGroup && fetchAttendance(selectedAttendanceGroup, attendanceDate)}
+                                            disabled={!selectedAttendanceGroup || attendanceLoading}
+                                            className="px-4 py-2.5 bg-orange-600 text-white text-sm font-bold rounded-xl hover:bg-orange-700 disabled:opacity-50"
+                                        >
+                                            {attendanceLoading ? 'Memuat...' : 'Cari'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {attendanceLoading ? (
+                                    <div className="flex justify-center py-12">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                                    </div>
+                                ) : attendanceData.length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse text-sm">
+                                            <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="p-3 border-b">Siswa</th>
+                                                    <th className="p-3 border-b text-center">Status</th>
+                                                    <th className="p-3 border-b">Catatan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {attendanceData.map((r: any) => (
+                                                    <tr key={r.id} className="hover:bg-slate-50">
+                                                        <td className="p-3 font-bold text-slate-700">{getStudentName(r.student_id)}</td>
+                                                        <td className="p-3 text-center">
+                                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                                                                r.status === 'hadir' ? 'bg-green-100 text-green-700' :
+                                                                r.status === 'sakit' ? 'bg-blue-100 text-blue-700' :
+                                                                r.status === 'izin' ? 'bg-yellow-100 text-yellow-700' :
+                                                                'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {r.status === 'hadir' && <CheckCircle size={12} />}
+                                                                {r.status === 'sakit' && <AlertCircle size={12} />}
+                                                                {r.status === 'izin' && <Clock size={12} />}
+                                                                {r.status === 'alpa' && <XCircle size={12} />}
+                                                                {r.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 text-slate-500 text-xs">{r.notes || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : selectedAttendanceGroup ? (
+                                    <div className="text-center py-12 text-slate-400">
+                                        <UserCheck size={48} className="mx-auto mb-3 opacity-30" />
+                                        <p className="font-bold">Tidak ada data kehadiran</p>
+                                        <p className="text-sm mt-1">Belum ada absensi untuk tanggal ini.</p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 text-slate-400">
+                                        <UserCheck size={48} className="mx-auto mb-3 opacity-30" />
+                                        <p className="font-bold">Pilih guru untuk melihat rekap</p>
+                                        <p className="text-sm mt-1">Data kehadiran akan ditampilkan di sini.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 5. MATERI KELAS */}
                     {tutoringActiveTab === 'materi' && (
                         <div className="space-y-6">
                             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
