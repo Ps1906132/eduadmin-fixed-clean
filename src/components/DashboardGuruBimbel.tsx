@@ -5,25 +5,16 @@ import {
     FolderInput,
     BookOpen,
     Book,
-    Tv,
-    Bot,
-    Gamepad2,
-    StickyNote,
     Bell,
     Home,
     User,
     LogOut,
-    ChevronRight,
-    Megaphone,
-    Search
+    Megaphone
 } from 'lucide-react';
 
 import AlQuranSiswa from './AlQuranSiswa';
-import ChannelSekolahSiswa from './ChannelSekolahSiswa';
-import BelajarAISiswa from './BelajarAISiswa';
 import NotifikasiSiswa from './NotifikasiSiswa';
 import InputMateriBimbelLengkap from './InputMateriBimbelLengkap';
-import NotepadGuru from './NotepadGuru';
 import ProfilGuru from './ProfilGuru';
 import JadwalBimbelGuru from './JadwalBimbelGuru';
 import KehadiranBimbelGuru from './KehadiranBimbelGuru';
@@ -45,7 +36,7 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
 
     // Filter kelas yang diajar oleh guru ini
     const myTutoringClasses = tutoringClasses.filter(c =>
-        c.teacher.includes(user?.nama || '') || user?.role === 'admin'
+        c.teacher === user?.nama || user?.role === 'admin'
     );
 
     // Filter enrollments untuk kelas yang diajar guru ini
@@ -64,9 +55,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
         { id: 'nilai', label: 'Input Perkembangan', icon: <FolderInput size={24} />, color: 'bg-indigo-500' },
         { id: 'latihan', label: 'Materi dan Latihan', icon: <BookOpen size={24} />, color: 'bg-rose-500' },
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
-        { id: 'channel', label: 'Chanel sekolah ku', icon: <Tv size={24} />, color: 'bg-red-600' },
-        { id: 'ai', label: 'Belajar dengan ku', icon: <Bot size={24} />, color: 'bg-cyan-500' },
-        { id: 'notepad', label: 'Notepad', icon: <StickyNote size={24} />, color: 'bg-amber-500' },
         { id: 'informasi', label: 'Informasi', icon: <Megaphone size={24} />, color: 'bg-orange-500' },
     ];
 
@@ -156,11 +144,8 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                                                 else if (item.id === 'kehadiran') setActiveView('kehadiran');
                                                 else if (item.id === 'nilai') setActiveView('nilai');
                                                 else if (item.id === 'latihan') setActiveView('latihan');
-                                                else if (item.id === 'notepad') setActiveView('notepad');
                                                 else if (item.id === 'quran') setActiveView('quran');
-                                                else if (item.id === 'channel') setActiveView('channel');
                                                 else if (item.id === 'informasi') setActiveView('informasi');
-                                                else if (item.id === 'ai') setActiveView('ai');
                                             }}
                                             className="flex flex-col items-center gap-3 group w-full"
                                         >
@@ -177,8 +162,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                             </div>
                         ) : activeView === 'quran' ? (
                             <AlQuranSiswa onBack={() => setActiveView('home')} />
-                        ) : activeView === 'channel' ? (
-                            <ChannelSekolahSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'jadwal' ? (
                             <JadwalBimbelGuru onBack={() => setActiveView('home')} user={user} classes={myTutoringClasses} />
                         ) : activeView === 'kehadiran' ? (
@@ -190,12 +173,8 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                                 onBack={() => setActiveView('home')}
                                 classes={myTutoringClasses}
                             />
-                        ) : activeView === 'notepad' ? (
-                            <NotepadGuru onBack={() => setActiveView('home')} />
                         ) : activeView === 'informasi' ? (
                             <InformasiWaliKelas onBack={() => setActiveView('home')} />
-                        ) : activeView === 'ai' ? (
-                            <BelajarAISiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (

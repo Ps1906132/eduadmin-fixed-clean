@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Plus, Trash2, User } from 'lucide-react';
+import { X, Search, Plus, Trash2, User, Filter } from 'lucide-react';
 
 interface ManageTutoringStudentsModalProps {
     isOpen: boolean;
@@ -9,22 +9,26 @@ interface ManageTutoringStudentsModalProps {
     enrolledStudents: any[]; // List of student IDs or objects enrolled
     onAddStudent: (studentId: number) => void;
     onRemoveStudent: (studentId: number) => void;
+    filterClassId?: string; // Filter available students by class
 }
 
 const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = ({
-    isOpen, onClose, tutoringGroup, allStudents = [], enrolledStudents = [], onAddStudent, onRemoveStudent
+    isOpen, onClose, tutoringGroup, allStudents = [], enrolledStudents = [], onAddStudent, onRemoveStudent, filterClassId
 }) => {
     const [search, setSearch] = useState('');
+    const [useClassFilter, setUseClassFilter] = useState(!!filterClassId);
 
     if (!isOpen || !tutoringGroup) return null;
 
     const studentsList = Array.isArray(allStudents) ? allStudents : [];
     const enrolledList = Array.isArray(enrolledStudents) ? enrolledStudents : [];
+    const activeFilterClass = useClassFilter && filterClassId ? filterClassId : null;
 
     // Filter students who are NOT enrolled yet
     const availableStudents = studentsList.filter(s =>
         s && s.id !== undefined &&
         !enrolledList.includes(s.id) &&
+        (!activeFilterClass || (s.kelas || '').toString() === activeFilterClass) &&
         (((s.nama || '').toLowerCase().includes(search.toLowerCase())) ||
          ((s.kelas || '').toLowerCase().includes(search.toLowerCase())))
     );
@@ -54,6 +58,21 @@ const ManageTutoringStudentsModal: React.FC<ManageTutoringStudentsModalProps> = 
                         <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                             <Plus size={20} className="text-blue-600" /> Tambah Siswa
                         </h4>
+                        {filterClassId && (
+                            <div className="flex items-center gap-2 mb-3">
+                                <button
+                                    onClick={() => setUseClassFilter(!useClassFilter)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        useClassFilter
+                                            ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                            : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    <Filter size={14} />
+                                    {useClassFilter ? `Kelas ${filterClassId}` : 'Semua Kelas'}
+                                </button>
+                            </div>
+                        )}
                         <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input

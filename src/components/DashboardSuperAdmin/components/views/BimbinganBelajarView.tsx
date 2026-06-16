@@ -240,6 +240,16 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     headers,
                     body: JSON.stringify(profilePatch)
                 });
+
+                // Sync staff entry
+                await fetch(`/api/staff?profile_id=eq.${profileId}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({
+                        position: 'Guru Bimbel',
+                        is_active: 1
+                    })
+                });
             } catch (e) {
                 console.error(e);
             }
@@ -314,20 +324,27 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     })
                 });
 
-                if (profileRes.ok) {
-                    await fetch('/api/staff', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            id: `staff_bimbel_${id}`,
-                            profile_id: profileId,
-                            nip: `BIM${id}`,
-                            position: 'Guru Bimbel',
-                            is_active: 1
-                        })
-                    });
-                    toast.success(`Akun login: username="${username}", password="${rawPassword}"`, { duration: 8000 });
+                if (!profileRes.ok) {
+                    console.error('Gagal membuat profile untuk guru bimbel');
                 }
+
+                const staffRes = await fetch('/api/staff', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        id: `staff_bimbel_${id}`,
+                        profile_id: profileId,
+                        nip: `BIM${id}`,
+                        position: 'Guru Bimbel',
+                        is_active: 1
+                    })
+                });
+
+                if (!staffRes.ok) {
+                    console.error('Gagal membuat staff entry untuk guru bimbel');
+                }
+
+                toast.success(`Akun login: username="${username}", password="${rawPassword}"`, { duration: 8000 });
             } catch (e) {
                 console.error(e);
             }
@@ -856,6 +873,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     enrolledStudents={activeGroupEnrollments}
                     onAddStudent={handleAddStudentToTutoring}
                     onRemoveStudent={handleRemoveStudentFromTutoring}
+                    filterClassId={selectedTutoringGroup?.classId}
                 />
             )}
         </div>
