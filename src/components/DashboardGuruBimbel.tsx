@@ -34,6 +34,42 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
 
     const { tutoringClasses, enrollments, addSession } = useTutoring();
 
+    // Fetch teacher's subject_name from tutoring_teachers
+    const [teacherSubject, setTeacherSubject] = useState('');
+    const [teacherNip, setTeacherNip] = useState('');
+
+    useEffect(() => {
+        const fetchTeacherProfile = async () => {
+            const token = localStorage.getItem('eduadmin_token');
+            if (!token || !user?.id) return;
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // Ambil subject_name dari tutoring_teachers
+            if (typeof user.id === 'string' && user.id.startsWith('bimbel_')) {
+                const teacherId = user.id.replace('bimbel_', '');
+                const teachRes = await fetch(`/api/tutoring_teachers?id=eq.${teacherId}`, { headers });
+                if (teachRes.ok) {
+                    const data = await teachRes.json();
+                    if (data && data.length > 0) {
+                        setTeacherSubject(data[0].subject_name || '');
+                    }
+                }
+            }
+
+            // Ambil NIP dari staff (fallback jika backend tidak mengirim)
+            if (!user?.nip) {
+                const staffRes = await fetch(`/api/staff?profile_id=eq.${user.id}`, { headers });
+                if (staffRes.ok) {
+                    const data = await staffRes.json();
+                    if (data && data.length > 0) {
+                        setTeacherNip(data[0].nip || '');
+                    }
+                }
+            }
+        };
+        fetchTeacherProfile();
+    }, [user]);
+
     // Filter kelas yang diajar oleh guru ini
     const myTutoringClasses = tutoringClasses.filter(c =>
         c.teacher === user?.nama || user?.role === 'admin'
@@ -178,7 +214,7 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (
-                            <ProfilGuru user={user} onBack={() => setActiveView('home')} onLogout={onLogout} />
+                            <ProfilGuru user={user} onBack={() => setActiveView('home')} onLogout={onLogout} nipOverride={teacherNip} mapelOverride={teacherSubject} />
                         ) : null}
                     </div>
 

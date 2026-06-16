@@ -142,7 +142,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
     }
 
     const { results } = await env.DB.prepare(`
-      SELECT p.*, s.position 
+      SELECT p.*, s.position, s.nip 
       FROM profiles p 
       LEFT JOIN staff s ON p.id = s.profile_id
       WHERE (p.email = ? OR p.email = ? OR s.nip = ?) 
@@ -274,6 +274,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         role: user.position || user.role,
         db_role: user.role,
         avatar: user.avatar_url || null,
+        nip: user.nip || null,
         ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate } : {})
       }
     }), {

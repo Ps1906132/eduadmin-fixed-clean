@@ -5,13 +5,15 @@ interface ProfilGuruProps {
     user: any;
     onBack: () => void;
     onLogout: () => void;
+    nipOverride?: string;
+    mapelOverride?: string;
 }
 
-const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout }) => {
+const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout, nipOverride, mapelOverride }) => {
     // Local state for editing
-    const [nama, setNama] = useState(user?.nama || 'Guru Mata Pelajaran');
-    const [nip, setNip] = useState(user?.nip || '19850712 201001 1 009');
-    const [mapel, setMapel] = useState(user?.mapel || 'Pendidikan Agama Islam'); // Bisa jadi array nanti
+    const [nama, setNama] = useState(user?.nama || 'Guru');
+    const [nip, setNip] = useState(user?.nip || nipOverride || '');
+    const [mapel, setMapel] = useState(user?.mapel || mapelOverride || '');
 
     // File upload ref
     const fileInputRef = useRef<HTMLInputElement>(null);
