@@ -54,6 +54,23 @@ INSERT OR REPLACE INTO staff (
     1
 );
 
+-- Insert Staff Record for Wakil Kurikulum
+INSERT OR REPLACE INTO staff (
+    id,
+    profile_id,
+    nip,
+    position,
+    department,
+    is_active
+) VALUES (
+    'kurikulum-001',
+    'kurikulum-001',
+    'WK001',
+    'Wakil Kurikulum',
+    'Kurikulum',
+    1
+);
+
 -- Insert Staff Record for Kepala Sekolah
 INSERT OR REPLACE INTO staff (
     id,

@@ -322,8 +322,18 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         });
     }
 
+    const generateRandomPassword = () => {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let result = '';
+        for (let i = 0; i < 10; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    };
+
     const handleAddTeacher = () => {
         const generatedUsername = 'guru' + Math.floor(100 + Math.random() * 900);
+        const generatedPassword = generateRandomPassword();
         setNewTeacher({
             nama: '',
             nip: '',
@@ -331,7 +341,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
             mapel: '',
             class: '',
             username: generatedUsername,
-            password: 'password123'
+            password: generatedPassword
         });
         setShowTeacherModal(true);
     };
@@ -339,6 +349,11 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const handleSaveTeacher = () => {
         if (!newTeacher.nama || !newTeacher.nip) {
             toast.error("Nama dan NIP wajib diisi!");
+            return;
+        }
+
+        if (newTeacher.password && newTeacher.password.length < 6 && !newTeacher.password.startsWith('$2')) {
+            toast.error("Password minimal 6 karakter!");
             return;
         }
 
@@ -365,11 +380,19 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
                 wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
                 username: newTeacher.username || (newTeacher.nama.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 100)),
-                password: newTeacher.password || 'password123'
+                password: newTeacher.password || generateRandomPassword()
             };
 
             addTeacher(teacherToAdd);
-            toast.success(`Guru ${newTeacher.nama} berhasil ditambahkan!`);
+            const generatedPw = newTeacher.password || teacherToAdd.password;
+            toast.success(
+                <div>
+                    <p className="font-bold">Guru {newTeacher.nama} berhasil ditambahkan!</p>
+                    <p className="text-sm mt-1">Password: <span className="font-mono bg-blue-100 px-2 py-0.5 rounded">{generatedPw}</span></p>
+                    <p className="text-xs text-slate-500 mt-1">Simpan password ini. Guru wajib mengganti setelah login pertama.</p>
+                </div>,
+                { duration: 10000 }
+            );
         }
 
         setShowTeacherModal(false);
@@ -560,7 +583,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* --- VIEW: DATA GURU & STAFF (Refactored) --- */}
                     {activeView === 'data_guru' && (
-                        <GuruStaffView setActiveView={setActiveView} />
+                        <GuruStaffView setActiveView={setActiveView} user={user} />
                     )}
 
                     {/* --- VIEW: TAMBAH DATA GURU (Refactored) --- */}
@@ -577,6 +600,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleEditItem={handleEditItem}
                             handleDeleteTeacher={handleDeleteTeacher}
                             classes={classes}
+                            user={user}
                         />
                     )}
 

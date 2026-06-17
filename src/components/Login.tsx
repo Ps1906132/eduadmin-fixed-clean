@@ -59,8 +59,8 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                     // Map Server Role to UI Role Code (Consistent with Fase 1 requirements)
                     if (serverRole.includes('kepala sekolah') || serverRole === 'ks') {
                         finalRole = 'ks';
-                    } else if (serverRole.includes('kurikulum') || serverRole.includes('wakil kurikulum')) {
-                        finalRole = 'admin'; // Kurikulum uses Admin dashboard features
+                    } else if (serverRole.includes('kurikulum') || serverRole.includes('wakil kurikulum') || serverRole.includes('waka kurikulum')) {
+                        finalRole = 'kurikulum';
                     } else if (serverRole.includes('wali kelas') || serverRole.includes('guru kelas') || serverRole === 'wk') {
                         finalRole = 'wk';
                     } else if (serverRole.includes('bimbel') || serverRole.includes('guru bimbel') || serverRole === 'gb') {

@@ -125,12 +125,17 @@ export const useTeachers = () => {
                 } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara') || jabatanLower.includes('tata usaha')) {
                     dbRole = 'keuangan';
                 } else if (jabatanLower.includes('wali kelas') || jabatanLower.includes('guru kelas')) {
-                    dbRole = 'wk';
+                    dbRole = 'guru';
                 } else {
                     dbRole = 'guru'; // Default for all teaching staff
                 }
 
-                const passwordPlain = teacher.password || 'password123';
+                const passwordPlain = teacher.password || (() => {
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                    let result = '';
+                    for (let i = 0; i < 10; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+                    return result;
+                })();
                 const passwordHash = /^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$/.test(passwordPlain)
                     ? passwordPlain
                     : await hashPassword(passwordPlain);
@@ -200,7 +205,7 @@ export const useTeachers = () => {
                         } else if (jabatanLower2.includes('keuangan') || jabatanLower2.includes('bendahara')) {
                             dbRole2 = 'keuangan';
                         } else if (jabatanLower2.includes('wali kelas') || jabatanLower2.includes('guru kelas')) {
-                            dbRole2 = 'wk';
+                            dbRole2 = 'guru';
                         } else {
                             dbRole2 = 'guru';
                         }

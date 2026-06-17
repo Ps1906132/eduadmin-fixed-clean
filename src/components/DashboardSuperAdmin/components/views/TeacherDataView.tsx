@@ -15,6 +15,7 @@ interface TeacherDataViewProps {
     handleEditItem: (item: any, type: string) => void;
     handleDeleteTeacher: (id: number) => void;
     classes?: any[];
+    user?: any;
 }
 
 const TeacherDataView: React.FC<TeacherDataViewProps> = ({
@@ -28,8 +29,12 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
     handleSaveData,
     handleEditItem,
     handleDeleteTeacher,
-    classes
+    classes,
+    user
 }) => {
+    const rawRole = (user?.roleCode || user?.role || user?.role_type || '').toLowerCase();
+    const isKurikulum = rawRole === 'kurikulum' || rawRole === 'wakil kurikulum';
+
     const classOptions = classes && classes.length > 0
         ? classes.map((c: any) => c.nama)
         : [];
@@ -488,18 +493,24 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                     <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-colors border border-green-200 shadow-sm">
                         <Download size={18} /> Template
                     </button>
-                    <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm">
-                        <UploadCloud size={18} /> Upload
-                    </button>
+                    {!isKurikulum && (
+                        <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm">
+                            <UploadCloud size={18} /> Upload
+                        </button>
+                    )}
                     <button onClick={handlePrintAllCards} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-colors border border-indigo-200 shadow-sm">
                         <Printer size={18} /> Cetak Semua
                     </button>
-                    <button onClick={handleAddTeacher} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm">
-                        <UserPlus size={18} /> Tambah Guru
-                    </button>
-                    <button onClick={handleSaveData} className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200">
-                        <Save size={18} /> Simpan
-                    </button>
+                    {!isKurikulum && (
+                        <button onClick={handleAddTeacher} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm">
+                            <UserPlus size={18} /> Tambah Guru
+                        </button>
+                    )}
+                    {!isKurikulum && (
+                        <button onClick={handleSaveData} className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200">
+                            <Save size={18} /> Simpan
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -527,8 +538,9 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 {/* DROPDOWN JABATAN */}
                                 <td className="p-4">
                                     <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 outline-none focus:border-green-500 cursor-pointer"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 outline-none focus:border-green-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                                         value={guru.jabatan}
+                                        disabled={isKurikulum}
                                         onChange={(e) => {
                                             const newTeachers = [...teachers];
                                             newTeachers[i] = {
@@ -549,7 +561,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 <td className="p-4 hover:bg-slate-50">
                                     <select className="w-full bg-transparent border-none outline-none text-slate-700 font-bold cursor-pointer disabled:opacity-30"
                                         value={guru.wali || '-'}
-                                        disabled={['Kepala Sekolah', 'Staff Tata Usaha', 'Operator Data'].includes(guru.jabatan)}
+                                        disabled={isKurikulum || ['Kepala Sekolah', 'Staff Tata Usaha', 'Operator Data'].includes(guru.jabatan)}
                                         onChange={(e) => {
                                             const newTeachers = [...teachers];
                                             newTeachers[i].wali = e.target.value;
@@ -565,8 +577,12 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 <td className="p-4 text-slate-600">{guru.username}</td>
                                 <td className="p-4 flex justify-center gap-2">
                                     <button onClick={() => handlePrintSingleCard(guru)} title="Cetak Kartu Login" className="p-2 hover:bg-indigo-50 text-indigo-500 rounded-lg"><Printer size={16} /></button>
-                                    <button onClick={() => handleEditItem(guru, 'Data Guru')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"><Edit size={16} /></button>
-                                    <button onClick={() => handleDeleteTeacher(guru.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash2 size={16} /></button>
+                                    {!isKurikulum && (
+                                        <button onClick={() => handleEditItem(guru, 'Data Guru')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"><Edit size={16} /></button>
+                                    )}
+                                    {!isKurikulum && (
+                                        <button onClick={() => handleDeleteTeacher(guru.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash2 size={16} /></button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

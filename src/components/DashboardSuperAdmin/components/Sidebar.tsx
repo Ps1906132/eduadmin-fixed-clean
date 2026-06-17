@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         // Kurikulum / Wakil Kurikulum (6 Modul Akademik Utama + View Data Master + Laporan)
         if (rawRole === 'kurikulum' || rawRole === 'wakil kurikulum') {
             return menuItems.filter(item =>
-                ['dashboard', 'data_siswa', 'mapel', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas', 'laporan'].includes(item.id)
+                ['dashboard', 'data_siswa', 'data_guru', 'mapel', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas', 'laporan'].includes(item.id)
             );
         }
 

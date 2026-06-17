@@ -498,12 +498,17 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
     'profiles', 'staff'
   ];
 
+  // Allow kurikulum to READ profiles & staff (data-guru view only)
   if (ADMIN_ONLY_TABLES.includes(table) && userRole !== 'admin') {
-    writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-admin access to admin-only table' });
-    return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mengakses tabel ${table}` }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    if ((table === 'profiles' || table === 'staff') && request.method === 'GET' && userRole === 'kurikulum') {
+      // Allow READ access for kurikulum
+    } else {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-admin access to admin-only table' });
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mengakses tabel ${table}` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   const FINANCE_WRITE_TABLES = [
@@ -547,7 +552,7 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
   ];
 
   if (ACADEMIC_MASTER_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
-    if (userRole !== 'admin') {
+    if (userRole !== 'admin' && userRole !== 'kurikulum') {
       writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-admin write to academic master table' });
       return new Response(JSON.stringify({ error: `Forbidden: Hanya administrator yang dapat mengubah data master akademik` }), {
         status: 403,

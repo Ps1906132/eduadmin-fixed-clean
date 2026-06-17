@@ -7,7 +7,6 @@ import TambahKelas from '@/components/TambahKelas';
 import UploadSiswa from '@/components/UploadSiswa';
 import UploadPerkelas from '@/components/UploadPerkelas';
 import UploadSiswaBaru from '@/components/UploadSiswaBaru';
-import DataGuruStaff from '@/components/DataGuruStaff';
 import KelasWali from '@/components/KelasWali';
 import MataPelajaran from '@/components/MataPelajaran';
 import Jadwal from '@/components/Jadwal';
@@ -343,18 +342,6 @@ const App: React.FC = () => {
                   onUploadSiswa={() => setActiveTab('upload-siswa')}
                   onUploadPerkelas={() => setActiveTab('upload-perkelas')}
                   onUploadSiswaBaru={() => setActiveTab('upload-siswa-baru')}
-                />
-              </ProtectedModule>
-            )}
-            {activeTab === 'data-guru' && (
-              <ProtectedModule userRole={userRole} userId={currentUser?.id} module="data-guru">
-                <DataGuruStaff
-                  mapelList={mapelData}
-                  setMapelList={setSubjects as any}
-                  stafList={stafList}
-                  setStafList={setTeachers as any}
-                  kelasData={kelasData}
-                  setKelasData={setClasses as any}
                 />
               </ProtectedModule>
             )}
