@@ -68,38 +68,35 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     // Filter Menu Items based on Role (Jabatan)
     const filteredMenuItems = React.useMemo(() => {
-        const rawRole = (user?.roleCode || user?.role || user?.role_type || '').toLowerCase();
+    // Normalize role sesuai PERJANJIAN_KERJA.md §3.2
+    const normalizeRole = (role: string): string => {
+      const r = (role || '').toLowerCase().trim();
+      if (r === 'admin' || r === 'super admin' || r === 'operator data') return 'admin';
+      if (r === 'kurikulum' || r.includes('wakil kurikulum') || r.includes('waka kurikulum')) return 'kurikulum';
+      if (r === 'ks' || r.includes('kepala sekolah') || r.includes('kepsek')) return 'ks';
+      if (r === 'keuangan' || r.includes('bendahara')) return 'keuangan';
+      if (r.includes('guru') || r === 'wk' || r === 'gm' || r.includes('wali kelas') || r.includes('guru kelas') || r.includes('guru mata pelajaran')) return 'guru';
+      if (r === 'gb' || r.includes('bimbel') || r.includes('tentor')) return 'gb';
+      return 'ortu';
+    };
 
-        // Admin / Super Admin / Operator Data (9 Modul Admin Utama)
-        if (rawRole === 'admin' || rawRole === 'super admin' || rawRole === 'operator data') {
-            return menuItems.filter(item =>
-                ['dashboard', 'data_siswa', 'data_guru', 'kelas_wali', 'mapel', 'bimbingan_belajar', 'pengumuman', 'multimedia', 'ai_management', 'audit_log', 'settings'].includes(item.id)
-            );
-        }
+    const normalizedRole = normalizeRole(user?.roleCode || user?.role || user?.role_type || '');
 
-        // Kurikulum / Wakil Kurikulum (6 Modul Akademik Utama + View Data Master + Laporan)
-        if (rawRole === 'kurikulum' || rawRole === 'wakil kurikulum') {
-            return menuItems.filter(item =>
-                ['dashboard', 'data_siswa', 'data_guru', 'mapel', 'jadwal', 'absen', 'ujian', 'nilai', 'rapot', 'naik_kelas', 'laporan'].includes(item.id)
-            );
-        }
+    // Filter Menu Items based on Role — sesuai PERJANJIAN_KERJA.md §3.4
+    const ROLE_MENUS: Record<string, string[]> = {
+      admin:     ['dashboard','data_siswa','data_guru','kelas_wali','mapel',
+                  'bimbingan_belajar','pengumuman','multimedia','ai_management',
+                  'audit_log','settings'],
+      kurikulum: ['dashboard','mapel','jadwal',
+                  'absen','ujian','nilai','rapot','naik_kelas','laporan'],
+      ks:        ['dashboard','data_siswa','data_guru','laporan','pengumuman',
+                  'multimedia','nilai'],
+      keuangan:  ['dashboard','keuangan','tabungan','laporan'],
+    };
 
-        // Keuangan / Staff Tata Usaha (3 Modul Keuangan Utama)
-        if (rawRole.includes('keuangan') || rawRole.includes('tata usaha')) {
-            return menuItems.filter(item =>
-                ['dashboard', 'keuangan', 'tabungan', 'laporan'].includes(item.id)
-            );
-        }
+    const allowedMenus = ROLE_MENUS[normalizedRole] || ['dashboard'];
 
-        // Multimedia
-        if (rawRole === 'multimedia') {
-            return menuItems.filter(item =>
-                ['dashboard', 'multimedia', 'ai_management'].includes(item.id)
-            );
-        }
-
-        // Default: Only show dashboard for unrecognized/non-admin roles
-        return menuItems.filter(item => item.id === 'dashboard');
+    return menuItems.filter(item => allowedMenus.includes(item.id));
     }, [user]);
 
     const getLinkClass = (id: string) => {

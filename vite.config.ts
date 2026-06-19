@@ -52,7 +52,7 @@ export default defineConfig({
           'dashboards': [
             './src/components/DashboardSuperAdmin',
             './src/components/DashboardOrangTua',
-            './src/components/DashboardGuruMapel'
+            './src/components/DashboardGuru'
           ]
         }
       }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { announcementDataGlobal } from '../data/sharedData';
+import { useAnnouncements } from './DashboardSuperAdmin/hooks/useAnnouncements';
 import {
     Calendar,
     UserCheck,
@@ -8,21 +8,20 @@ import {
     Book,
     Tv,
     Bot,
-    Gamepad2,
     StickyNote,
     Bell,
     Home,
     User,
-    LogOut,
     ChevronRight,
-    Search,
     FileText,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Megaphone,
 } from 'lucide-react';
 
 import AlQuranSiswa from './AlQuranSiswa';
 import ChannelSekolahSiswa from './ChannelSekolahSiswa';
 import BelajarAISiswa from './BelajarAISiswa';
+import KelasKu from './KelasKu';
 import NotifikasiSiswa from './NotifikasiSiswa';
 import JadwalMengajarGuru from './JadwalMengajarGuru';
 import JadwalUjian from './JadwalUjian';
@@ -31,24 +30,27 @@ import InputNilaiGuru from './InputNilaiGuru';
 import MateriLatihanGuru from './MateriLatihanGuru';
 import NotepadGuru from './NotepadGuru';
 import ProfilGuru from './ProfilGuru';
+import InformasiWaliKelas from './InformasiWaliKelas';
+import RapotSiswa from './RapotSiswa';
 import RaporSettingsView from './DashboardSuperAdmin/components/views/RaporSettingsView';
 
-interface DashboardGuruMapelProps {
+interface DashboardGuruProps {
     user: any;
     onLogout: () => void;
     schoolName?: string;
 }
 
-const DashboardGuruMapel: React.FC<DashboardGuruMapelProps> = ({ user, onLogout, schoolName = "SD Normal Islam Samarinda" }) => {
+const DashboardGuru: React.FC<DashboardGuruProps> = ({ user, onLogout, schoolName = "SD Normal Islam Samarinda" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'kehadiran' | 'nilai' | 'deskripsi' | 'latihan' | 'quran' | 'channel' | 'ai' | 'notepad' | 'notifikasi' | 'profile'>('home');
+    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'kehadiran' | 'nilai' | 'deskripsi' | 'latihan' | 'quran' | 'channel' | 'ai' | 'notepad' | 'kelas_ku' | 'raport' | 'informasi' | 'notifikasi' | 'profile'>('home');
+
+    const isWaliKelas = user?.jabatan === 'Guru Kelas' || user?.jabatan === 'Wali Kelas' || !!user?.kelas;
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Menu Items Data
     const menuItems = [
         { id: 'jadwal', label: 'Jadwal Mengajar', icon: <Calendar size={24} />, color: 'bg-blue-500' },
         { id: 'ujian', label: 'Jadwal Ujian', icon: <FileText size={24} />, color: 'bg-indigo-500' },
@@ -60,17 +62,14 @@ const DashboardGuruMapel: React.FC<DashboardGuruMapelProps> = ({ user, onLogout,
         { id: 'channel', label: 'Channel sekolah ku', icon: <Tv size={24} />, color: 'bg-red-600' },
         { id: 'ai', label: 'Belajar dengan ku', icon: <Bot size={24} />, color: 'bg-cyan-500' },
         { id: 'notepad', label: 'Notepad', icon: <StickyNote size={24} />, color: 'bg-amber-500' },
+        ...(isWaliKelas ? [
+            { id: 'kelas_ku', label: 'Kelas Ku', icon: <UserCheck size={24} />, color: 'bg-purple-600' },
+            { id: 'raport', label: 'E-Rapor', icon: <FileSpreadsheet size={24} />, color: 'bg-emerald-600' },
+            { id: 'informasi', label: 'Informasi', icon: <Megaphone size={24} />, color: 'bg-orange-500' },
+        ] : []),
     ];
 
-    // Sync Announcements
-    const [announcements, setAnnouncements] = useState(announcementDataGlobal);
-
-    useEffect(() => {
-        const dataTimer = setInterval(() => {
-            setAnnouncements([...announcementDataGlobal]);
-        }, 2000);
-        return () => clearInterval(dataTimer);
-    }, []);
+    const { announcements } = useAnnouncements();
 
     return (
         <div className="h-screen bg-[#E0F2FE] font-sans flex flex-col relative overflow-hidden">
@@ -93,13 +92,13 @@ const DashboardGuruMapel: React.FC<DashboardGuruMapelProps> = ({ user, onLogout,
                             </div>
                             <div>
                                 <p className="text-blue-100 text-[10px] font-medium leading-none mb-0.5">Assalamualaikum,</p>
-                                <h2 className="text-base font-bold leading-tight">{user?.nama || 'Guru Mata Pelajaran'}</h2>
+                                <h2 className="text-base font-bold leading-tight">{user?.nama || (isWaliKelas ? 'Guru Wali Kelas' : 'Guru Mata Pelajaran')}</h2>
                             </div>
                         </div>
                         <div className="text-right">
                             <p className="text-[10px] text-blue-200 opacity-90">NIP: {user?.nip || '-'}</p>
                             <div className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
-                                {user?.mapel || 'Pengajar'}
+                                {isWaliKelas ? (user?.kelas ? `Wali Kelas ${user.kelas}` : 'Wali Kelas') : (user?.mapel || 'Pengajar')}
                             </div>
                         </div>
                     </div>
@@ -131,18 +130,7 @@ const DashboardGuruMapel: React.FC<DashboardGuruMapelProps> = ({ user, onLogout,
                                     {menuItems.map((item) => (
                                         <button
                                             key={item.id}
-                                            onClick={() => {
-                                                if (item.id === 'jadwal') setActiveView('jadwal');
-                                                else if (item.id === 'ujian') setActiveView('ujian');
-                                                else if (item.id === 'kehadiran') setActiveView('kehadiran');
-                                                else if (item.id === 'nilai') setActiveView('nilai');
-                                                else if (item.id === 'deskripsi') setActiveView('deskripsi');
-                                                else if (item.id === 'latihan') setActiveView('latihan');
-                                                else if (item.id === 'notepad') setActiveView('notepad');
-                                                else if (item.id === 'quran') setActiveView('quran');
-                                                else if (item.id === 'channel') setActiveView('channel');
-                                                else if (item.id === 'ai') setActiveView('ai');
-                                            }}
+                                            onClick={() => setActiveView(item.id as any)}
                                             className="flex flex-col items-center gap-3 group w-full"
                                         >
                                             <div className={`w-14 h-14 md:w-16 md:h-16 ${item.color} rounded-2xl md:rounded-3xl shadow-lg shadow-blue-900/5 text-white flex items-center justify-center transform group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300 relative overflow-hidden`}>
@@ -220,6 +208,12 @@ const DashboardGuruMapel: React.FC<DashboardGuruMapelProps> = ({ user, onLogout,
                             <ChannelSekolahSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'ai' ? (
                             <BelajarAISiswa onBack={() => setActiveView('home')} />
+                        ) : activeView === 'kelas_ku' ? (
+                            <KelasKu onBack={() => setActiveView('home')} user={user} />
+                        ) : activeView === 'raport' ? (
+                            <RapotSiswa onBack={() => setActiveView('home')} user={user} />
+                        ) : activeView === 'informasi' ? (
+                            <InformasiWaliKelas onBack={() => setActiveView('home')} />
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (
@@ -274,4 +268,4 @@ const DashboardGuruMapel: React.FC<DashboardGuruMapelProps> = ({ user, onLogout,
     );
 };
 
-export default DashboardGuruMapel;
+export default DashboardGuru;

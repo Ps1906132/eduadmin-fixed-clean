@@ -27,7 +27,7 @@ export const useSchedules = () => {
                         id: item.id.toString(),
                         classId: item.class_id,
                         day: item.day_of_week,
-                        period: parseInt(item.period_id) || 0,
+                        period: parseInt(item.period_id?.replace('per-', '')) || 0,
                         subjectId: isNaN(Number(item.subject_id)) ? item.subject_id : Number(item.subject_id)
                     }));
 

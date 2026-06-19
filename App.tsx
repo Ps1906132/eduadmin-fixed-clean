@@ -22,11 +22,9 @@ import Laporan from '@/components/Laporan';
 import Pengaturan from '@/components/Pengaturan';
 import Login from '@/components/Login';
 import DashboardOrangTua from '@/components/DashboardOrangTua';
-import DashboardGuruMapel from '@/components/DashboardGuruMapel';
-import DashboardWaliKelas from '@/components/DashboardWaliKelas';
+import DashboardGuru from '@/components/DashboardGuru';
 import DashboardGuruBimbel from '@/components/DashboardGuruBimbel';
 import DashboardSuperAdmin from '@/components/DashboardSuperAdmin';
-import DashboardKepalaSekolah from '@/components/DashboardKepalaSekolah';
 
 import ProtectedModule from '@/components/ProtectedModule';
 import { logAuthEvent } from '@/lib/rbac/auditLog';
@@ -49,18 +47,13 @@ const App: React.FC = () => {
   // --- UTILS ---
   const mapRoleToCode = (role: string) => {
     const r = (role || '').toLowerCase().trim();
-    // Prioritas Orang Tua / Siswa
-    if (r === 'ot' || r === 'ortu' || r.includes('orang tua') || r.includes('wali murid') || r.includes('parent') || r.includes('ortu')) return 'ot';
-    if (r === 'siswa' || r.includes('murid') || r.includes('student')) return 'ot';
-    
-    if (r === 'ks' || r.includes('kepala sekolah')) return 'ks';
-    if (r === 'wk' || r.includes('wali kelas') || r.includes('guru kelas')) return 'wk';
-    if (r === 'gb' || r.includes('bimbel') || r.includes('les')) return 'gb';
+    if (r === 'admin' || r === 'super admin' || r === 'operator data') return 'admin';
     if (r === 'kurikulum' || r.includes('wakil kurikulum') || r.includes('waka kurikulum')) return 'kurikulum';
-    if (r === 'keuangan' || r.includes('bendahara') || r.includes('tata usaha') || r.includes('staff keuangan')) return 'keuangan';
-    if (r === 'multimedia') return 'multimedia';
-    if (r === 'admin' || r === 'operator' || r === 'super admin') return 'admin';
-    return 'gm'; // Default untuk guru mata pelajaran
+    if (r === 'ks' || r.includes('kepala sekolah') || r.includes('kepsek')) return 'ks';
+    if (r === 'keuangan' || r.includes('bendahara')) return 'keuangan';
+    if (r.includes('guru') || r === 'wk' || r === 'gm' || r.includes('wali kelas') || r.includes('guru kelas') || r.includes('guru mata pelajaran')) return 'guru';
+    if (r === 'gb' || r.includes('bimbel') || r.includes('tentor')) return 'gb';
+    return 'ortu'; // default: siswa, murid, orang tua, wali murid, parent
   };
 
   const [userRole, setUserRole] = useState(() => {
@@ -314,12 +307,13 @@ const App: React.FC = () => {
   }
 
   // --- DASHBOARDS ---
-  if (userRole === 'ot' || userRole === 'ortu' || userRole === 'orang-tua') return <DashboardOrangTua user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
-  if (userRole === 'wk') return <DashboardWaliKelas user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
-  if (userRole === 'gb') return <DashboardGuruBimbel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
-  if (userRole === 'gm') return <DashboardGuruMapel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
-  if (['admin', 'kurikulum', 'keuangan', 'multimedia'].includes(userRole)) return <DashboardSuperAdmin user={currentUser} onLogout={handleLogout} />;
-  if (userRole === 'ks') return <DashboardKepalaSekolah user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
+  if (['admin', 'kurikulum', 'ks', 'keuangan'].includes(userRole))
+    return <DashboardSuperAdmin user={currentUser} onLogout={handleLogout} />;
+  if (userRole === 'guru')
+    return <DashboardGuru user={currentUser} onLogout={handleLogout} />;
+  if (userRole === 'gb')
+    return <DashboardGuruBimbel user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
+  return <DashboardOrangTua user={currentUser} onLogout={handleLogout} schoolName={schoolSettings.name} />;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
