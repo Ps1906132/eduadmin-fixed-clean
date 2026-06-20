@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { teachersDataGlobal } from '../../../data/sharedData';
 import { hashPassword } from '../../../utils/auth';
+import { toast } from 'react-hot-toast';
 
 export interface Teacher {
     id: string | number;
@@ -259,6 +260,7 @@ export const useTeachers = () => {
                                     }
                                 }
                             } catch (classErr) {
+                                toast.error('Gagal sinkronisasi wali kelas');
                                 console.warn('Gagal sinkronisasi wali kelas ke tabel classes:', classErr);
                             }
                         }
@@ -267,6 +269,7 @@ export const useTeachers = () => {
             }
         } catch (err) {
             // ROLLBACK: Restore previous state on error
+            toast.error('Gagal menyimpan data guru ke server');
             console.error('Error syncing teacher changes to D1:', err);
             _setTeachers(prev);
             alert(`Gagal menyimpan data guru: ${err instanceof Error ? err.message : 'Unknown error'}`);

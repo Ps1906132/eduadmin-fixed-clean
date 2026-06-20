@@ -185,13 +185,31 @@ const AddSaverModal: React.FC<AddSaverModalProps> = ({
 
                         <div className="pt-4">
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     const studentToAdd = studentsDataGlobal.find(s => s.id === Number(newSaverId));
                                     if (studentToAdd) {
-                                        const newSaver = { ...studentToAdd, status: 'Aktif', joinDate: new Date().toISOString().split('T')[0], saldo: 0, tabungan: 0 };
-                                        setSavingsData([...savingsData, newSaver]);
-                                        setNewSaverId('');
-                                        toast.success(`Berhasil menambahkan ${studentToAdd.nama}.`);
+                                        const token = localStorage.getItem('eduadmin_token');
+                                        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+                                        const res = await fetch('/api/savings_accounts', {
+                                            method: 'POST',
+                                            headers,
+                                            body: JSON.stringify({
+                                                student_id: studentToAdd.id,
+                                                balance: 0,
+                                                is_active: 1,
+                                                opened_date: new Date().toISOString().split('T')[0]
+                                            })
+                                        });
+
+                                        if (res.ok) {
+                                            const newSaver = { ...studentToAdd, studentId: studentToAdd.id, status: 'Aktif', joinDate: new Date().toISOString().split('T')[0], saldo: 0, tabungan: 0 };
+                                            setSavingsData([...savingsData, newSaver]);
+                                            setNewSaverId('');
+                                            toast.success(`Berhasil menambahkan ${studentToAdd.nama}.`);
+                                        } else {
+                                            toast.error("Gagal menyimpan nasabah ke server");
+                                        }
                                     }
                                 }}
                                 disabled={!newSaverId}

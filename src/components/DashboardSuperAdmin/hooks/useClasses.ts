@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { classesDataGlobal } from '../../../data/sharedData';
+import { toast } from 'react-hot-toast';
 
 export interface Class {
     id: string | number;
@@ -65,6 +66,7 @@ export const useClasses = () => {
                 return;
             }
 
+            toast.error('Gagal memuat data kelas');
             console.error('Error fetching classes:', err);
 
             setClasses([]);
@@ -106,6 +108,7 @@ export const useClasses = () => {
                 }
             }
         } catch (err) {
+            toast.error('Gagal sinkronisasi data kelas');
             console.error('Error syncing class changes:', err);
         }
     };
@@ -163,11 +166,13 @@ export const useClasses = () => {
                                 })
                             });
                             if (!insertAyRes.ok) {
+                                toast.error('Gagal membuat tahun ajaran');
                                 console.warn('Gagal membuat academic_year:', await insertAyRes.text());
                             }
                         }
                     }
                 } catch (ayErr) {
+                    toast.error('Gagal cek/insert tahun ajaran');
                     console.warn('Gagal cek/insert academic_year:', ayErr);
                 }
 
@@ -188,6 +193,7 @@ export const useClasses = () => {
                 });
 
                 if (!res.ok) {
+                    toast.error('Sinkronisasi kelas gagal, disimpan lokal');
                     console.warn('D1 sync gagal (offline mode), kelas disimpan lokal:', await res.text());
                     return true;
                 }
@@ -195,6 +201,7 @@ export const useClasses = () => {
                 // Fetch to get database assigned IDs
                 fetchClasses();
             } catch (err) {
+                toast.error('Server tidak tersedia, kelas disimpan lokal');
                 console.warn('D1 tidak tersedia, kelas disimpan lokal saja:', err);
             }
 
@@ -226,6 +233,7 @@ export const useClasses = () => {
             if (!res.ok) {
                 let errorMsg = '';
                 try { errorMsg = await res.text(); } catch (_) {}
+                toast.error('Gagal menghapus kelas di server');
                 console.error(`D1 delete gagal [HTTP ${res.status}]:`, errorMsg || '(no body)');
 
                 if (res.status === 500) {
@@ -247,14 +255,17 @@ export const useClasses = () => {
             try { fetchClasses(); } catch (_) {}
             return { success: true };
         } catch (err: any) {
+            toast.error('Gagal menghapus kelas');
             console.error('Delete class error:', err);
 
             if (err.name === 'AbortError') {
+                toast.error('Koneksi timeout');
                 console.warn('Backend timeout.');
                 return { success: true };
             }
 
             if (err.message?.includes('fetch') || err.message?.includes('network')) {
+                toast.error('Backend tidak tersedia');
                 console.warn('Backend tidak tersedia.');
                 return { success: true };
             }

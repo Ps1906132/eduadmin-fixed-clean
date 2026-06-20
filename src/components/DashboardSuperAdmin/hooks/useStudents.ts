@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import bcrypt from 'bcryptjs';
 import { addStudent as addStudentToShared } from '../../../data/sharedData';
+import { toast } from 'react-hot-toast';
 
 export interface Student {
     id: string | number;
@@ -154,6 +155,7 @@ export const useStudents = () => {
                 setStudents(mappedData);
             }
         } catch (err) {
+            toast.error('Gagal memuat data siswa');
             console.error('Error fetching students:', err);
         } finally {
             setLoading(false);
@@ -198,7 +200,7 @@ export const useStudents = () => {
                         email: student.nis, // Use NIS as username/email
                         full_name: student.nama,
                         password_hash: passwordHash,
-                        role: 'siswa',
+                        role: 'ortu',
                         is_active: 1
                     })
                 });
@@ -284,15 +286,14 @@ export const useStudents = () => {
                     body: JSON.stringify({
                         id: `ps-${student.id}-${parentProfileId}`,
                         parent_id: parentProfileId,
-                        student_id: student.id.toString(),
-                        relationship: 'ayah',
-                        is_primary: 1
+                        student_id: student.id.toString()
                     })
                 });
             } catch (parentErr) {
                 console.warn('Parent profile creation failed or already exists:', parentErr);
             }
         } catch (err) {
+            toast.error('Gagal menambah siswa');
             console.error('Error adding student to D1:', err);
             setStudents(backupStudents);
             alert(`Gagal menambah siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -347,7 +348,7 @@ export const useStudents = () => {
                                 email: nis,
                                 full_name: nama || 'Student',
                                 password_hash: passwordHash,
-                                role: 'siswa',
+                                role: 'ortu',
                                 is_active: 1
                             })
                         }).catch(() => null); // Ignore if exists
@@ -455,9 +456,7 @@ export const useStudents = () => {
                         body: JSON.stringify({
                             id: `ps-${idStr}-${parentProfileId}`,
                             parent_id: parentProfileId,
-                            student_id: idStr,
-                            relationship: 'ayah',
-                            is_primary: 1
+                            student_id: idStr
                         })
                     }).catch(() => null);
                 }
@@ -465,6 +464,7 @@ export const useStudents = () => {
                 console.warn('Gagal sync parent profile:', parentErr);
             }
         } catch (err) {
+            toast.error('Gagal memperbarui data siswa');
             console.error('Error updating student in D1:', err);
             setStudents(backupStudents);
             alert(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -558,6 +558,7 @@ export const useStudents = () => {
                     throw new Error(`API Error: ${res.status}`);
                 }
             } catch (err) {
+                toast.error('Gagal menghapus siswa');
                 console.error('Error deleting student from D1:', err);
                 setStudents(backupStudents);
                 alert(`Gagal menghapus siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -646,6 +647,7 @@ export const useStudents = () => {
                 await addNewStudent({ ...student, id: realId });
                 successCount++;
             } catch (err) {
+                toast.error(`Gagal simpan siswa ${student.nama}`);
                 console.error(`Gagal simpan siswa ${student.nama}:`, err);
                 failCount++;
             }

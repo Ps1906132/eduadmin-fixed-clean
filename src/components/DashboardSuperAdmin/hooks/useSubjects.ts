@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { subjectsDataGlobal } from '../../../data/sharedData';
+import { toast } from 'react-hot-toast';
 
 export interface SubjectGroup {
     id: string | number;
@@ -135,6 +136,7 @@ export const useSubjects = () => {
             }
         } catch (err) {
             // ✅ ROLLBACK on error
+            toast.error('Gagal menyimpan kelompok mata pelajaran');
             console.error('Failed to sync subject groups with D1:', err);
             _setSubjectGroups(prev);
             alert(`Gagal menyimpan kelompok mata pelajaran: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -212,6 +214,7 @@ export const useSubjects = () => {
             }
         } catch (err) {
             // ✅ ROLLBACK on error
+            toast.error('Gagal menyimpan mata pelajaran');
             console.error('Failed to sync subjects with D1:', err);
             _setSubjects(prev);
             alert(`Gagal menyimpan mata pelajaran: ${err instanceof Error ? err.message : 'Unknown error'}`);

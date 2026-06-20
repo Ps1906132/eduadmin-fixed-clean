@@ -117,6 +117,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 }
             }
         } catch (error) {
+            toast.error('Gagal memuat data bimbingan dari server');
             console.error('Gagal mengambil data bimbingan dari database:', error);
         }
     };
@@ -133,6 +134,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 setAttendanceData(Array.isArray(data) ? data : []);
             }
         } catch (e) {
+            toast.error('Gagal memuat data kehadiran');
             console.error('Gagal mengambil data kehadiran:', e);
         } finally {
             setAttendanceLoading(false);
@@ -182,6 +184,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 })
             });
         } catch (e) {
+            toast.error('Gagal menyimpan mata pelajaran bimbel ke server');
             console.error('Gagal menyimpan mata pelajaran bimbel ke database:', e);
         }
     };
@@ -200,6 +203,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
             } catch (e) {
+                toast.error('Gagal menghapus mata pelajaran bimbel');
                 console.error(e);
             }
         }
@@ -280,6 +284,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     })
                 });
             } catch (e) {
+                toast.error('Gagal memperbarui data guru bimbel');
                 console.error(e);
             }
         } else {
@@ -354,6 +359,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 });
 
                 if (!profileRes.ok) {
+                    toast.error('Gagal membuat akun login untuk guru bimbel');
                     console.error('Gagal membuat profile untuk guru bimbel');
                 }
 
@@ -370,11 +376,13 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 });
 
                 if (!staffRes.ok) {
+                    toast.error('Gagal membuat data staff untuk guru bimbel');
                     console.error('Gagal membuat staff entry untuk guru bimbel');
                 }
 
                 toast.success(`Akun login: username="${username}", password="${rawPassword}"`, { duration: 8000 });
             } catch (e) {
+                toast.error('Gagal menyimpan data guru bimbel ke server');
                 console.error(e);
             }
         }
@@ -425,6 +433,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     headers
                 });
             } catch (e) {
+                toast.error('Gagal menghapus data guru bimbel');
                 console.error(e);
             }
         }
@@ -476,6 +485,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 })
             });
         } catch (e) {
+            toast.error('Gagal menambahkan siswa ke bimbingan');
             console.error(e);
         }
     };
@@ -510,6 +520,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 })
             });
         } catch (e) {
+            toast.error('Gagal menghapus siswa dari bimbingan');
             console.error(e);
         }
     };

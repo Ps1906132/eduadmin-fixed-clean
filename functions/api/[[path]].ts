@@ -79,7 +79,16 @@ const ALLOWED_TABLES = [
   'materi',
   'latihan_soal',
   'bimbel_attendance',
-  'bimbel_progress'
+  'bimbel_progress',
+  'grade_types',
+  'rapor_descriptions',
+  'multimedia_videos',
+  'quran_verses',
+  'teacher_notes',
+  'bimbel_materi',
+  'bimbel_latihan',
+  'dashboard_cache',
+  'audit_logs'
 ];
 
 // Authentication login endpoint handler

@@ -14,7 +14,7 @@ interface TabunganViewProps {
 
 const TabunganView: React.FC<TabunganViewProps> = ({ students, user }) => {
     const [savingsActiveTab, setSavingsActiveTab] = useState('dashboard'); // dashboard, data, setor, tarik, riwayat, rekap
-    const { savingsData, setSavingsData, savingsTransactions, setSavingsTransactions } = useSavings();
+    const { savingsData, setSavingsData, savingsTransactions, setSavingsTransactions, addSavingsTransaction } = useSavings();
     const [searchSavingsStudent, setSearchSavingsStudent] = useState('');
     const [selectedSavingsStudent, setSelectedSavingsStudent] = useState<any>(null);
     const [savingsAmount, setSavingsAmount] = useState(0);
@@ -23,56 +23,50 @@ const TabunganView: React.FC<TabunganViewProps> = ({ students, user }) => {
     const [newSaverId, setNewSaverId] = useState('');
     const [saverClassFilter, setSaverClassFilter] = useState('');
 
-    const handleSavingsDeposit = () => {
+    const handleSavingsDeposit = async () => {
         if (!selectedSavingsStudent || savingsAmount <= 0) return;
 
-        const updatedData = savingsData.map(s =>
-            s.id === selectedSavingsStudent.id ? { ...s, saldo: s.saldo + savingsAmount } : s
-        );
-        setSavingsData(updatedData);
-
-        const newTrx = {
-            id: `TRX-${Date.now()}`,
-            date: new Date().toISOString().split('T')[0],
-            studentId: selectedSavingsStudent.id,
-            studentName: selectedSavingsStudent.nama,
-            type: 'Setor' as const,
+        const result = await addSavingsTransaction({
+            studentId: selectedSavingsStudent.studentId,
+            accountId: selectedSavingsStudent.id,
+            type: 'setor',
             amount: savingsAmount,
-            officer: user?.name || 'Admin'
-        };
-        setSavingsTransactions([newTrx, ...savingsTransactions]);
+            date: new Date().toISOString().split('T')[0],
+            description: savingsNote
+        });
 
-        toast.success(`Setoran Rp ${savingsAmount.toLocaleString('id-ID')} berhasil disimpan!`);
+        if (result.success) {
+            toast.success(`Setoran Rp ${savingsAmount.toLocaleString('id-ID')} berhasil disimpan!`);
+        } else {
+            toast.error(result.error || "Gagal menyimpan setoran");
+        }
         setSelectedSavingsStudent(null);
         setSavingsAmount(0);
         setSavingsNote('');
         setSearchSavingsStudent('');
     };
 
-    const handleSavingsWithdrawal = () => {
+    const handleSavingsWithdrawal = async () => {
         if (!selectedSavingsStudent || savingsAmount <= 0) return;
         if (savingsAmount > selectedSavingsStudent.saldo) {
             toast.error("Saldo tidak mencukupi!");
             return;
         }
 
-        const updatedData = savingsData.map(s =>
-            s.id === selectedSavingsStudent.id ? { ...s, saldo: s.saldo - savingsAmount } : s
-        );
-        setSavingsData(updatedData);
-
-        const newTrx = {
-            id: `TRX-${Date.now()}`,
-            date: new Date().toISOString().split('T')[0],
-            studentId: selectedSavingsStudent.id,
-            studentName: selectedSavingsStudent.nama,
-            type: 'Tarik' as const,
+        const result = await addSavingsTransaction({
+            studentId: selectedSavingsStudent.studentId,
+            accountId: selectedSavingsStudent.id,
+            type: 'tarik',
             amount: savingsAmount,
-            officer: user?.name || 'Admin'
-        };
-        setSavingsTransactions([newTrx, ...savingsTransactions]);
+            date: new Date().toISOString().split('T')[0],
+            description: savingsNote
+        });
 
-        toast.success(`Penarikan Rp ${savingsAmount.toLocaleString('id-ID')} berhasil diproses!`);
+        if (result.success) {
+            toast.success(`Penarikan Rp ${savingsAmount.toLocaleString('id-ID')} berhasil diproses!`);
+        } else {
+            toast.error(result.error || "Gagal memproses penarikan");
+        }
         setSelectedSavingsStudent(null);
         setSavingsAmount(0);
         setSavingsNote('');

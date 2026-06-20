@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-hot-toast';
 
 export interface TutoringSession {
     id: number;
@@ -110,6 +111,7 @@ export const useTutoring = () => {
                 }
             }
         } catch (err) {
+            toast.error('Gagal sinkronisasi pendaftaran bimbel');
             console.error('Failed to sync tutoring enrollments with D1:', err);
         }
     }, []);
@@ -162,6 +164,7 @@ export const useTutoring = () => {
                 }
             }
         } catch (err) {
+            toast.error('Gagal sinkronisasi kelas bimbel');
             console.error('Failed to sync tutoring classes with D1:', err);
         }
     }, []);
@@ -230,6 +233,7 @@ export const useTutoring = () => {
                 }
             }
         } catch (err) {
+            toast.error('Gagal memuat data bimbingan');
             console.error('Error fetching tutoring data from D1:', err);
         } finally {
             setLoading(false);

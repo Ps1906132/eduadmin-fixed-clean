@@ -42,6 +42,9 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
         setExpenses,
         paymentHistory,
         setPaymentHistory,
+        addPayment,
+        addExpense,
+        refreshFinance
     } = useFinance();
 
     // Finance Helper States
@@ -94,24 +97,40 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
     const [showAddBankModal, setShowAddBankModal] = useState(false);
 
     // Handlers
-    const handleGenerateBills = () => {
+    const handleGenerateBills = async () => {
         if (students.length === 0) {
             toast.error("Data siswa kosong!");
             return;
         }
 
-        const newBills = students.map(s => ({
-            id: Date.now() + Math.random(),
-            studentId: s.id,
-            studentName: s.nama,
-            class: s.kelas,
-            paymentName: 'SPP Februari 2026',
-            period: 'Februari 2026',
-            amount: 150000,
-            status: 'Belum Lunas'
-        }));
-        setStudentBills([...studentBills, ...newBills]);
-        toast.success("Tagihan berhasil digenerate untuk " + students.length + " siswa!");
+        const token = localStorage.getItem('eduadmin_token');
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        let successCount = 0;
+
+        for (const s of students) {
+            try {
+                const res = await fetch('/api/student_bills', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        student_id: s.id,
+                        payment_name: 'SPP Februari 2026',
+                        amount: 150000,
+                        period: 'Februari 2026',
+                        status: 'pending',
+                        type: 'BULANAN'
+                    })
+                });
+                if (res.ok) successCount++;
+            } catch (err) {
+                console.error('Gagal generate bill:', err);
+            }
+        }
+
+        if (successCount > 0) {
+            toast.success(`Tagihan berhasil digenerate untuk ${successCount} siswa!`);
+            refreshFinance();
+        }
     };
 
     const handlePayBill = (bill: any) => {
@@ -635,34 +654,25 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
                                     </div>
                                     {isKeuangan ? (
                                         <button
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 if (selectedBillIds.length > 0 && selectedStudentForPay) {
-                                                    // Process payment
-                                                    const updatedBills = studentBills.map(bill =>
-                                                        selectedBillIds.includes(bill.id)
-                                                            ? { ...bill, status: 'Lunas' as const }
-                                                            : bill
-                                                    );
-                                                    setStudentBills(updatedBills);
-
-                                                    // Add to Payment History for Global Sync
                                                     const paidBills = studentBills.filter(bill => selectedBillIds.includes(bill.id));
-                                                    const newHistoryRecords = paidBills.map(bill => ({
-                                                        id: Date.now() + Math.random(),
-                                                        studentId: selectedStudentForPay.id,
-                                                        studentName: selectedStudentForPay.nama,
-                                                        paymentName: bill.paymentName,
-                                                        amount: bill.amount,
-                                                        date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-                                                        method: paymentMethod,
-                                                        status: 'Lunas',
-                                                        month: bill.period.split(' ')[0],
-                                                        year: bill.period.split(' ')[1]
-                                                    }));
+                                                    let successCount = 0;
 
-                                                    setPaymentHistory([...newHistoryRecords, ...paymentHistory]);
+                                                    for (const bill of paidBills) {
+                                                        const result = await addPayment({
+                                                            studentId: selectedStudentForPay.id,
+                                                            amount: bill.amount,
+                                                            type: bill.paymentName,
+                                                            date: new Date().toISOString().split('T')[0],
+                                                            method: paymentMethod
+                                                        });
+                                                        if (result.success) successCount++;
+                                                    }
 
-                                                    toast.success(`Pembayaran berhasil untuk ${selectedBillIds.length} tagihan!`);
+                                                    if (successCount > 0) {
+                                                        toast.success(`Pembayaran berhasil untuk ${successCount} tagihan!`);
+                                                    }
                                                     setSelectedBillIds([]);
                                                     setSelectedStudentForPay(null);
                                                     setSearchStudentForPayment('');
@@ -773,19 +783,21 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
                                 </div>
                                 <div className="flex items-end">
                                     <button
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (newExpense.amount > 0 && newExpense.description) {
-                                                const exp = {
-                                                    id: Date.now(),
+                                                const result = await addExpense({
                                                     date: newExpense.date || new Date().toISOString().split('T')[0],
                                                     description: newExpense.description,
                                                     category: newExpense.category,
                                                     amount: newExpense.amount,
-                                                    proof: 'file.jpg' // mock
-                                                };
-                                                setExpenses([exp, ...expenses]);
-                                                setNewExpense({ date: '', description: '', category: 'Operasional', amount: 0 });
-                                                toast.success("Pengeluaran berhasil disimpan!");
+                                                    proof: ''
+                                                });
+                                                if (result.success) {
+                                                    setNewExpense({ date: '', description: '', category: 'Operasional', amount: 0 });
+                                                    toast.success("Pengeluaran berhasil disimpan!");
+                                                } else {
+                                                    toast.error(result.error || "Gagal menyimpan pengeluaran");
+                                                }
                                             } else {
                                                 toast.error("Mohon isi keterangan dan nominal!");
                                             }
