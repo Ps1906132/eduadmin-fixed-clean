@@ -39,6 +39,30 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         localStorage.setItem('promotion_history_v10', JSON.stringify(promotionHistory));
     }, [promotionHistory]);
 
+    const [academicYearId, setAcademicYearId] = useState<string>('');
+
+    useEffect(() => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+
+        const tryFetch = (url: string): Promise<any> =>
+            fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(res => res.ok ? res.json() : []);
+
+        tryFetch('/api/academic_years?is_active=eq.1')
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    return setAcademicYearId(data[0].id);
+                }
+                return tryFetch('/api/academic_years?order=start_date.desc&limit=1')
+                    .then(data2 => {
+                        if (Array.isArray(data2) && data2.length > 0) {
+                            setAcademicYearId(data2[0].id);
+                        }
+                    });
+            }).catch(() => {});
+    }, []);
+
     const [selectedPromotionClass, setSelectedPromotionClass] = useState('');
     const [targetPromotionClass, setTargetPromotionClass] = useState('');
     const [promotionStudents, setPromotionStudents] = useState<any[]>([]); // Temp holder
@@ -107,6 +131,11 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
     const handleExecutePromotion = async () => {
         if (!selectedPromotionClass || !targetPromotionClass) return;
 
+        if (!academicYearId) {
+            toast.error('Tahun ajaran belum dimuat. Silakan tunggu atau refresh halaman.');
+            return;
+        }
+
         const toPromote = promotionStudents.filter(s => s.promoStatus === 'Naik');
         const count = toPromote.length;
 
@@ -136,7 +165,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
                 student_id: s.id.toString(),
                 from_class_id: selectedPromotionClass,
                 to_class_id: targetPromotionClass,
-                academic_year_id: 'ay-2025-2026',
+                academic_year_id: academicYearId,
                 promotion_date: new Date().toISOString().split('T')[0],
                 status: 'Naik Kelas',
                 processed_by: 'Admin'
@@ -155,6 +184,11 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
     const handleExecuteGraduation = async () => {
         const toGraduate = promotionStudents.filter(s => s.promoStatus === 'Lulus');
         const count = toGraduate.length;
+
+        if (!academicYearId) {
+            toast.error('Tahun ajaran belum dimuat. Silakan tunggu atau refresh halaman.');
+            return;
+        }
 
         if (confirm(`Yakin ingin meluluskan ${count} siswa dari kelas ${selectedPromotionClass}? Siswa akan dipindahkan ke data Alumni.`)) {
             const updatedStudents = toGraduate.map(s => ({
@@ -182,7 +216,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
                 student_id: s.id.toString(),
                 from_class_id: selectedPromotionClass,
                 to_class_id: 'Alumni',
-                academic_year_id: 'ay-2025-2026',
+                academic_year_id: academicYearId,
                 promotion_date: new Date().toISOString().split('T')[0],
                 status: 'Lulus',
                 processed_by: 'Admin'

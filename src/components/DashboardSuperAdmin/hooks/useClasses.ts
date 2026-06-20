@@ -141,19 +141,38 @@ export const useClasses = () => {
             // Sync to D1 in background
             try {
                 const token = localStorage.getItem('eduadmin_token');
-                let academicYearId = 'ay-2025-2026-2';
+                let academicYearId: string | null = null;
                 try {
-                    const activeRes = await fetch('/api/academic_years?is_active=eq.1', {
+                    // 1. Coba ambil tahun ajaran yang aktif
+                    let res = await fetch('/api/academic_years?is_active=eq.1', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (activeRes.ok) {
-                        const activeData = await activeRes.json();
-                        if (Array.isArray(activeData) && activeData.length > 0) {
-                            academicYearId = activeData[0].id;
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (Array.isArray(data) && data.length > 0) {
+                            academicYearId = data[0].id;
+                        }
+                    }
+
+                    // 2. Jika tidak ada yang aktif, ambil yang terbaru
+                    if (!academicYearId) {
+                        res = await fetch('/api/academic_years?order=start_date.desc&limit=1', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                                academicYearId = data[0].id;
+                            }
                         }
                     }
                 } catch (ayErr) {
-                    console.warn('Gagal mengambil tahun ajaran aktif:', ayErr);
+                    console.warn('Gagal mengambil tahun ajaran:', ayErr);
+                }
+
+                if (!academicYearId) {
+                    toast.error('Tidak ada tahun ajaran tersedia. Buat tahun ajaran di Pengaturan terlebih dahulu.');
+                    return false;
                 }
 
                 const res = await fetch('/api/classes', {
