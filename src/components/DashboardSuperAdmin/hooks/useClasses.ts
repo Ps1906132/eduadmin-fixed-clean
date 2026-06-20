@@ -141,42 +141,21 @@ export const useClasses = () => {
             // Sync to D1 in background
             try {
                 const token = localStorage.getItem('eduadmin_token');
-                const academicYearId = 'ay-2025-2026';
+                let academicYearId = 'ay-2025-2026-2';
                 try {
-                    const checkRes = await fetch(`/api/academic_years?id=eq.${academicYearId}`, {
+                    const activeRes = await fetch('/api/academic_years?is_active=eq.1', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    if (checkRes.ok) {
-                        const checkData = await checkRes.json();
-                        // Jika belum ada, insert academic_year baru
-                        if (!Array.isArray(checkData) || checkData.length === 0) {
-                            const insertAyRes = await fetch('/api/academic_years', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify({
-                                    id: academicYearId,
-                                    name: '2025/2026 - Semester 1',
-                                    start_date: '2025-07-01',
-                                    end_date: '2025-12-31',
-                                    semester: 1,
-                                    is_active: 1
-                                })
-                            });
-                            if (!insertAyRes.ok) {
-                                toast.error('Gagal membuat tahun ajaran');
-                                console.warn('Gagal membuat academic_year:', await insertAyRes.text());
-                            }
+                    if (activeRes.ok) {
+                        const activeData = await activeRes.json();
+                        if (Array.isArray(activeData) && activeData.length > 0) {
+                            academicYearId = activeData[0].id;
                         }
                     }
                 } catch (ayErr) {
-                    toast.error('Gagal cek/insert tahun ajaran');
-                    console.warn('Gagal cek/insert academic_year:', ayErr);
+                    console.warn('Gagal mengambil tahun ajaran aktif:', ayErr);
                 }
 
-                // Sekarang insert class dengan academic_year_id yang sudah dijamin ada
                 const res = await fetch('/api/classes', {
                     method: 'POST',
                     headers: {
