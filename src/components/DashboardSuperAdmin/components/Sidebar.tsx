@@ -9,6 +9,7 @@ import {
     BookOpen,
     Calendar,
     UserCheck,
+    User,
     ClipboardList,
     BarChart2,
     Book,
@@ -66,8 +67,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     onLogout,
     user
 }) => {
-    // Filter Menu Items based on Role (Jabatan)
-    const filteredMenuItems = React.useMemo(() => {
     // Normalize role sesuai PERJANJIAN_KERJA.md §3.2
     const normalizeRole = (role: string): string => {
       const r = (role || '').toLowerCase().trim();
@@ -82,7 +81,19 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const normalizedRole = normalizeRole(user?.roleCode || user?.role || user?.role_type || '');
 
+    const ROLE_LABELS: Record<string, string> = {
+        'ks': 'Kepala Sekolah',
+        'kurikulum': 'Kurikulum',
+        'keuangan': 'Keuangan / Bendahara',
+        'admin': 'Super Admin',
+        'guru': 'Guru',
+        'gb': 'Guru Bimbel',
+        'ortu': 'Orang Tua',
+    };
+    const displayRole = ROLE_LABELS[normalizedRole] || normalizedRole;
+
     // Filter Menu Items based on Role — sesuai PERJANJIAN_KERJA.md §3.4
+    const filteredMenuItems = React.useMemo(() => {
     const ROLE_MENUS: Record<string, string[]> = {
       admin:     ['dashboard','data_siswa','data_guru','kelas_wali','mapel',
                   'bimbingan_belajar','pengumuman','multimedia','ai_management',
@@ -109,19 +120,37 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     return (
         <aside className={`bg-[#1E3A8A] flex flex-col transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-20'} hidden md:flex rounded-r-[2rem] my-4 ml-4 shadow-2xl z-20`}>
-            <div className="h-20 flex items-center justify-between px-6">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#1E3A8A] font-bold text-lg backdrop-blur-sm overflow-hidden border border-white/20">
-                        {schoolSettingsGlobal.logo ? (
-                            <img src={schoolSettingsGlobal.logo} alt="Logo" className="w-full h-full object-contain" />
-                        ) : (
-                            "EA"
-                        )}
+            <div className="h-auto flex flex-col px-6 pt-5 pb-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#1E3A8A] font-bold text-lg backdrop-blur-sm overflow-hidden border border-white/20 shrink-0">
+                            {schoolSettingsGlobal.logo ? (
+                                <img src={schoolSettingsGlobal.logo} alt="Logo" className="w-full h-full object-contain" />
+                            ) : (
+                                "EA"
+                            )}
+                        </div>
+                        {isSidebarOpen && <span className="text-white font-bold text-sm tracking-tight leading-tight">{schoolSettingsGlobal.name || "EduAdmin"}</span>}
                     </div>
-                    {isSidebarOpen && <span className="text-white font-bold text-sm tracking-tight leading-tight">{schoolSettingsGlobal.name || "EduAdmin"}</span>}
+                    {isSidebarOpen && <button onClick={() => setSidebarOpen(false)} className="text-white/50 hover:text-white"><Menu size={24} /></button>}
+                    {!isSidebarOpen && <button onClick={() => setSidebarOpen(true)} className="absolute left-[70px] top-8 bg-[#1E3A8A] p-2 rounded-r-xl shadow-md text-white z-50"><Menu size={20} /></button>}
                 </div>
-                {isSidebarOpen && <button onClick={() => setSidebarOpen(false)} className="text-white/50 hover:text-white"><Menu size={24} /></button>}
-                {!isSidebarOpen && <button onClick={() => setSidebarOpen(true)} className="absolute left-[70px] top-8 bg-[#1E3A8A] p-2 rounded-r-xl shadow-md text-white z-50"><Menu size={20} /></button>}
+
+                {isSidebarOpen && user && (
+                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/10">
+                        <div className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center overflow-hidden shrink-0 border border-white/20">
+                            {user.avatar ? (
+                                <img src={user.avatar} alt={user.nama} className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={16} className="text-white/80" />
+                            )}
+                        </div>
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-white text-sm font-semibold truncate">{user.nama || 'User'}</span>
+                            <span className="text-blue-200 text-[10px] uppercase tracking-wider font-medium">{displayRole}</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <nav className="flex-1 overflow-y-auto py-2 space-y-1 custom-scrollbar">
