@@ -60,6 +60,29 @@ export const useSchedules = () => {
         };
 
         try {
+            // Fetch academic year dynamically
+            let academicYearId = '';
+            let ayRes = await fetch('/api/academic_years?is_active=eq.1', { headers });
+            if (ayRes.ok) {
+                const ayData = await ayRes.json();
+                if (Array.isArray(ayData) && ayData.length > 0) {
+                    academicYearId = ayData[0].id;
+                }
+            }
+            if (!academicYearId) {
+                ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', { headers });
+                if (ayRes.ok) {
+                    const ayData = await ayRes.json();
+                    if (Array.isArray(ayData) && ayData.length > 0) {
+                        academicYearId = ayData[0].id;
+                    }
+                }
+            }
+            if (!academicYearId) {
+                console.warn('Tahun ajaran tidak ditemukan, jadwal tidak tersimpan');
+                return;
+            }
+
             // For now, we sync the FIRST (active) schedule's items to the 'schedules' table
             const activeSchedule = newSchedules.find(s => s.status === 'published') || newSchedules[0];
             if (!activeSchedule) return;
@@ -85,7 +108,7 @@ export const useSchedules = () => {
                     subject_id: item.subjectId.toString(),
                     day_of_week: item.day,
                     period_id: item.period.toString(),
-                    academic_year_id: 'ay-2025-2026', // Fallback or dynamic
+                    academic_year_id: academicYearId,
                     is_active: 1
                 };
 

@@ -188,24 +188,25 @@ export const useStudents = () => {
 
             // 1. Create Profile first for authentication
             let profileId = `prof-std-${student.nis}`;
-            try {
-                const password = student.password || student.nis; // Default password is NIS
-                const passwordHash = bcrypt.hashSync(password, 10);
-                
-                await fetch('/api/profiles', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        id: profileId,
-                        email: student.nis, // Use NIS as username/email
-                        full_name: student.nama,
-                        password_hash: passwordHash,
-                        role: 'ortu',
-                        is_active: 1
-                    })
-                });
-            } catch (profErr) {
-                console.warn('Profile creation failed or already exists:', profErr);
+            const password = student.password || student.nis;
+            const passwordHash = bcrypt.hashSync(password, 10);
+
+            const profRes = await fetch('/api/profiles', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    id: profileId,
+                    email: student.nis,
+                    full_name: student.nama,
+                    password_hash: passwordHash,
+                    role: 'ortu',
+                    is_active: 1
+                })
+            }).catch(() => null);
+
+            if (!profRes || !profRes.ok) {
+                console.warn('Profile creation failed, student will be created without profile link');
+                profileId = null as any;
             }
 
             // 2. Insert student record (only valid columns matching D1 schema)
@@ -238,49 +239,81 @@ export const useStudents = () => {
             const classId = (student as any).classId;
             if (classId) {
                 try {
-                    const academicYearId = 'ay-2025-2026';
-                    const csRes = await fetch('/api/class_students', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            id: `cs-${student.id}-${classId}`,
-                            student_id: student.id.toString(),
-                            class_id: classId.toString(),
-                            academic_year_id: academicYearId,
-                            enrollment_date: new Date().toISOString().split('T')[0],
-                            is_active: 1
-                        })
-                    });
-                    if (!csRes.ok) {
-                        console.warn('Gagal menyimpan kelas siswa (class_students):', await csRes.text());
+                    let academicYearId: string | null = null;
+                    try {
+                        let ayRes = await fetch('/api/academic_years?is_active=eq.1', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (ayRes.ok) {
+                            const ayData = await ayRes.json();
+                            if (Array.isArray(ayData) && ayData.length > 0) {
+                                academicYearId = ayData[0].id;
+                            }
+                        }
+                        if (!academicYearId) {
+                            ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (ayRes.ok) {
+                                const ayData = await ayRes.json();
+                                if (Array.isArray(ayData) && ayData.length > 0) {
+                                    academicYearId = ayData[0].id;
+                                }
+                            }
+                        }
+                    } catch (ayErr) {
+                        console.warn('Gagal mengambil tahun ajaran:', ayErr);
+                    }
+
+                    if (!academicYearId) {
+                        toast.error('Tahun ajaran tidak ditemukan. Buat tahun ajaran di Pengaturan terlebih dahulu.');
+                    } else {
+                        const csRes = await fetch('/api/class_students', {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                id: `cs-${student.id}-${classId}`,
+                                student_id: student.id.toString(),
+                                class_id: classId.toString(),
+                                academic_year_id: academicYearId,
+                                enrollment_date: new Date().toISOString().split('T')[0],
+                                is_active: 1
+                            })
+                        });
+                        if (!csRes.ok) {
+                            const errText = await csRes.text();
+                            console.warn('Gagal menyimpan kelas siswa (class_students):', errText);
+                            toast.error('Siswa tersimpan tetapi gagal menautkan ke kelas');
+                        }
                     }
                 } catch (csErr) {
                     console.warn('Gagal sync class_students:', csErr);
+                    toast.error('Gagal menautkan siswa ke kelas');
                 }
             }
 
             // 3. Create parent profile for authentication
-            try {
-                const parentPassword = student.password || student.nis;
-                const parentPasswordHash = bcrypt.hashSync(parentPassword, 10);
-                const parentProfileId = `prof-ortu-${student.nis}`;
-                const parentUsername = `ortu_${student.nis}`;
+            const parentPassword = student.password || student.nis;
+            const parentPasswordHash = bcrypt.hashSync(parentPassword, 10);
+            const parentProfileId = `prof-ortu-${student.nis}`;
+            const parentUsername = `ortu_${student.nis}`;
 
-                await fetch('/api/profiles', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        id: parentProfileId,
-                        email: parentUsername,
-                        full_name: student.ayah || student.ibu || `Orang Tua ${student.nama}`,
-                        password_hash: parentPasswordHash,
-                        role: 'ortu',
-                        is_active: 1
-                    })
-                });
+            const parentProfRes = await fetch('/api/profiles', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    id: parentProfileId,
+                    email: parentUsername,
+                    full_name: student.ayah || student.ibu || `Orang Tua ${student.nama}`,
+                    password_hash: parentPasswordHash,
+                    role: 'ortu',
+                    is_active: 1
+                })
+            }).catch(() => null);
 
+            if (parentProfRes && parentProfRes.ok) {
                 // Link parent to student via parent_students
-                await fetch('/api/parent_students', {
+                const psRes = await fetch('/api/parent_students', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -288,9 +321,14 @@ export const useStudents = () => {
                         parent_id: parentProfileId,
                         student_id: student.id.toString()
                     })
-                });
-            } catch (parentErr) {
-                console.warn('Parent profile creation failed or already exists:', parentErr);
+                }).catch(() => null);
+
+                if (!psRes || !psRes.ok) {
+                    console.warn('Gagal menautkan orang tua ke siswa');
+                    toast.error('Akun orang tua dibuat tetapi gagal ditautkan ke siswa');
+                }
+            } else {
+                console.warn('Parent profile creation failed, parent login may not work');
             }
         } catch (err) {
             toast.error('Gagal menambah siswa');
@@ -404,19 +442,48 @@ export const useStudents = () => {
                                 if (Array.isArray(classData)) {
                                     const newClass = classData.find((c: any) => c.name === updates.kelas);
                                     if (newClass) {
-                                        const academicYearId = 'ay-2025-2026';
-                                        await fetch('/api/class_students', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                            body: JSON.stringify({
-                                                id: `cs-${idStr}-${newClass.id}`,
-                                                student_id: idStr,
-                                                class_id: newClass.id.toString(),
-                                                academic_year_id: academicYearId,
-                                                enrollment_date: new Date().toISOString().split('T')[0],
-                                                is_active: 1
-                                            })
-                                        });
+                                        let academicYearId: string | null = null;
+                                        try {
+                                            let ayRes = await fetch('/api/academic_years?is_active=eq.1', {
+                                                headers: { 'Authorization': `Bearer ${token}` }
+                                            });
+                                            if (ayRes.ok) {
+                                                const ayData = await ayRes.json();
+                                                if (Array.isArray(ayData) && ayData.length > 0) {
+                                                    academicYearId = ayData[0].id;
+                                                }
+                                            }
+                                            if (!academicYearId) {
+                                                ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', {
+                                                    headers: { 'Authorization': `Bearer ${token}` }
+                                                });
+                                                if (ayRes.ok) {
+                                                    const ayData = await ayRes.json();
+                                                    if (Array.isArray(ayData) && ayData.length > 0) {
+                                                        academicYearId = ayData[0].id;
+                                                    }
+                                                }
+                                            }
+                                        } catch (ayErr) {
+                                            console.warn('Gagal mengambil tahun ajaran:', ayErr);
+                                        }
+
+                                        if (academicYearId) {
+                                            await fetch('/api/class_students', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                body: JSON.stringify({
+                                                    id: `cs-${idStr}-${newClass.id}`,
+                                                    student_id: idStr,
+                                                    class_id: newClass.id.toString(),
+                                                    academic_year_id: academicYearId,
+                                                    enrollment_date: new Date().toISOString().split('T')[0],
+                                                    is_active: 1
+                                                })
+                                            });
+                                        } else {
+                                            toast.error('Tahun ajaran tidak ditemukan. Tidak dapat menautkan siswa ke kelas.');
+                                        }
                                     }
                                 }
                             }
@@ -428,29 +495,27 @@ export const useStudents = () => {
             }
 
             // Sync parent profile on any update (upsert — creates if not exists)
-            try {
-                const studentData = students.find(s => s.id.toString() === idStr);
-                const nis = updates.nis || studentData?.nis;
-                if (nis) {
-                    const parentProfileId = `prof-ortu-${nis}`;
-                    const parentUsername = `ortu_${nis}`;
-                    const parentName = updates.ayah || studentData?.ayah || updates.ibu || studentData?.ibu || `Orang Tua ${studentData?.nama || ''}`;
+            const studentData = students.find(s => s.id.toString() === idStr);
+            const nis = updates.nis || studentData?.nis;
+            if (nis) {
+                const parentProfileId = `prof-ortu-${nis}`;
+                const parentUsername = `ortu_${nis}`;
+                const parentName = updates.ayah || studentData?.ayah || updates.ibu || studentData?.ibu || `Orang Tua ${studentData?.nama || ''}`;
 
-                    // Upsert parent profile
-                    await fetch('/api/profiles', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({
-                            id: parentProfileId,
-                            email: parentUsername,
-                            full_name: parentName,
-                            role: 'ortu',
-                            is_active: 1
-                        })
-                    }).catch(() => null);
+                const parentProfRes = await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        id: parentProfileId,
+                        email: parentUsername,
+                        full_name: parentName,
+                        role: 'ortu',
+                        is_active: 1
+                    })
+                }).catch(() => null);
 
-                    // Also ensure parent_students link exists
-                    await fetch('/api/parent_students', {
+                if (parentProfRes && parentProfRes.ok) {
+                    const psRes = await fetch('/api/parent_students', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({
@@ -459,9 +524,11 @@ export const useStudents = () => {
                             student_id: idStr
                         })
                     }).catch(() => null);
+
+                    if (!psRes || !psRes.ok) {
+                        console.warn('Gagal menautkan orang tua ke siswa saat update');
+                    }
                 }
-            } catch (parentErr) {
-                console.warn('Gagal sync parent profile:', parentErr);
             }
         } catch (err) {
             toast.error('Gagal memperbarui data siswa');

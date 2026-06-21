@@ -252,12 +252,43 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
             return;
         }
 
+        const token = localStorage.getItem('eduadmin_token');
+        let academicYearId = '';
+        try {
+            let ayRes = await fetch('/api/academic_years?is_active=eq.1', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (ayRes.ok) {
+                const ayData = await ayRes.json();
+                if (Array.isArray(ayData) && ayData.length > 0) {
+                    academicYearId = ayData[0].id;
+                }
+            }
+            if (!academicYearId) {
+                ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (ayRes.ok) {
+                    const ayData = await ayRes.json();
+                    if (Array.isArray(ayData) && ayData.length > 0) {
+                        academicYearId = ayData[0].id;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Gagal mengambil tahun ajaran:', e);
+        }
+        if (!academicYearId) {
+            toast.error('Tahun ajaran tidak ditemukan. Simpan gagal.');
+            return;
+        }
+
         const records: GradeRecord[] = grades.flatMap(row => {
             const base = {
                 studentId: row.studentId.toString(),
                 subjectId: targetSubject.id.toString(),
                 classId: targetClass.id.toString(),
-                academicYearId: 'ay-2025-2026',
+                academicYearId,
             };
             const result: GradeRecord[] = [];
             for (let i = 1; i <= tpCount; i++) {

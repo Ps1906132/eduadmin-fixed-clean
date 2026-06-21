@@ -20,8 +20,27 @@ interface TambahKelasProps {
 const getToken = () => localStorage.getItem('eduadmin_token') || '';
 
 // ─── Helper: ambil academic year aktif ────────────────────────────────────────
-const getAcademicYear = () =>
-  localStorage.getItem('active_academic_year_id') || 'ay-2025-2026';
+const getAcademicYear = async (token: string) => {
+  try {
+    let res = await fetch('/api/academic_years?is_active=eq.1', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data[0].id;
+    }
+    res = await fetch('/api/academic_years?order=start_date.desc&limit=1', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data[0].id;
+    }
+  } catch (e) {
+    console.warn('Gagal mengambil tahun ajaran:', e);
+  }
+  return null;
+};
 
 const TambahKelas: React.FC<TambahKelasProps> = ({ onBack, kelasData, setKelasData }) => {
   // ── Modal Tambah/Edit ──────────────────────────────────────────────────────
@@ -146,6 +165,13 @@ const TambahKelas: React.FC<TambahKelasProps> = ({ onBack, kelasData, setKelasDa
 
         // Sync ke D1 — POST /api/classes
         try {
+          const academicYearId = await getAcademicYear(token);
+          if (!academicYearId) {
+            showToast('error', 'Tahun ajaran tidak ditemukan. Buat tahun ajaran di Pengaturan terlebih dahulu.');
+            setIsSaving(false);
+            return;
+          }
+
           const res = await fetch('/api/classes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -153,7 +179,7 @@ const TambahKelas: React.FC<TambahKelasProps> = ({ onBack, kelasData, setKelasDa
               id: tempId.toString(),
               name: nama,
               grade_level: tingkat,
-              academic_year_id: getAcademicYear(),
+              academic_year_id: academicYearId,
               is_active: 1,
             }),
           });

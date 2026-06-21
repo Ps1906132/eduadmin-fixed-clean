@@ -152,7 +152,36 @@ export const useGrades = () => {
 
     const saveReportData = async (classId: string, studentId: string, data: any) => {
         const records: GradeRecord[] = [];
-        const academicYearId = 'ay-2025-2026';
+        const token = localStorage.getItem('eduadmin_token');
+        let academicYearId = '';
+        try {
+            let ayRes = await fetch('/api/academic_years?is_active=eq.1', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (ayRes.ok) {
+                const ayData = await ayRes.json();
+                if (Array.isArray(ayData) && ayData.length > 0) {
+                    academicYearId = ayData[0].id;
+                }
+            }
+            if (!academicYearId) {
+                ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (ayRes.ok) {
+                    const ayData = await ayRes.json();
+                    if (Array.isArray(ayData) && ayData.length > 0) {
+                        academicYearId = ayData[0].id;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Gagal mengambil tahun ajaran:', e);
+        }
+        if (!academicYearId) {
+            console.error('Tahun ajaran tidak ditemukan, data rapor tidak tersimpan');
+            return { success: false, error: 'Tahun ajaran tidak ditemukan' };
+        }
 
         if (data.sikap) records.push({ studentId, classId, subjectId: 'system', academicYearId, gradeValue: 0, assessmentType: 'sikap', remarks: data.sikap });
         if (data.catatan) records.push({ studentId, classId, subjectId: 'system', academicYearId, gradeValue: 0, assessmentType: 'catatan_wali', remarks: data.catatan });

@@ -19,6 +19,7 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
     const [subjectList, setSubjectList] = useState<any[]>([]);
     const [allStudents, setAllStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [academicYearId, setAcademicYearId] = useState('');
 
     useEffect(() => {
         const loadMasterData = async () => {
@@ -45,6 +46,26 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
                     const data = await resStudents.json();
                     setAllStudents(Array.isArray(data) ? data : []);
                 }
+
+                // Fetch academic year
+                let ayId = '';
+                let ayRes = await fetch('/api/academic_years?is_active=eq.1', { headers });
+                if (ayRes.ok) {
+                    const ayData = await ayRes.json();
+                    if (Array.isArray(ayData) && ayData.length > 0) {
+                        ayId = ayData[0].id;
+                    }
+                }
+                if (!ayId) {
+                    ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', { headers });
+                    if (ayRes.ok) {
+                        const ayData = await ayRes.json();
+                        if (Array.isArray(ayData) && ayData.length > 0) {
+                            ayId = ayData[0].id;
+                        }
+                    }
+                }
+                if (ayId) setAcademicYearId(ayId);
             } catch (e) {
                 console.error('Failed to load master data:', e);
             } finally {
@@ -71,7 +92,7 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
             const dbGrades = await fetchGrades({
                 classId: targetClass?.id,
                 subjectId: targetSubject?.id,
-                academicYearId: 'ay-2025-2026'
+                academicYearId: academicYearId || undefined
             });
 
             if (classStudents.length > 0) {
@@ -97,7 +118,7 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
         if (classList.length > 0 && subjectList.length > 0 && allStudents.length > 0) {
             loadGrades();
         }
-    }, [selectedClass, selectedMapel, selectedSemester, classList, subjectList, allStudents, fetchGrades]);
+    }, [selectedClass, selectedMapel, selectedSemester, classList, subjectList, allStudents, fetchGrades, academicYearId]);
 
     const handleScoreChange = (studentId: number, value: string) => {
         setGradesData(prev =>
@@ -128,11 +149,16 @@ const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
             return;
         }
 
+        if (!academicYearId) {
+            alert('Tahun ajaran belum dimuat. Silakan refresh halaman.');
+            return;
+        }
+
         const records: GradeRecord[] = gradesData.map(row => ({
             studentId: row.studentId.toString(),
             subjectId: targetSubject.id.toString(),
             classId: targetClass.id.toString(),
-            academicYearId: 'ay-2025-2026',
+            academicYearId,
             gradeValue: row[tipeNilai] || 0,
             assessmentType: tipeNilai
         }));
