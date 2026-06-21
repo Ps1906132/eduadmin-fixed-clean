@@ -161,7 +161,6 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         { id: 4, nama: 'Guru Mata Pelajaran', kategori: 'Fungsional' },
         { id: 5, nama: 'Staff Tata Usaha', kategori: 'Staff' },
         { id: 6, nama: 'Operator Data', kategori: 'Teknis' },
-        { id: 7, nama: 'Guru Bimbel', kategori: 'Fungsional' },
     ]);
 
     // --- JADWAL state managed internally by JadwalPelajaranView ---
