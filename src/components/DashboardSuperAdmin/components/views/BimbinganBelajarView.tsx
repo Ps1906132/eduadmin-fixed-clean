@@ -93,8 +93,6 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         scheduleDay: t.schedule_day,
                         scheduleStart: t.schedule_start,
                         scheduleEnd: t.schedule_end,
-                        username: t.username,
-                        password: t.password,
                         studentsCount: Number(t.students_count || 0),
                         status: t.status
                     }));
@@ -251,9 +249,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         class_id: updatedTeacher.classId,
                         schedule_day: updatedTeacher.scheduleDay,
                         schedule_start: updatedTeacher.scheduleStart,
-                        schedule_end: updatedTeacher.scheduleEnd,
-                        username: updatedTeacher.username,
-                        password: updatedTeacher.password
+                        schedule_end: updatedTeacher.scheduleEnd
                     })
                 });
 
@@ -336,8 +332,6 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         schedule_day: newTeacher.scheduleDay,
                         schedule_start: newTeacher.scheduleStart,
                         schedule_end: newTeacher.scheduleEnd,
-                        username: newTeacher.username,
-                        password: newTeacher.password,
                         students_count: 0,
                         status: newTeacher.status
                     })
