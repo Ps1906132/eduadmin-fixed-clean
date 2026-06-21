@@ -297,6 +297,79 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
   }
 }
 
+async function handleChangePassword(request: Request, env: { DB: D1Database; JWT_SECRET?: string }): Promise<Response> {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const jwtSecret = getJwtSecret(env);
+    const decoded = await verifyJWT(token, jwtSecret);
+    if (!decoded) {
+      return new Response(JSON.stringify({ error: 'Token invalid atau expired' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { oldPassword, newPassword } = await request.json() as any;
+    if (!oldPassword || !newPassword) {
+      return new Response(JSON.stringify({ error: 'Password lama dan baru wajib diisi' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    if (newPassword.length < 8) {
+      return new Response(JSON.stringify({ error: 'Password baru minimal 8 karakter' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const profile = await env.DB.prepare(
+      'SELECT id, password_hash FROM profiles WHERE id = ? AND is_active = 1'
+    ).bind(decoded.id).first() as any;
+
+    if (!profile) {
+      return new Response(JSON.stringify({ error: 'Akun tidak ditemukan' }), {
+        status: 404, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const storedHash = profile.password_hash;
+    if (!storedHash || !storedHash.startsWith('$2')) {
+      return new Response(JSON.stringify({ error: 'Konfigurasi password tidak valid' }), {
+        status: 500, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const isValid = bcrypt.compareSync(oldPassword, storedHash);
+    if (!isValid) {
+      return new Response(JSON.stringify({ error: 'Password lama salah' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    await env.DB.prepare(
+      'UPDATE profiles SET password_hash = ?, updated_at = ? WHERE id = ?'
+    ).bind(newHash, new Date().toISOString(), decoded.id).run();
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200, headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
 async function incrementRateLimit(kv: KVNamespace, key: string, maxAttempts: number, windowMs: number): Promise<void> {
   const existing = await kv.get(key, 'json') as { count: number; firstAttempt: number } | null;
   const now = Date.now();
@@ -329,6 +402,9 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
   if (table === 'auth') {
     if (path[1] === 'login') {
       return handleLogin(request, env);
+    }
+    if (path[1] === 'change-password' && request.method === 'POST') {
+      return handleChangePassword(request, env);
     }
     return new Response('Not found', { status: 404 });
   }

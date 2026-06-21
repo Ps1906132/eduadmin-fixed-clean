@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 import { schoolSettingsGlobal, teachersDataGlobal, updateTeachersGlobal } from '@/data/sharedData';
 import { migrateLocalStorageToD1 } from '@/lib/migrateToD1';
-import { hashPassword, verifyPassword } from '@/utils/auth';
 import { db } from '@/lib/db';
 
 const D1MigratorView: React.FC = () => {
@@ -416,31 +415,31 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
         }
 
         try {
-            const { data: profile } = await (db.from('profiles').select('password_hash').eq('id', adminProfile.id).single() as any);
-            
-            if (!profile) {
-                toast.error('Akun admin tidak ditemukan!');
+            const token = localStorage.getItem('eduadmin_token');
+            const res = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    oldPassword: security.oldPass,
+                    newPassword: security.newPass
+                })
+            });
+
+            const result = await res.json();
+
+            if (!res.ok) {
+                toast.error(result.error || 'Gagal mengubah password');
                 return;
             }
-
-            const isOldCorrect = await verifyPassword(security.oldPass, profile.password_hash);
-            if (!isOldCorrect) {
-                toast.error('Password lama salah!');
-                return;
-            }
-
-            const hashed = await hashPassword(security.newPass);
-            
-            await (db.from('profiles').update({
-                password_hash: hashed,
-                updated_at: new Date().toISOString()
-            }).eq('id', adminProfile.id) as any);
 
             // Update Local Legacy
             const localTeachers = localStorage.getItem('teachers_data_v11');
             const teachers = localTeachers ? JSON.parse(localTeachers) : [...teachersDataGlobal];
-            const updatedTeachers = teachers.map((t: any) => 
-                t.id === adminProfile.id ? { ...t, password: hashed } : t
+            const updatedTeachers = teachers.map((t: any) =>
+                t.id === adminProfile.id ? { ...t, password: security.newPass } : t
             );
 
             localStorage.setItem('teachers_data_v11', JSON.stringify(updatedTeachers));
@@ -450,7 +449,7 @@ const Pengaturan: React.FC<PengaturanProps> = ({ schoolSettings, setSchoolSettin
             setSecurity({ ...security, oldPass: '', newPass: '', confirmPass: '' });
             addLog('Ubah password akun', 'profiles', adminProfile.id);
         } catch (error) {
-            toast.error('Gagal mengubah password.');
+            toast.error('Gagal mengubah password. Periksa koneksi server.');
         }
     };
 

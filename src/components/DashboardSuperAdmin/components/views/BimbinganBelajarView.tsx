@@ -353,7 +353,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                         email: `${username}@eduadmin.com`,
                         full_name: newTeacher.name,
                         password_hash: hashedPassword,
-                        role: 'guru',
+                        role: 'gb',
                         is_active: 1
                     })
                 });
@@ -361,6 +361,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 if (!profileRes.ok) {
                     toast.error('Gagal membuat akun login untuk guru bimbel');
                     console.error('Gagal membuat profile untuk guru bimbel');
+                    return;
                 }
 
                 const staffRes = await fetch('/api/staff', {
@@ -378,6 +379,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                 if (!staffRes.ok) {
                     toast.error('Gagal membuat data staff untuk guru bimbel');
                     console.error('Gagal membuat staff entry untuk guru bimbel');
+                    return;
                 }
 
                 toast.success(`Akun login: username="${username}", password="${rawPassword}"`, { duration: 8000 });
