@@ -52,7 +52,7 @@ export const useTeachers = () => {
                 }
                 
                 const mappedData: Teacher[] = (profiles as any[])
-                    .filter((p: any) => ['guru', 'admin', 'kurikulum', 'keuangan', 'ks', 'wk', 'gb', 'gm', 'operator'].includes(p.role))
+                    .filter((p: any) => ['guru', 'admin', 'kurikulum', 'keuangan', 'ks', 'wk', 'gm', 'operator'].includes(p.role))
                     .map((p: any) => {
                         const s = staffMap.get(p.id?.toString()) || {};
                         return {
