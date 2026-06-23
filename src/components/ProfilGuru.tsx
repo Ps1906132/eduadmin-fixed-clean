@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { ChevronLeft, Camera, LogOut, Save, User, BookOpen, Hash, MapPin } from 'lucide-react';
+import { ChevronLeft, Camera, LogOut, Save, User, BookOpen, Hash, Lock, Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface ProfilGuruProps {
     user: any;
@@ -18,6 +19,52 @@ const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout, nipOver
     // File upload ref
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [avatar, setAvatar] = useState(user?.avatar || null);
+
+    // Password state
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [showCurrentPw, setShowCurrentPw] = useState(false);
+    const [showNewPw, setShowNewPw] = useState(false);
+    const [showConfirmPw, setShowConfirmPw] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+
+    const handleChangePassword = async () => {
+        if (!currentPassword) { toast.error('Password saat ini harus diisi'); return; }
+        if (!newPassword) { toast.error('Password baru harus diisi'); return; }
+        if (newPassword.length < 6) { toast.error('Password baru minimal 6 karakter'); return; }
+        if (newPassword !== confirmPassword) { toast.error('Konfirmasi password tidak cocok'); return; }
+
+        setSavingPassword(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const res = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    user_id: user?.id,
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                }),
+            });
+
+            if (res.ok) {
+                toast.success('Password berhasil diubah!');
+                setShowPasswordForm(false);
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error(err?.message || 'Gagal mengubah password');
+            }
+        } catch {
+            toast.error('Koneksi gagal. Coba lagi.');
+        } finally {
+            setSavingPassword(false);
+        }
+    };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -118,6 +165,79 @@ const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout, nipOver
                                 + Tambah Mapel Lain
                             </button>
                         </div>
+                    </div>
+
+                    {/* Ganti Password */}
+                    <div className="border-t border-slate-100 pt-6">
+                        <button
+                            onClick={() => setShowPasswordForm(!showPasswordForm)}
+                            className="flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-[#004AAD] transition-colors w-full text-left"
+                        >
+                            <Lock size={16} className="text-slate-400" />
+                            {showPasswordForm ? 'Tutup' : 'Ganti Password'}
+                            <ChevronLeft size={16} className={`ml-auto transition-transform ${showPasswordForm ? 'rotate-90' : '-rotate-90'}`} />
+                        </button>
+
+                        {showPasswordForm && (
+                            <div className="mt-4 space-y-4 animate-in slide-in-from-top duration-200">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500">Password Saat Ini</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showCurrentPw ? 'text' : 'password'}
+                                            value={currentPassword}
+                                            onChange={(e) => setCurrentPassword(e.target.value)}
+                                            className="w-full p-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#004AAD]/20 focus:border-[#004AAD] transition-all pr-10"
+                                            placeholder="Masukkan password saat ini"
+                                        />
+                                        <button onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showCurrentPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500">Password Baru</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showNewPw ? 'text' : 'password'}
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            className="w-full p-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#004AAD]/20 focus:border-[#004AAD] transition-all pr-10"
+                                            placeholder="Minimal 6 karakter"
+                                        />
+                                        <button onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500">Konfirmasi Password Baru</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showConfirmPw ? 'text' : 'password'}
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className="w-full p-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#004AAD]/20 focus:border-[#004AAD] transition-all pr-10"
+                                            placeholder="Ulangi password baru"
+                                        />
+                                        <button onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showConfirmPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleChangePassword}
+                                    disabled={savingPassword}
+                                    className="w-full bg-[#004AAD] text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <Lock size={16} />
+                                    {savingPassword ? 'Menyimpan...' : 'Simpan Password Baru'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

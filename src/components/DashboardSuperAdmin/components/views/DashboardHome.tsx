@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     Users,
     UserCog,
@@ -11,7 +11,10 @@ import {
     BookOpen,
     Zap,
     BarChart2,
-    UserPlus
+    UserPlus,
+    GraduationCap,
+    TrendingUp,
+    FileText
 } from 'lucide-react';
 import { studentsDataGlobal, teachersDataGlobal, classesDataGlobal } from '../../../../data/sharedData';
 
@@ -24,8 +27,26 @@ interface DashboardHomeProps {
 }
 
 const DashboardHome: React.FC<DashboardHomeProps> = ({ students, classes, teachers, setActiveView, user }) => {
-    const role = user?.roleCode || user?.role || user?.role_type || '';
-    const lowerRole = role.toLowerCase();
+    const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+
+    // ── Finance summary for KS ──
+    const [financeSummary, setFinanceSummary] = useState<{ total: number; paid: number } | null>(null);
+    useEffect(() => {
+        if (roleCode !== 'ks') return;
+        const token = localStorage.getItem('eduadmin_token');
+        fetch('/api/student_bills', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then((data: any[]) => {
+                const bills = Array.isArray(data) ? data : [];
+                setFinanceSummary({
+                    total: bills.length,
+                    paid: bills.filter(b => b.status === 'Lunas' || b.status === 'paid').length
+                });
+            })
+            .catch(() => setFinanceSummary({ total: 0, paid: 0 }));
+    }, [roleCode]);
 
     let quickAccessItems = [
         { label: 'Input Nilai', icon: <BarChart2 size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'nilai' },
@@ -34,29 +55,29 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, classes, teache
         { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
     ];
 
-    if (lowerRole.includes('kurikulum')) {
+    if (roleCode === 'kurikulum') {
         quickAccessItems = [
             { label: 'Input Nilai', icon: <BarChart2 size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'nilai' },
             { label: 'Jadwal Kelas', icon: <Calendar size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'jadwal' },
             { label: 'Rapor Siswa', icon: <BookOpen size={24} />, color: 'bg-rose-50 text-rose-600', link: 'rapor' },
             { label: 'Mata Pelajaran', icon: <School size={24} />, color: 'bg-amber-50 text-amber-600', link: 'tambah_mapel_view' },
         ];
-    } else if (lowerRole.includes('tata usaha') || lowerRole.includes('keuangan')) {
+    } else if (roleCode === 'keuangan') {
         quickAccessItems = [
             { label: 'Kelola Keuangan', icon: <BarChart2 size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'keuangan' },
             { label: 'Tagihan Siswa', icon: <Zap size={24} />, color: 'bg-amber-50 text-amber-600', link: 'keuangan' },
             { label: 'Data Siswa', icon: <Users size={24} />, color: 'bg-blue-50 text-blue-600', link: 'data_siswa' },
-            { label: 'Laporan Keuangan', icon: <BookOpen size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'keuangan' },
+            { label: 'Laporan Keuangan', icon: <BookOpen size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'laporan' },
         ];
-    } else if (lowerRole.includes('multimedia')) {
+    } else if (roleCode === 'ks') {
         quickAccessItems = [
-            { label: 'Multimedia Studio', icon: <Zap size={24} />, color: 'bg-purple-50 text-purple-600', link: 'multimedia' },
-            { label: 'Broadcast Sekolah', icon: <Megaphone size={24} />, color: 'bg-rose-50 text-rose-600', link: 'pengumuman' },
-            { label: 'Bimbingan Belajar', icon: <BookOpen size={24} />, color: 'bg-blue-50 text-blue-600', link: 'tutoring' },
-            { label: 'Identitas Sekolah', icon: <Info size={24} />, color: 'bg-slate-50 text-slate-600', link: 'settings' },
+            { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
+            { label: 'Data Guru & Staff', icon: <UserCog size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'data_guru' },
+            { label: 'Laporan Keuangan', icon: <FileText size={24} />, color: 'bg-orange-50 text-orange-600', link: 'laporan' },
+            { label: 'Nilai', icon: <BarChart2 size={24} />, color: 'bg-emerald-50 text-emerald-600', link: 'nilai' },
         ];
     } else {
-        // Admin / Operator Data / Default
+        // admin
         quickAccessItems = [
             { label: 'Siswa Baru', icon: <UserPlus size={24} />, color: 'bg-cyan-50 text-cyan-600', link: 'data_siswa' },
             { label: 'Data Guru & Staff', icon: <UserCog size={24} />, color: 'bg-indigo-50 text-indigo-600', link: 'data_guru' },
@@ -120,18 +141,51 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, classes, teache
                     </div>
                 </div>
 
-                {/* Card 4: Jumlah Kehadiran (was Pemasukan) */}
-                <div className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-3xl shadow-sm border border-emerald-100/50 relative hover:shadow-md transition-all group">
-                    <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-bold text-slate-700 text-sm">Jumlah Kehadiran</h3>
-                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-emerald-500 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors"><UserCheck size={18} /></div>
+                {/* Card 4: Jumlah Kehadiran (non-KS) / Keuangan Tuntas/Tidak Tuntas (KS) */}
+                {roleCode === 'ks' ? (
+                    <div className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-3xl shadow-sm border border-emerald-100/50 relative hover:shadow-md transition-all group">
+                        <div className="flex justify-between items-start mb-3">
+                            <h3 className="font-bold text-slate-700 text-sm">Keuangan Tuntas</h3>
+                            <div className="p-1.5 bg-white rounded-lg shadow-sm text-emerald-500 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors"><TrendingUp size={18} /></div>
+                        </div>
+                        <div className="flex items-end gap-2">
+                            {financeSummary ? (
+                                <>
+                                    <span className="text-3xl font-bold text-slate-800 tracking-tight">
+                                        {financeSummary.total > 0
+                                            ? Math.round((financeSummary.paid / financeSummary.total) * 100)
+                                            : 0}%
+                                    </span>
+                                    <p className="text-xs text-slate-400 mb-1 font-medium">
+                                        {financeSummary.paid}/{financeSummary.total} Tagihan
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-3xl font-bold text-slate-800 tracking-tight">...</span>
+                                    <p className="text-xs text-slate-400 mb-1 font-medium">Memuat data</p>
+                                </>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-bold text-slate-800 tracking-tight">0%</span>
-                        <p className="text-xs text-slate-400 mb-1 font-medium">Hadir Hari Ini</p>
+                ) : (
+                    <div className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-3xl shadow-sm border border-emerald-100/50 relative hover:shadow-md transition-all group">
+                        <div className="flex justify-between items-start mb-3">
+                            <h3 className="font-bold text-slate-700 text-sm">Jumlah Kehadiran</h3>
+                            <div className="p-1.5 bg-white rounded-lg shadow-sm text-emerald-500 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors"><UserCheck size={18} /></div>
+                        </div>
+                        <div className="flex items-end gap-2">
+                            <span className="text-3xl font-bold text-slate-800 tracking-tight">0%</span>
+                            <p className="text-xs text-slate-400 mb-1 font-medium">Hadir Hari Ini</p>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
+
+            {/* ── Per-Tingkat Breakdown (Khusus KS) ── */}
+            {roleCode === 'ks' && (
+                <StudentTingkatBreakdown students={students} />
+            )}
 
             {/* New Section: Notifikasi & Akses Cepat */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto min-h-[24rem]">
@@ -168,6 +222,42 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ students, classes, teache
                             </button>
                         ))}
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/* ══════════════════════════════════════════════════════════════
+   StudentTingkatBreakdown — Statistik Siswa Per Tingkat (KS)
+   ══════════════════════════════════════════════════════════════ */
+const StudentTingkatBreakdown: React.FC<{ students: any[] }> = ({ students }) => {
+    const byTingkat = useMemo(() => {
+        const map: Record<string, number> = {};
+        students.forEach((s: any) => {
+            const t = s.tingkat || s.kelas?.replace(/[^0-9]/g, '') || '?';
+            map[t] = (map[t] || 0) + 1;
+        });
+        return map;
+    }, [students]);
+
+    return (
+        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100/50">
+            <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2">
+                <GraduationCap className="text-blue-500" size={20} /> Statistik Siswa Per Tingkat
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3">
+                {Object.entries(byTingkat).sort(([a], [b]) => Number(a) - Number(b)).map(([tingkat, count]) => (
+                    <div key={tingkat} className="bg-gradient-to-b from-blue-50 to-white p-4 rounded-xl border border-blue-100 text-center">
+                        <p className="text-xs font-bold text-slate-500 uppercase">Kelas {tingkat}</p>
+                        <p className="text-2xl font-bold text-blue-600 mt-1">{count}</p>
+                        <p className="text-xs text-slate-400">Siswa</p>
+                    </div>
+                ))}
+                <div className="bg-gradient-to-b from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 text-center">
+                    <p className="text-xs font-bold text-slate-500 uppercase">Total</p>
+                    <p className="text-2xl font-bold text-indigo-600 mt-1">{students.length}</p>
+                    <p className="text-xs text-slate-400">Siswa</p>
                 </div>
             </div>
         </div>

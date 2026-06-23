@@ -23,8 +23,9 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
     const [questions, setQuestions] = useState<any[]>([
         { id: 1, type: 'pg', question: '', options: ['', '', '', ''], correctAnswer: 0 }
     ]);
+    const [savingCbt, setSavingCbt] = useState(false);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!selectedClassId || !sessionTitle) {
             toast.error("Mohon pilih kelas dan isi judul sesi");
             return;
@@ -41,6 +42,51 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
         };
 
         addSession(Number(selectedClassId), newSession);
+
+        // Simpan soal quiz ke tabel exam_questions agar bisa dibaca CBTSiswa
+        const validQuestions = questions.filter((q: any) => q.question?.trim());
+        if (validQuestions.length > 0) {
+            setSavingCbt(true);
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                };
+                const examId = newSession.id.toString();
+
+                await Promise.all(validQuestions.map(async (q: any, i: number) => {
+                    const body: Record<string, any> = {
+                        id: `eq-${examId}-${i}`,
+                        exam_id: examId,
+                        question_number: i + 1,
+                        question_text: q.question,
+                        question_type: q.type === 'essay' ? 'essay' : 'pg',
+                        points: 1
+                    };
+                    if (q.type === 'pg' || !q.type) {
+                        body.option_a = q.options?.[0] || '';
+                        body.option_b = q.options?.[1] || '';
+                        body.option_c = q.options?.[2] || '';
+                        body.option_d = q.options?.[3] || '';
+                    }
+                    const res = await fetch('/api/exam_questions', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+                    if (!res.ok) {
+                        const err = await res.text();
+                        console.error(`Gagal simpan soal #${i + 1}:`, err);
+                    }
+                }));
+            } catch (e) {
+                console.error('Gagal simpan soal quiz ke exam_questions:', e);
+            } finally {
+                setSavingCbt(false);
+            }
+        }
+
         toast.success("Sesi Bimbel berhasil diterbitkan!");
         setView('list');
 
@@ -295,9 +341,10 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
                         <div className="pt-4 pb-8">
                             <button
                                 onClick={handleSave}
-                                className="w-full py-4 bg-green-500 text-white rounded-2xl font-bold shadow-lg shadow-green-200 hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                                disabled={savingCbt}
+                                className="w-full py-4 bg-green-500 text-white rounded-2xl font-bold shadow-lg shadow-green-200 hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                <CheckCircle size={20} /> Simpan Sesi & Terbitkan
+                                <CheckCircle size={20} /> {savingCbt ? 'Menyimpan Soal...' : 'Simpan Sesi & Terbitkan'}
                             </button>
                         </div>
                     </div>

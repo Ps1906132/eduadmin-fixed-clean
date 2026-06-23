@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { MenuItem } from '../types';
 import { schoolSettingsGlobal } from '../../../data/sharedData';
+import { mapRoleToCode } from '@/lib/rbac/roleMapping';
 
 interface SidebarProps {
     isSidebarOpen: boolean;
@@ -67,19 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onLogout,
     user
 }) => {
-    // Normalize role sesuai PERJANJIAN_KERJA.md §3.2
-    const normalizeRole = (role: string): string => {
-      const r = (role || '').toLowerCase().trim();
-      if (r === 'admin' || r === 'super admin' || r === 'operator data') return 'admin';
-      if (r === 'kurikulum' || r.includes('wakil kurikulum') || r.includes('waka kurikulum')) return 'kurikulum';
-      if (r === 'ks' || r.includes('kepala sekolah') || r.includes('kepsek')) return 'ks';
-      if (r === 'keuangan' || r.includes('bendahara')) return 'keuangan';
-      if (r.includes('guru') || r === 'wk' || r === 'gm' || r.includes('wali kelas') || r.includes('guru kelas') || r.includes('guru mata pelajaran')) return 'guru';
-      if (r === 'gb' || r.includes('bimbel') || r.includes('tentor')) return 'gb';
-      return 'ortu';
-    };
-
-    const normalizedRole = normalizeRole(user?.roleCode || user?.role || user?.role_type || '');
+    const normalizedRole = mapRoleToCode(user?.roleCode || user?.role || user?.role_type || '');
 
     const ROLE_LABELS: Record<string, string> = {
         'ks': 'Kepala Sekolah',

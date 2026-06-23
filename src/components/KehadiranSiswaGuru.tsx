@@ -10,7 +10,7 @@ interface KehadiranSiswaGuruProps {
 
 const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user }) => {
     const { saveAttendanceBatch, saving } = useAttendance();
-    const isWaliKelas = user?.role === 'Wali Kelas' || user?.jabatan === 'Guru Kelas' || !!user?.kelas;
+    const isWaliKelas = user?.jabatan === 'Guru Kelas' || user?.jabatan === 'Wali Kelas' || !!user?.kelas;
     const [selectedClass, setSelectedClass] = useState(user?.kelas || '1A');
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
     const [classesList, setClassesList] = useState<any[]>([]);

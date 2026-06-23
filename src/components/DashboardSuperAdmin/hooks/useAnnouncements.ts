@@ -57,6 +57,11 @@ export const useAnnouncements = () => {
         };
 
         try {
+            // Get current user ID for created_by / updated_by
+            const localUser = localStorage.getItem('eduadmin_user');
+            const currentUser = localUser ? JSON.parse(localUser) : null;
+            const userId = currentUser?.id || 'admin-001';
+
             const currentIds = new Set(prev.map(a => a.id.toString()));
             const nextIds = new Set(nextList.map(a => a.id.toString()));
 
@@ -83,7 +88,8 @@ export const useAnnouncements = () => {
                         end_date: item.endDate || null,
                         status: item.status,
                         is_pinned: item.isPinned ? 1 : 0,
-                        viewers: item.viewers
+                        viewers: item.viewers,
+                        created_by: userId
                     })
                 });
             }
@@ -120,7 +126,8 @@ export const useAnnouncements = () => {
                                 end_date: item.endDate || null,
                                 status: item.status,
                                 is_pinned: item.isPinned ? 1 : 0,
-                                viewers: item.viewers
+                                viewers: item.viewers,
+                                updated_at: new Date().toISOString()
                             })
                         });
                     }

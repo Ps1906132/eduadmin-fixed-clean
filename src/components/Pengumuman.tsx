@@ -27,11 +27,14 @@ import {
 
 interface PengumumanProps {
     classes?: string[];
+    user?: any;
 }
 
 
 
-const Pengumuman: React.FC<PengumumanProps> = ({ classes = [] }) => {
+const Pengumuman: React.FC<PengumumanProps> = ({ classes = [], user }) => {
+    const role = user?.roleCode || user?.role || user?.role_type;
+    const isKS = role?.toLowerCase() === 'ks';
     const [activeView, setActiveView] = useState<'dashboard' | 'list' | 'create' | 'detail'>('dashboard');
     const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
 
@@ -264,7 +267,7 @@ const Pengumuman: React.FC<PengumumanProps> = ({ classes = [] }) => {
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Target Penerima</label>
                             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
-                                {['Semua', 'Guru', 'Orang Tua'].map(t => (
+                                {(isKS ? ['Guru'] : ['Semua', 'Guru', 'Orang Tua']).map(t => (
                                     <button
                                         key={t}
                                         onClick={() => setFormData({ ...formData, target: t })}
@@ -401,9 +404,15 @@ const Pengumuman: React.FC<PengumumanProps> = ({ classes = [] }) => {
                                         <td className="p-4">
                                             <div className="flex justify-center gap-2">
                                                 <button onClick={() => { setSelectedAnnouncement(item); setActiveView('detail'); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="Lihat"><Eye size={16} /></button>
-                                                <button onClick={() => handleEdit(item)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit"><Edit3 size={16} /></button>
-                                                <button onClick={() => handleTogglePin(item.id)} className={`p-2 hover:bg-amber-50 rounded-lg ${item.isPinned ? 'text-amber-500' : 'text-slate-400'}`} title="Pin"><Pin size={16} /></button>
-                                                <button onClick={() => handleDelete(item.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg" title="Hapus"><Trash2 size={16} /></button>
+                                                {!isKS && (
+                                                    <button onClick={() => handleEdit(item)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit"><Edit3 size={16} /></button>
+                                                )}
+                                                {!isKS && (
+                                                    <button onClick={() => handleTogglePin(item.id)} className={`p-2 hover:bg-amber-50 rounded-lg ${item.isPinned ? 'text-amber-500' : 'text-slate-400'}`} title="Pin"><Pin size={16} /></button>
+                                                )}
+                                                {!isKS && (
+                                                    <button onClick={() => handleDelete(item.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg" title="Hapus"><Trash2 size={16} /></button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

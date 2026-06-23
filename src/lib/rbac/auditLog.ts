@@ -189,10 +189,26 @@ function _saveToLocalStorage(entry: AuditLogEntry): void {
 }
 
 async function _sendToApi(entry: AuditLogEntry): Promise<void> {
-  // Coba kirim ke backend API (akan gagal jika backend belum tersedia)
+  const token = typeof window !== 'undefined' ? localStorage.getItem('eduadmin_token') : null;
+  const payload: Record<string, any> = {
+    id: entry.id ? String(entry.id) : (Date.now().toString(36) + Math.random().toString(36).substr(2, 9)),
+    timestamp: entry.timestamp || new Date().toISOString(),
+    user_id: entry.user_id ? String(entry.user_id) : null,
+    user_role: entry.user_role,
+    module: entry.module,
+    action: entry.action,
+    table_name: entry.table_name || null,
+    record_id: entry.record_id ? String(entry.record_id) : null,
+    old_value: entry.old_values ? JSON.stringify(entry.old_values) : null,
+    new_value: entry.new_values ? JSON.stringify(entry.new_values) : null,
+    ip_address: entry.ip_address || null,
+    user_agent: entry.user_agent || null,
+    status: entry.status,
+    error_message: entry.error_message || null,
+  };
   await fetch(API_ENDPOINT, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(entry),
+    headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+    body:    JSON.stringify(payload),
   });
 }

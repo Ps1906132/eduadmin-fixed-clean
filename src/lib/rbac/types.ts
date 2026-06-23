@@ -16,18 +16,16 @@
 // Role lain (guru, wali kelas, dsb.) dipertahankan apa adanya (tidak diubah)
 // =============================================================================
 
-export type AdminRoleType = 'admin' | 'kurikulum' | 'keuangan';
+export type AdminRoleType = 'admin' | 'kurikulum' | 'keuangan' | 'ks';
 
 export type AllRoleType =
   | 'admin'
   | 'kurikulum'
   | 'keuangan'
-  | 'multimedia'  // role existing, dipertahankan
-  | 'ks'          // kepala sekolah, dipertahankan
-  | 'wk'          // wali kelas, dipertahankan
-  | 'gm'          // guru mapel, dipertahankan
-  | 'gb'          // guru bimbel, dipertahankan
-  | 'ot';         // orang tua, dipertahankan
+  | 'ks'
+  | 'guru'
+  | 'gb'
+  | 'ortu';
 
 // =============================================================================
 // CRUD ACTIONS

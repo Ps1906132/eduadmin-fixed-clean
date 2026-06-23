@@ -89,6 +89,24 @@ const KEUANGAN_PERMISSIONS: ModulePermission[] = [
   { module: 'nilai',         actions: READ_ONLY, notes: 'View for performance bonus' },
 ];
 
+/**
+ * KS ROLE (KEPALA SEKOLAH) — READ ONLY pada semua modul yang dapat diakses
+ * Sumber: PERJANJIAN_KERJA.md §2.3 — "Kepala sekolah hanya bisa melihat data"
+ */
+const KS_PERMISSIONS: ModulePermission[] = [
+  // Data Master — READ ONLY
+  { module: 'data-siswa',     actions: READ_ONLY, notes: 'READ ONLY' },
+  { module: 'data-guru',      actions: READ_ONLY, notes: 'READ ONLY' },
+  { module: 'kelas-wali',     actions: READ_ONLY, notes: 'READ ONLY' },
+  { module: 'mata-pelajaran', actions: READ_ONLY, notes: 'READ ONLY' },
+
+  // Modul Akademik — READ ONLY
+  { module: 'nilai',          actions: READ_ONLY, notes: 'READ ONLY' },
+  { module: 'pengumuman',     actions: READ_ONLY, notes: 'READ ONLY (bisa CREATE)' },
+  { module: 'multimedia',     actions: READ_ONLY, notes: 'READ ONLY' },
+  { module: 'laporan',        actions: READ_ONLY, notes: 'READ ONLY' },
+];
+
 // =============================================================================
 // PERMISSION MATRIX MAP (role → permissions[])
 // =============================================================================
@@ -97,6 +115,7 @@ export const PERMISSION_MATRIX: Record<AdminRoleType, ModulePermission[]> = {
   admin:     ADMIN_PERMISSIONS,
   kurikulum: KURIKULUM_PERMISSIONS,
   keuangan:  KEUANGAN_PERMISSIONS,
+  ks:        KS_PERMISSIONS,
 };
 
 // =============================================================================

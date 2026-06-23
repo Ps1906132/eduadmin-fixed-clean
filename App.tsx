@@ -28,6 +28,7 @@ import DashboardSuperAdmin from '@/components/DashboardSuperAdmin';
 
 import ProtectedModule from '@/components/ProtectedModule';
 import { logAuthEvent } from '@/lib/rbac/auditLog';
+import { mapRoleToCode } from '@/lib/rbac/roleMapping';
 
 import { schoolSettingsGlobal, updateAnnouncementsGlobal } from '@/data/sharedData';
 
@@ -44,18 +45,6 @@ const App: React.FC = () => {
 
   // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // --- UTILS ---
-  const mapRoleToCode = (role: string) => {
-    const r = (role || '').toLowerCase().trim();
-    if (r === 'admin' || r === 'super admin' || r === 'operator data') return 'admin';
-    if (r === 'kurikulum' || r.includes('wakil kurikulum') || r.includes('waka kurikulum')) return 'kurikulum';
-    if (r === 'ks' || r.includes('kepala sekolah') || r.includes('kepsek')) return 'ks';
-    if (r === 'keuangan' || r.includes('bendahara')) return 'keuangan';
-    if (r.includes('guru') || r === 'wk' || r === 'gm' || r.includes('wali kelas') || r.includes('guru kelas') || r.includes('guru mata pelajaran')) return 'guru';
-    if (r === 'gb' || r.includes('bimbel') || r.includes('tentor')) return 'gb';
-    return 'ortu'; // default: siswa, murid, orang tua, wali murid, parent
-  };
-
   const [userRole, setUserRole] = useState(() => {
     const saved = localStorage.getItem('eduadmin_user');
     if (saved) {

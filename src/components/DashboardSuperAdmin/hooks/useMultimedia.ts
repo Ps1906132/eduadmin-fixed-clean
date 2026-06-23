@@ -14,6 +14,12 @@ export const useMultimedia = () => {
 
     const [channelSettings, _setChannelSettings] = useState(multimediaSettingsGlobal);
 
+    const getUserId = () => {
+        const localUser = localStorage.getItem('eduadmin_user');
+        const currentUser = localUser ? JSON.parse(localUser) : null;
+        return currentUser?.id || 'admin-001';
+    };
+
     // Fetch from D1
     const fetchMultimedia = useCallback(async () => {
         setLoading(true);
@@ -21,22 +27,22 @@ export const useMultimedia = () => {
             const token = localStorage.getItem('eduadmin_token');
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const [broadcastsRes, settingsRes] = await Promise.all([
-                fetch('/api/broadcasts', { headers }),
+            const [videosRes, settingsRes] = await Promise.all([
+                fetch('/api/multimedia_videos', { headers }),
                 fetch('/api/multimedia_settings', { headers })
             ]);
 
-            if (broadcastsRes.ok) {
-                const broadcastsData = await broadcastsRes.json();
-                if (Array.isArray(broadcastsData) && broadcastsData.length > 0) {
-                    const mappedBroadcasts: Broadcast[] = broadcastsData.map(b => ({
-                        id: b.id ? (isNaN(Number(b.id)) ? b.id : Number(b.id)) : Date.now(),
-                        title: b.title,
-                        url: b.url,
-                        description: b.description || '',
-                        category: b.category || 'Edukasi',
-                        status: b.status || 'Draft',
-                        date: b.date || new Date().toLocaleDateString('id-ID')
+            if (videosRes.ok) {
+                const videosData = await videosRes.json();
+                if (Array.isArray(videosData)) {
+                    const mappedBroadcasts: Broadcast[] = videosData.map(v => ({
+                        id: v.id ? (isNaN(Number(v.id)) ? v.id : Number(v.id)) : Date.now(),
+                        title: v.title || '',
+                        url: v.youtube_url || '',
+                        description: v.description || '',
+                        category: 'Edukasi',
+                        status: v.is_active === 1 || v.is_active === true ? 'Active' : 'Draft',
+                        date: v.created_at ? new Date(v.created_at).toLocaleDateString('id-ID') : new Date().toLocaleDateString('id-ID')
                     }));
                     _setBroadcasts(mappedBroadcasts);
                     updateBroadcastsGlobal(mappedBroadcasts);
@@ -67,7 +73,7 @@ export const useMultimedia = () => {
         fetchMultimedia();
     }, [fetchMultimedia]);
 
-    // Background sync to Cloudflare D1 (Broadcasts)
+    // Background sync to Cloudflare D1 (multimedia_videos)
     const syncBroadcasts = async (prev: Broadcast[], next: Broadcast[]) => {
         const token = localStorage.getItem('eduadmin_token');
         if (!token) return;
@@ -75,6 +81,7 @@ export const useMultimedia = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         };
+        const userId = getUserId();
 
         try {
             const currentIds = new Set(prev.map(b => b.id.toString()));
@@ -83,23 +90,24 @@ export const useMultimedia = () => {
             // 1. Handle Deleted
             const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
             for (const id of deletedIds) {
-                await fetch(`/api/broadcasts?id=eq.${id}`, { method: 'DELETE', headers });
+                await fetch(`/api/multimedia_videos?id=eq.${id}`, { method: 'DELETE', headers });
             }
 
             // 2. Handle Inserted
             const inserted = next.filter(b => !currentIds.has(b.id.toString()));
             for (const item of inserted) {
-                await fetch('/api/broadcasts', {
+                await fetch('/api/multimedia_videos', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
                         id: item.id.toString(),
+                        setting_id: 'singleton',
                         title: item.title,
-                        url: item.url,
+                        youtube_url: item.url,
                         description: item.description,
-                        category: item.category,
-                        status: item.status,
-                        date: item.date
+                        sort_order: 0,
+                        is_active: item.status === 'Active' ? 1 : 0,
+                        created_by: userId
                     })
                 });
             }
@@ -114,28 +122,25 @@ export const useMultimedia = () => {
                         current.title !== item.title ||
                         current.url !== item.url ||
                         current.description !== item.description ||
-                        current.category !== item.category ||
-                        current.status !== item.status ||
-                        current.date !== item.date;
+                        current.status !== item.status;
 
                     if (hasChanged) {
-                        await fetch(`/api/broadcasts?id=eq.${idStr}`, {
+                        await fetch(`/api/multimedia_videos?id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
                             body: JSON.stringify({
                                 title: item.title,
-                                url: item.url,
+                                youtube_url: item.url,
                                 description: item.description,
-                                category: item.category,
-                                status: item.status,
-                                date: item.date
+                                is_active: item.status === 'Active' ? 1 : 0,
+                                updated_at: new Date().toISOString()
                             })
                         });
                     }
                 }
             }
         } catch (err) {
-            console.error('Failed to sync broadcasts with D1:', err);
+            console.error('Failed to sync multimedia videos with D1:', err);
         }
     };
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CirclePlus, UserCog, ChevronLeft, ChevronRight, CheckSquare, Search, Save, Loader2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { CirclePlus, UserCog, ChevronLeft, ChevronRight, CheckSquare, Search, Save, Loader2, BarChart3, Users, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAttendance } from '../../hooks/useAttendance';
 import { AttendanceRecord, attendanceDataGlobal } from '../../../../data/sharedData';
@@ -8,12 +8,30 @@ interface AbsensiViewProps {
     students: any[];
     classes: any[];
     subjects: any[];
+    user?: any;
 }
 
 const AbsensiView: React.FC<AbsensiViewProps> = ({
     students,
     classes,
-    subjects
+    subjects,
+    user
+}) => {
+    const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+    const isKurikulum = roleCode === 'kurikulum';
+
+    if (isKurikulum) {
+        return <AbsensiRekap students={students} classes={classes} attendanceData={attendanceDataGlobal} />;
+    }
+
+    return <AbsensiInput students={students} classes={classes} subjects={subjects} />;
+};
+
+/* ============================================================
+   KOMPONEN INPUT ABSENSI (untuk Admin / Guru)
+   ============================================================ */
+const AbsensiInput: React.FC<{ students: any[]; classes: any[]; subjects: any[] }> = ({
+    students, classes, subjects
 }) => {
     const { saveAttendanceBatch, saving } = useAttendance();
     const [absenDate, setAbsenDate] = useState<Date>(new Date());
@@ -65,7 +83,6 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in flex flex-col">
             {/* Header and Controls */}
             <div className="flex flex-col gap-6 mb-6">
-                {/* Title & Teacher Info */}
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                         <CirclePlus size={28} className="text-blue-600" />
@@ -80,9 +97,7 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                     </div>
                 </div>
 
-                {/* Filter Bar */}
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-wrap gap-4 items-end">
-                    {/* Class Selector */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Kelas</label>
                         <select
@@ -94,19 +109,15 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                         </select>
                     </div>
 
-                    {/* Subject Selector */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Mata Pelajaran</label>
-                        <select
-                            className="h-10 px-3 rounded-lg border border-slate-200 bg-white font-medium text-slate-700 outline-none focus:border-blue-500 min-w-[200px]"
-                        >
+                        <select className="h-10 px-3 rounded-lg border border-slate-200 bg-white font-medium text-slate-700 outline-none focus:border-blue-500 min-w-[200px]">
                             <option value="">Pilih Pelajaran...</option>
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             <option value="tematik">Tematik (Bahasa, IPA, IPS)</option>
                         </select>
                     </div>
 
-                    {/* Semester Selector */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Semester</label>
                         <select
@@ -119,7 +130,6 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                         </select>
                     </div>
 
-                    {/* Date Navigator */}
                     <div className="flex flex-col gap-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">Tanggal</label>
                         <div className="flex items-center gap-2">
@@ -135,7 +145,6 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                                 onChange={(e) => {
                                     if (e.target.value) {
                                         const parts = e.target.value.split('-');
-                                        // Construct date in local time to avoid timezone offsets
                                         const newDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
                                         setAbsenDate(newDate);
                                     }
@@ -151,14 +160,12 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                         </div>
                     </div>
 
-                    {/* Mode Switch */}
                     <div className="flex bg-slate-200 p-1 rounded-lg self-end ml-auto">
                         <button onClick={() => setAbsenMode('today')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${absenMode === 'today' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Hari Ini</button>
                         <button onClick={() => setAbsenMode('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${absenMode === 'history' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Histori</button>
                     </div>
                 </div>
 
-                {/* Actions Bar */}
                 <div className="flex flex-wrap justify-between items-center gap-4">
                     <div className="flex items-center gap-2">
                         <select
@@ -173,7 +180,6 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                                         if (existingIndex >= 0) {
                                             newAttendanceData[existingIndex] = { ...newAttendanceData[existingIndex], status: e.target.value as any };
                                         } else {
-                                            // Create new properly typed record
                                             newAttendanceData.push({
                                                 id: `att-${Date.now()}-${student.id}`,
                                                 studentId: student.id,
@@ -187,7 +193,7 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                                         }
                                     });
                                     setAttendanceData(newAttendanceData);
-                                    e.target.value = ''; // Reset select
+                                    e.target.value = '';
                                 }
                             }}
                             className="h-10 px-3 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 outline-none focus:border-blue-500 bg-white min-w-[140px]"
@@ -199,12 +205,10 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                             <option value="A">Alfa (A)</option>
                         </select>
 
-
                         <button
                             onClick={() => {
                                 const currentDateStr = absenDate.toISOString().split('T')[0];
                                 const filteredStudents = students.filter(s => s.kelas === absenClass);
-                                // Find if all displayed students are checked FOR THIS DATE
                                 const allChecked = filteredStudents.every(s => ((attendanceData.find(d => d.studentId === s.id && d.date === currentDateStr) as any)?.checked));
 
                                 const newAttendanceData = [...attendanceData];
@@ -214,7 +218,6 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                                     if (existingIndex >= 0) {
                                         newAttendanceData[existingIndex] = { ...newAttendanceData[existingIndex], checked: !allChecked } as any;
                                     } else {
-                                        // Initialize if strictly checking before data exists
                                         newAttendanceData.push({
                                             id: `att-${Date.now()}-${student.id}`,
                                             studentId: student.id,
@@ -260,7 +263,6 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                 </div>
             </div>
 
-            {/* Table */}
             <div className="flex-1 overflow-auto rounded-2xl border border-slate-200 shadow-inner bg-slate-50 relative">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-[#F8FAFC] text-slate-700 font-bold sticky top-0 z-10 shadow-sm border-b border-slate-200">
@@ -268,14 +270,12 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                             <th className="p-4 border-r border-slate-200 text-center w-16">No</th>
                             <th className="p-4 border-r border-slate-200">Nama Siswa</th>
                             <th className="p-4 border-r border-slate-200 text-center w-40">Kehadiran</th>
-
                             <th className="p-4 border-r border-slate-200 min-w-[200px]">Catatan</th>
                             <th className="p-4 text-center w-16"><CheckSquare size={16} className="mx-auto text-slate-400" /></th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">
                         {students.filter(s => s.kelas === absenClass).filter(s => s.nama.toLowerCase().includes(absenSearchQuery.toLowerCase())).map((student, i) => {
-                            // Get current data or default
                             const currentDateStr = absenDate.toISOString().split('T')[0];
                             const data = (attendanceData.find(d => d.studentId === student.id && d.date === currentDateStr) || { status: 'H', note: '', checked: false }) as any;
 
@@ -342,6 +342,193 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
                                 </tr>
                             );
                         })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+/* ============================================================
+   KOMPONEN REKAP ABSENSI (untuk Kurikulum — view-only)
+   ============================================================ */
+const AbsensiRekap: React.FC<{ students: any[]; classes: any[]; attendanceData: AttendanceRecord[] }> = ({
+    students, classes, attendanceData
+}) => {
+    const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '');
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const classStudents = useMemo(() =>
+        students.filter((s: any) => s.kelas === selectedClass),
+        [students, selectedClass]
+    );
+
+    const filteredAttendance = useMemo(() =>
+        attendanceData.filter(a =>
+            a.date && a.date.startsWith(selectedMonth) &&
+            classStudents.some((s: any) => s.id === a.studentId)
+        ),
+        [attendanceData, selectedMonth, classStudents]
+    );
+
+    const stats = useMemo(() => {
+        const total = classStudents.length;
+        const records = filteredAttendance;
+        const totalEntries = records.length || 1; // avoid div by zero
+
+        const hadir = records.filter(r => r.status === 'H' || r.status === 'Hadir').length;
+        const sakit = records.filter(r => r.status === 'S' || r.status === 'Sakit').length;
+        const izin = records.filter(r => r.status === 'I' || r.status === 'Izin').length;
+        const alfa = records.filter(r => r.status === 'A' || r.status === 'Alpha').length;
+
+        return { total, totalEntries, hadir, sakit, izin, alfa };
+    }, [classStudents, filteredAttendance]);
+
+    const perStudentStats = useMemo(() => {
+        return classStudents.map((s: any) => {
+            const records = filteredAttendance.filter(r => r.studentId === s.id);
+            const hadir = records.filter(r => r.status === 'H' || r.status === 'Hadir').length;
+            const sakit = records.filter(r => r.status === 'S' || r.status === 'Sakit').length;
+            const izin = records.filter(r => r.status === 'I' || r.status === 'Izin').length;
+            const alfa = records.filter(r => r.status === 'A' || r.status === 'Alpha').length;
+            const total = hadir + sakit + izin + alfa;
+            const pctHadir = total > 0 ? Math.round((hadir / total) * 100) : 0;
+            return { ...s, hadir, sakit, izin, alfa, total, pctHadir };
+        }).filter((s: any) => s.nama.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [classStudents, filteredAttendance, searchQuery]);
+
+    const months = useMemo(() => {
+        const arr: string[] = [];
+        const now = new Date();
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+        }
+        return arr;
+    }, []);
+
+    return (
+        <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in flex flex-col">
+            <div className="flex flex-col gap-6 mb-6">
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <BarChart3 size={28} className="text-blue-600" />
+                        <div>
+                            <h2 className="text-xl font-bold text-[#1E1B4B]">Rekap Absensi</h2>
+                            <p className="text-slate-500 text-sm">Statistik kehadiran siswa per kelas (view-only)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-wrap gap-4 items-end">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Kelas</label>
+                        <select
+                            value={selectedClass}
+                            onChange={(e) => setSelectedClass(e.target.value)}
+                            className="h-10 px-3 rounded-lg border border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 bg-white"
+                        >
+                            {classes.map((c: any) => <option key={c.id} value={c.nama}>{c.nama}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Bulan</label>
+                        <select
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="h-10 px-3 rounded-lg border border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 bg-white"
+                        >
+                            {months.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex-1" />
+
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Cari Siswa..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-10 pl-9 pr-4 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 w-48 md:w-64"
+                        />
+                    </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    {[
+                        { label: 'Total Siswa', value: stats.total, icon: <Users size={20} />, color: 'bg-blue-100 text-blue-600' },
+                        { label: 'Hadir', value: `${stats.totalEntries > 0 ? Math.round((stats.hadir / stats.totalEntries) * 100) : 0}%`, icon: <TrendingUp size={20} />, color: 'bg-green-100 text-green-600' },
+                        { label: 'Sakit', value: `${stats.totalEntries > 0 ? Math.round((stats.sakit / stats.totalEntries) * 100) : 0}%`, icon: <Clock size={20} />, color: 'bg-blue-100 text-blue-600' },
+                        { label: 'Izin', value: `${stats.totalEntries > 0 ? Math.round((stats.izin / stats.totalEntries) * 100) : 0}%`, icon: <AlertTriangle size={20} />, color: 'bg-orange-100 text-orange-600' },
+                        { label: 'Alfa', value: `${stats.totalEntries > 0 ? Math.round((stats.alfa / stats.totalEntries) * 100) : 0}%`, icon: <AlertTriangle size={20} />, color: 'bg-red-100 text-red-600' },
+                    ].map((card, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start mb-2">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.color}`}>
+                                    {card.icon}
+                                </div>
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-800">{card.value}</h3>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{card.label}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Per-student Table */}
+            <div className="flex-1 overflow-auto rounded-2xl border border-slate-200 shadow-inner bg-slate-50 relative">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-[#F8FAFC] text-slate-700 font-bold sticky top-0 z-10 shadow-sm border-b border-slate-200">
+                        <tr>
+                            <th className="p-4 border-r border-slate-200 text-center w-12">No</th>
+                            <th className="p-4 border-r border-slate-200">Nama Siswa</th>
+                            <th className="p-4 border-r border-slate-200 text-center w-16">Hadir</th>
+                            <th className="p-4 border-r border-slate-200 text-center w-16">Sakit</th>
+                            <th className="p-4 border-r border-slate-200 text-center w-16">Izin</th>
+                            <th className="p-4 border-r border-slate-200 text-center w-16">Alfa</th>
+                            <th className="p-4 border-r border-slate-200 text-center w-16">Total</th>
+                            <th className="p-4 text-center w-24">% Hadir</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-100">
+                        {perStudentStats.map((s: any, i: number) => (
+                            <tr key={s.id} className="hover:bg-blue-50/20 transition-colors">
+                                <td className="p-3 text-center text-slate-500 font-medium">{i + 1}</td>
+                                <td className="p-3 font-bold text-slate-700">{s.nama}</td>
+                                <td className="p-3 text-center font-bold text-green-600">{s.hadir}</td>
+                                <td className="p-3 text-center text-blue-600">{s.sakit}</td>
+                                <td className="p-3 text-center text-orange-600">{s.izin}</td>
+                                <td className="p-3 text-center text-red-600">{s.alfa}</td>
+                                <td className="p-3 text-center text-slate-600">{s.total}</td>
+                                <td className="p-3 text-center">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        s.pctHadir >= 90 ? 'bg-green-100 text-green-700' :
+                                        s.pctHadir >= 75 ? 'bg-blue-100 text-blue-700' :
+                                        s.pctHadir >= 50 ? 'bg-orange-100 text-orange-700' :
+                                        'bg-red-100 text-red-700'
+                                    }`}>
+                                        {s.pctHadir}%
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                        {perStudentStats.length === 0 && (
+                            <tr>
+                                <td colSpan={8} className="p-8 text-center text-slate-400">
+                                    Belum ada data absensi untuk periode ini
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

@@ -1,155 +1,212 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Megaphone, Plus, Trash2, Edit, Calendar, Clock, X, Send } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, Search, Users, Phone, User, Mail, Briefcase } from 'lucide-react';
 
 interface InformasiWaliKelasProps {
     onBack: () => void;
+    user?: any;
 }
 
-const InformasiWaliKelas: React.FC<InformasiWaliKelasProps> = ({ onBack }) => {
-    // Dummy Data Pengumuman
-    const [infos, setInfos] = useState<any[]>([]);
+const InformasiWaliKelas: React.FC<InformasiWaliKelasProps> = ({ onBack, user }) => {
+    const [students, setStudents] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
-    const [isCreating, setIsCreating] = useState(false);
-    const [newTitle, setNewTitle] = useState('');
-    const [newContent, setNewContent] = useState('');
+    const waliKelas = user?.kelas || '';
 
-    const handleSave = () => {
-        if (!newTitle || !newContent) return;
+    useEffect(() => {
+        if (!waliKelas) { setLoading(false); return; }
 
-        const newInfo = {
-            id: Date.now(),
-            title: newTitle,
-            content: newContent,
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            active: true
+        const loadStudents = async () => {
+            setLoading(true);
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                const res = await fetch('/api/students', { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    const filtered = Array.isArray(data) ? data.filter((s: any) => s.kelas === waliKelas) : [];
+                    setStudents(filtered);
+                }
+            } catch (e) {
+                console.error('Failed to load students:', e);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        setInfos([newInfo, ...infos]);
-        setIsCreating(false);
-        setNewTitle('');
-        setNewContent('');
-    };
+        loadStudents();
+    }, [waliKelas]);
 
-    const handleDelete = (id: number) => {
-        if (confirm('Apakah Anda yakin ingin menghapus informasi ini?')) {
-            setInfos(infos.filter(info => info.id !== id));
-        }
-    };
+    const filteredStudents = students.filter((s: any) =>
+        (s.full_name || s.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.nis || '').includes(searchQuery)
+    );
 
-    return (
-        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col h-full">
-            {/* Header */}
-            <div className="p-4 md:p-6 border-b border-slate-100 flex items-center gap-3 shrink-0 bg-white sticky top-0 z-20">
-                <button onClick={onBack} className="p-2 md:p-2.5 hover:bg-slate-100 rounded-xl md:rounded-2xl transition-all text-slate-500">
-                    <ChevronLeft size={22} />
-                </button>
-                <div className="flex-1">
-                    <h2 className="font-bold text-base md:text-xl text-slate-800 flex items-center gap-2">
-                        <div className="p-1.5 md:p-2 bg-orange-50 rounded-lg md:rounded-xl">
-                            <Megaphone className="text-orange-600 w-4 h-4 md:w-5 md:h-5" />
+    if (selectedStudent) {
+        const s = selectedStudent;
+        return (
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col h-full">
+                <div className="p-6 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center gap-3 mb-4">
+                        <button onClick={() => setSelectedStudent(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                            <ChevronLeft size={24} />
+                        </button>
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0">
+                            {(s.full_name || s.nama || '?').charAt(0)}
                         </div>
-                        Informasi Kelas
-                    </h2>
-                </div>
-                <button
-                    onClick={() => setIsCreating(true)}
-                    className="bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 active:scale-95"
-                >
-                    <Plus size={18} /> <span className="hidden sm:inline">Buat Info</span>
-                </button>
-            </div>
-
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/20">
-                {infos.length === 0 ? (
-                    <div className="py-20 flex flex-col items-center justify-center text-slate-300">
-                        <Megaphone size={64} className="opacity-10 mb-4" />
-                        <p className="font-bold">Belum ada informasi kelas</p>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-slate-800 text-lg truncate">{s.full_name || s.nama}</h3>
+                            <p className="text-xs text-slate-500">NIS: {s.nis || '-'} • Kelas {s.kelas || waliKelas}</p>
+                        </div>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {infos.map((info) => (
-                            <div key={info.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:border-orange-200 hover:shadow-md transition-all group relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
 
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-2 bg-orange-50 text-orange-600 rounded-xl transition-colors group-hover:bg-orange-600 group-hover:text-white">
-                                            <Megaphone size={16} />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                                <Calendar size={10} /> {info.date}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit size={14} /></button>
-                                        <button onClick={() => handleDelete(info.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={14} /></button>
-                                    </div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-5 border border-blue-100">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <User size={14} /> Data Siswa
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">NIS</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.nis || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">NISN</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.nisn || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Kelas</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.kelas || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Tempat Lahir</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.tempat_lahir || s.tempatLahir || '-'}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Tanggal Lahir</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.tanggal_lahir || s.tanggalLahir || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl p-5 border border-orange-100">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Users size={14} /> Data Orang Tua
+                        </h4>
+                        <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+                            <div className="col-span-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><User size={12} /> Nama Ayah</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.parent_name || s.nama_ayah || s.namaAyah || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><Briefcase size={12} /> Pekerjaan Ayah</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.pekerjaan_ayah || s.pekerjaanAyah || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><User size={12} /> Nama Ibu</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.mother_name || s.nama_ibu || s.namaIbu || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><Briefcase size={12} /> Pekerjaan Ibu</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.pekerjaan_ibu || s.pekerjaanIbu || '-'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><Mail size={12} /> Alamat</p>
+                                <p className="font-bold text-slate-800 text-sm">{s.alamat || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Phone size={14} /> Kontak
+                        </h4>
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-emerald-100">
+                                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                    <Phone size={16} />
                                 </div>
-
-                                <h3 className="font-bold text-slate-800 text-base mb-2 group-hover:text-orange-600 transition-colors uppercase leading-tight">{info.title}</h3>
-                                <p className="text-slate-500 text-xs leading-relaxed line-clamp-3 mb-4">{info.content}</p>
-
-                                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                                        <Clock size={12} /> {info.time} WIB
-                                    </div>
-                                    <button className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline">Detail Info</button>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">No. Handphone / WhatsApp</p>
+                                    <p className="font-bold text-slate-800 text-sm">{s.no_hp || s.noHp || '-'}</p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col h-full">
+            <div className="p-6 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3 mb-4">
+                    <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                        <ChevronLeft size={24} />
+                    </button>
+                    <div className="flex-1">
+                        <h3 className="font-bold text-slate-800 text-lg">Informasi Siswa</h3>
+                        <p className="text-xs text-slate-500">
+                            {waliKelas ? `Kelas ${waliKelas} — ${students.length} siswa` : 'Wali Kelas'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Cari siswa..."
+                        className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                    />
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+                {loading ? (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+                ) : filteredStudents.length === 0 ? (
+                    <div className="text-center py-16 text-slate-400">
+                        <Users size={48} className="mx-auto mb-4 opacity-30" />
+                        <p className="font-bold">Tidak ada siswa</p>
+                        <p className="text-sm">Belum ada siswa terdaftar di kelas ini.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {filteredStudents.map((student: any) => (
+                            <button
+                                key={student.id}
+                                onClick={() => setSelectedStudent(student)}
+                                className="w-full text-left p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all bg-white shadow-sm group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
+                                        {(student.full_name || student.nama || '?').charAt(0)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-600 transition-colors">
+                                            {student.full_name || student.nama}
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 font-medium">NIS: {student.nis || '-'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-slate-400">{student.parent_name || student.namaAyah || '-'}</p>
+                                        <p className="text-[10px] text-slate-300">{student.no_hp || student.noHp || ''}</p>
+                                    </div>
+                                </div>
+                            </button>
                         ))}
                     </div>
                 )}
             </div>
-
-            {/* MODAL: BUAT INFORMASI BARU */}
-            {isCreating && (
-                <div className="fixed inset-0 bg-[#0F172A]/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-[400px] rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-                        <div className="p-6 md:p-8">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-800">Buat Info Baru</h3>
-                                <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Judul Informasi</label>
-                                    <input
-                                        type="text"
-                                        value={newTitle}
-                                        onChange={(e) => setNewTitle(e.target.value)}
-                                        placeholder="Contoh: Pengumuman Besok"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-orange-500 outline-none transition-all text-sm font-medium"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Isi Informasi</label>
-                                    <textarea
-                                        rows={4}
-                                        value={newContent}
-                                        onChange={(e) => setNewContent(e.target.value)}
-                                        placeholder="Tuliskan isi informasi di sini..."
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-orange-500 outline-none transition-all text-sm font-medium resize-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                                <button onClick={() => setIsCreating(false)} className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors order-2 sm:order-1">Batal</button>
-                                <button onClick={handleSave} className="flex-1 py-3.5 bg-orange-600 text-white rounded-2xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all flex items-center justify-center gap-2 text-sm order-1 sm:order-2">
-                                    <Send size={16} /> Publikasikan
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import {
     BarChart3,
@@ -6,10 +6,175 @@ import {
     Wallet,
     TrendingUp,
     TrendingDown,
+    BookOpen,
+    CheckCircle,
+    AlertTriangle,
+    GraduationCap,
 } from 'lucide-react';
 import { useFinance } from './DashboardSuperAdmin/hooks/useFinance';
+import { attendanceDataGlobal } from '../data/sharedData';
 
-const Laporan: React.FC = () => {
+interface LaporanProps {
+    user?: any;
+    students?: any[];
+    classes?: any[];
+}
+
+const Laporan: React.FC<LaporanProps> = ({ user, students, classes }) => {
+    const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+    const isKurikulum = roleCode === 'kurikulum';
+
+    if (isKurikulum) {
+        return <LaporanAkademik students={students || []} classes={classes || []} />;
+    }
+
+    return <LaporanKeuangan />;
+};
+
+/* ============================================================
+   LAPORAN AKADEMIK (untuk Kurikulum / KS)
+   ============================================================ */
+export const LaporanAkademik: React.FC<{ students: any[]; classes: any[] }> = ({ students, classes }) => {
+    const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '');
+    const [selectedSemester, setSelectedSemester] = useState('Ganjil');
+
+    const classStudents = useMemo(() =>
+        students.filter((s: any) => !selectedClass || s.kelas === selectedClass),
+        [students, selectedClass]
+    );
+
+    const totalKelas = useMemo(() => new Set(students.map((s: any) => s.kelas)).size, [students]);
+
+    // Attendance stats from global data
+    const attendanceStats = useMemo(() => {
+        const records = attendanceDataGlobal.filter((a: any) =>
+            classStudents.some((s: any) => s.id === a.studentId)
+        );
+        const total = records.length || 1;
+        const hadir = records.filter((r: any) => r.status === 'H' || r.status === 'Hadir').length;
+        return {
+            totalRecords: records.length,
+            pctHadir: Math.round((hadir / total) * 100),
+        };
+    }, [classStudents]);
+
+    // Simulated grade stats (read from localStorage)
+    const gradeStats = useMemo(() => {
+        if (!selectedClass) return { avgScore: 0, studentsWithData: 0 };
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('grades_v2_'));
+        let totalScore = 0;
+        let count = 0;
+        keys.forEach(key => {
+            try {
+                const data = JSON.parse(localStorage.getItem(key) || '[]');
+                data.forEach((g: any) => {
+                    if (g.finalScore > 0) { totalScore += g.finalScore; count++; }
+                });
+            } catch { }
+        });
+        return {
+            avgScore: count > 0 ? Math.round(totalScore / count) : 0,
+            studentsWithData: count,
+        };
+    }, [selectedClass]);
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <GraduationCap size={28} className="text-blue-600" />
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Laporan Akademik</h2>
+                        <p className="text-slate-500 text-sm">Statistik hasil belajar dan kehadiran per kelas</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <select
+                        value={selectedClass}
+                        onChange={(e) => setSelectedClass(e.target.value)}
+                        className="h-10 px-4 rounded-xl border border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 bg-white text-sm"
+                    >
+                        <option value="">Semua Kelas</option>
+                        {classes.map((c: any) => <option key={c.id} value={c.nama}>{c.nama}</option>)}
+                    </select>
+                    <select
+                        value={selectedSemester}
+                        onChange={(e) => setSelectedSemester(e.target.value)}
+                        className="h-10 px-4 rounded-xl border border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 bg-white text-sm"
+                    >
+                        <option value="Ganjil">Ganjil</option>
+                        <option value="Genap">Genap</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+                {[
+                    { label: 'Total Siswa', value: classStudents.length, icon: <Users size={24} />, bg: 'bg-blue-500' },
+                    { label: 'Jumlah Kelas', value: totalKelas, icon: <BookOpen size={24} />, bg: 'bg-emerald-500' },
+                    { label: 'Rata-rata Kehadiran', value: `${attendanceStats.pctHadir}%`, icon: <CheckCircle size={24} />, bg: 'bg-green-500' },
+                    { label: 'Rata-rata Nilai', value: gradeStats.avgScore > 0 ? gradeStats.avgScore : '-', icon: <BarChart3 size={24} />, bg: 'bg-purple-500' },
+                ].map((card, i) => (
+                    <div key={i} className={`${card.bg} text-white p-6 rounded-3xl shadow-lg relative overflow-hidden`}>
+                        <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-bl-[4rem]"></div>
+                        <div className="relative z-10">
+                            <p className="text-white/80 text-xs font-bold uppercase tracking-wider mb-1">{card.label}</p>
+                            <h3 className="text-3xl font-bold">{card.value}</h3>
+                            <div className="mt-2 text-white/60">{card.icon}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Per-class Breakdown Table */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex-1 overflow-auto">
+                <h3 className="font-bold text-lg text-slate-800 mb-4">Rincian per Kelas</h3>
+                <table className="w-full text-left text-sm">
+                    <thead>
+                        <tr className="border-b-2 border-slate-200">
+                            <th className="p-3 text-slate-600 font-bold">Kelas</th>
+                            <th className="p-3 text-slate-600 font-bold text-center">Jumlah Siswa</th>
+                            <th className="p-3 text-slate-600 font-bold text-center">% Hadir</th>
+                            <th className="p-3 text-slate-600 font-bold text-center">Rata-rata Nilai</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(selectedClass ? [selectedClass] : [...new Set(students.map((s: any) => s.kelas))]).map(kelas => {
+                            const siswa = students.filter((s: any) => s.kelas === kelas);
+                            const attRecords = attendanceDataGlobal.filter((a: any) =>
+                                siswa.some((s: any) => s.id === a.studentId)
+                            );
+                            const totalAtt = attRecords.length || 1;
+                            const hadirAtt = attRecords.filter((r: any) => r.status === 'H' || r.status === 'Hadir').length;
+                            const pctHadir = Math.round((hadirAtt / totalAtt) * 100);
+
+                            return (
+                                <tr key={kelas} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <td className="p-3 font-bold text-slate-800">Kelas {kelas}</td>
+                                    <td className="p-3 text-center text-slate-600">{siswa.length}</td>
+                                    <td className="p-3 text-center">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                            pctHadir >= 90 ? 'bg-green-100 text-green-700' :
+                                            pctHadir >= 75 ? 'bg-blue-100 text-blue-700' :
+                                            'bg-orange-100 text-orange-700'
+                                        }`}>{pctHadir}%</span>
+                                    </td>
+                                    <td className="p-3 text-center text-slate-600">{gradeStats.avgScore > 0 ? gradeStats.avgScore : '-'}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+/* ============================================================
+   LAPORAN KEUANGAN (untuk Admin / KS / Keuangan)
+   ============================================================ */
+const LaporanKeuangan: React.FC = () => {
     const [activeTab, setActiveTab] = useState('ringkasan');
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 

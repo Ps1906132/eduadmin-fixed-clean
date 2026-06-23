@@ -37,6 +37,7 @@ import RaporView from './DashboardSuperAdmin/components/views/RaporView';
 import RaporSettingsView from './DashboardSuperAdmin/components/views/RaporSettingsView';
 import CetakKartuLoginView from './DashboardSuperAdmin/components/views/CetakKartuLoginView';
 import NilaiView from './DashboardSuperAdmin/components/views/NilaiView';
+import { LaporanAkademik } from './Laporan';
 import DataSiswaView from './DashboardSuperAdmin/components/views/DataSiswaView';
 import UploadSiswaView from './DashboardSuperAdmin/components/views/UploadSiswaView';
 import UploadPerKelasView from './DashboardSuperAdmin/components/views/UploadPerKelasView';
@@ -117,6 +118,7 @@ const ProtectedViewWrapper: React.FC<{
 };
 
 const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
+    const roleCode = (user?.roleCode || user?.role || user?.role_type || '').toLowerCase();
     const [activeView, setActiveView] = useState('dashboard');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
 
@@ -506,7 +508,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* --- VIEW: DATA SISWA & KELAS --- */}
                     {activeView === 'data_siswa' && (
-                        <DataSiswaView setActiveView={setActiveView} />
+                        <DataSiswaView setActiveView={setActiveView} user={user} students={students} classes={classes} />
                     )}
 
                     {/* --- VIEW: CETAK KARTU LOGIN --- */}
@@ -523,6 +525,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             teachers={teachers}
                             students={students}
                             setShowAddClassModal={setShowAddClassModal}
+                            user={user}
                             handleDeleteClass={handleDeleteClass}
                             handleEditClass={(cls) => {
                                 setEditItem(cls);
@@ -582,8 +585,24 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     )}
 
                     {/* --- VIEW: DATA GURU & STAFF (Refactored) --- */}
-                    {activeView === 'data_guru' && (
+                    {activeView === 'data_guru' && roleCode !== 'ks' && (
                         <GuruStaffView setActiveView={setActiveView} user={user} />
+                    )}
+                    {activeView === 'data_guru' && roleCode === 'ks' && (
+                        <TeacherDataView
+                            teachers={teachers}
+                            setTeachers={setTeachers}
+                            positions={positions}
+                            setActiveView={setActiveView}
+                            handleDownloadTemplate={handleDownloadTemplate}
+                            handleUploadClick={handleUploadClick}
+                            handleAddTeacher={handleAddTeacher}
+                            handleSaveData={handleSaveData}
+                            handleEditItem={handleEditItem}
+                            handleDeleteTeacher={handleDeleteTeacher}
+                            classes={classes}
+                            user={user}
+                        />
                     )}
 
                     {/* --- VIEW: TAMBAH DATA GURU (Refactored) --- */}
@@ -620,6 +639,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleEditItem={handleEditItem}
                             setActiveView={setActiveView}
                             handleDeleteSubject={handleDeleteSubject}
+                            user={user}
                         />
                     )}
 
@@ -660,6 +680,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             students={students}
                             classes={classes}
                             subjects={subjects}
+                            user={user}
                         />
                     )}
 
@@ -722,15 +743,20 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     )}
 
                     {/* --- VIEW: INPUT NILAI (NEW) --- */}
-                    {activeView === 'nilai' && (
+                    {activeView === 'nilai' && roleCode !== 'ks' && (
                         <div className="h-full">
                             <NilaiView setActiveView={setActiveView} user={user} />
+                        </div>
+                    )}
+                    {activeView === 'nilai' && roleCode === 'ks' && (
+                        <div className="bg-white rounded-[2.5rem] p-8 h-full shadow-sm animate-in fade-in overflow-auto">
+                            <LaporanAkademik students={students} classes={classes} />
                         </div>
                     )}
 
                     {/* --- VIEW: KEUANGAN --- */}
                     {activeView === 'keuangan' && (
-                        <KeuanganView students={students} user={user} />
+                        <KeuanganView students={students} classes={classes} user={user} />
                     )}
 
                     {
@@ -763,13 +789,13 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     }
 
                     {/* --- VIEW: PENGUMUMAN --- */}
-                    {activeView === 'pengumuman' && <PengumumanView />}
+                    {activeView === 'pengumuman' && <PengumumanView user={user} />}
 
                     {/* --- VIEW: LAPORAN --- */}
-                    {activeView === 'laporan' && <LaporanView />}
+                    {activeView === 'laporan' && <LaporanView user={user} students={students} classes={classes} />}
 
                     {/* --- VIEW: MULTIMEDIA --- */}
-                    {activeView === 'multimedia' && <MultimediaView />}
+                    {activeView === 'multimedia' && <MultimediaView user={user} />}
 
                     {/* --- VIEW: PENGATURAN --- */}
                     {activeView === 'settings' && <SettingsView />}
@@ -794,7 +820,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* MODAL INPUT KELAS */}
                     {
-                        showAddClassModal && (
+                        showAddClassModal && roleCode !== 'ks' && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
@@ -888,7 +914,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* MODAL INPUT SISWA */}
                     {
-                        showAddStudentModal && (
+                        showAddStudentModal && roleCode !== 'ks' && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl p-8 max-h-[90vh] overflow-y-auto">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
@@ -1379,7 +1405,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     }
                     {/* MODAL PLOTTING GURU MAPEL */}
                     {
-                        showPlottingModal && (
+                        showPlottingModal && roleCode !== 'ks' && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg p-8">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
@@ -1493,7 +1519,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
             </div>
 
             {/* Modal Konfirmasi Hapus Kelas */}
-            {confirmDeleteClassId !== null && (
+            {confirmDeleteClassId !== null && roleCode !== 'ks' && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setConfirmDeleteClassId(null); setDeleteClassError(null); }} />
                     <div className="relative bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">

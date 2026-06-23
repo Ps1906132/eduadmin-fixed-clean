@@ -19,7 +19,7 @@ import ProfilGuru from './ProfilGuru';
 import JadwalBimbelGuru from './JadwalBimbelGuru';
 import KehadiranBimbelGuru from './KehadiranBimbelGuru';
 import InputNilaiBimbelGuru from './InputNilaiBimbelGuru';
-import InformasiWaliKelas from './InformasiWaliKelas';
+
 import { useTutoring } from './DashboardSuperAdmin/hooks/useTutoring';
 
 interface DashboardGuruBimbelProps {
@@ -30,7 +30,7 @@ interface DashboardGuruBimbelProps {
 
 const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogout, schoolName = "SD Normal Islam Samarinda" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'latihan' | 'quran' | 'channel' | 'ai' | 'informasi' | 'notepad' | 'notifikasi' | 'profile'>('home');
+    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'latihan' | 'quran' | 'informasi' | 'notifikasi' | 'profile'>('home');
 
     const { tutoringClasses, enrollments, addSession } = useTutoring();
 
@@ -70,17 +70,9 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
         fetchTeacherProfile();
     }, [user]);
 
-    // Ambil ID guru dari profile (format: bimbel_{teacherId})
-    const myTeacherId = (() => {
-        if (typeof user?.id === 'string' && user.id.startsWith('bimbel_')) {
-            return parseInt(user.id.replace('bimbel_', ''), 10);
-        }
-        return null;
-    })();
-
-    // Filter kelas yang diajar oleh guru ini (cocokkan berdasarkan ID, bukan nama)
+    // Filter kelas yang diajar oleh guru ini (cocokkan berdasarkan nama guru)
     const myTutoringClasses = tutoringClasses.filter(c =>
-        c.id === myTeacherId || user?.role === 'admin'
+        c.teacher === user?.nama
     );
 
     // Filter enrollments untuk kelas yang diajar guru ini
@@ -100,24 +92,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
         { id: 'latihan', label: 'Materi dan Latihan', icon: <BookOpen size={24} />, color: 'bg-rose-500' },
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
         { id: 'informasi', label: 'Informasi', icon: <Megaphone size={24} />, color: 'bg-orange-500' },
-    ];
-
-    // Dummy Announcements
-    const announcements = [
-        {
-            id: 1,
-            title: 'Peringatan Hari Santri',
-            content: 'Besok hari santri dimohon kepada siswa-siswi memakai pakaian islami dan jangan lupa bawa sajadah kita akan sholat Dhuha berjamaah.',
-            date: '2025-10-21',
-            time: '08:00'
-        },
-        {
-            id: 2,
-            title: 'Belajar Di Rumah',
-            content: 'Besok Belajar Dirumah karena ada Pelatihan Guru tingkat Kota.',
-            date: '2025-11-25',
-            time: '07:30'
-        }
     ];
 
     return (
@@ -218,7 +192,7 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                                 classes={myTutoringClasses}
                             />
                         ) : activeView === 'informasi' ? (
-                            <InformasiWaliKelas onBack={() => setActiveView('home')} />
+                            <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (

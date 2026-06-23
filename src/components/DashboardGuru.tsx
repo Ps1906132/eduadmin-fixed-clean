@@ -213,7 +213,7 @@ const DashboardGuru: React.FC<DashboardGuruProps> = ({ user, onLogout, schoolNam
                         ) : activeView === 'raport' ? (
                             <RapotSiswa onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'informasi' ? (
-                            <InformasiWaliKelas onBack={() => setActiveView('home')} />
+                            <InformasiWaliKelas onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (

@@ -1,6 +1,14 @@
 import { useState, useEffect, FC } from 'react';
-import { Plus, Edit, Trash2, Key, Settings, Eye, EyeOff, CheckCircle, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, Key, Settings, CheckCircle, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import { db, isConfigured as isDbConfigured, getConfigError } from '@/lib/db';
+
+const getUserId = (): string | null => {
+  try {
+    const raw = localStorage.getItem('eduadmin_user');
+    if (!raw) return null;
+    return JSON.parse(raw).id || null;
+  } catch { return null; }
+};
 
 interface AIManagementProvider {
   id: string;
@@ -73,7 +81,16 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
       if (providersRes.error) throw providersRes.error;
       if (keysRes.error) throw keysRes.error;
 
-      setProviders(providersRes.data || []);
+      setProviders((providersRes.data || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        provider_type: p.type,
+        model_name: p.model_name || '',
+        description: p.description || '',
+        is_active: !!p.is_active,
+        max_tokens: p.max_tokens || 4096,
+        temperature: p.temperature ?? 0.7
+      })));
       setApiKeys(keysRes.data || []);
     } catch (error) {
       console.error('Error loading AI data:', error);
@@ -84,9 +101,15 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
 
   const handleAddProvider = async () => {
     try {
+      const payload = {
+        id: 'ai-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+        name: providerForm.name,
+        type: providerForm.provider_type,
+        is_active: 1
+      };
       const { data, error } = await (db
         .from('ai_providers')
-        .insert([providerForm])
+        .insert([payload])
         .select() as any);
 
       if (error) throw error;
@@ -103,9 +126,14 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
     if (!editingProvider) return;
 
     try {
+      const payload = {
+        name: providerForm.name,
+        type: providerForm.provider_type,
+        is_active: editingProvider.is_active ? 1 : 0
+      };
       const { data, error } = await (db
         .from('ai_providers')
-        .update(providerForm)
+        .update(payload)
         .eq('id', editingProvider.id) as any);
 
       if (error) throw error;
@@ -137,13 +165,16 @@ const AIManagementView: FC<AIManagementViewProps> = ({ onBack }) => {
 
   const handleAddApiKey = async () => {
     try {
+      const payload = {
+        id: 'key-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+        provider_id: selectedProvider,
+        api_key: keyForm.api_key,
+        is_active: 1,
+        created_by: getUserId()
+      };
       const { data, error } = await (db
         .from('ai_api_keys')
-        .insert([{
-          provider_id: selectedProvider,
-          api_key: keyForm.api_key,
-          expires_at: keyForm.expires_at || null
-        }])
+        .insert([payload])
         .select() as any);
 
       if (error) throw error;

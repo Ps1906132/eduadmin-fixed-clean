@@ -9,6 +9,25 @@ interface TabunganSiswaProps {
     user?: any;
 }
 
+const formatDateLocale = (dateStr: string) => {
+    if (!dateStr) return '-';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
+        const dayName = days[d.getDay()];
+        const formatted = d.toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'long', year: 'numeric'
+        });
+        const time = d.toLocaleTimeString('id-ID', {
+            hour: '2-digit', minute: '2-digit'
+        });
+        return `${dayName}, ${formatted}, ${time} WIB`;
+    } catch {
+        return dateStr;
+    }
+};
+
 const TabunganSiswa: React.FC<TabunganSiswaProps> = ({ onBack, user }) => {
     const [mySavings, setMySavings] = useState<SavingsData | null>(null);
     const [myTransactions, setMyTransactions] = useState<SavingsTransaction[]>([]);
@@ -192,7 +211,7 @@ const TabunganSiswa: React.FC<TabunganSiswaProps> = ({ onBack, user }) => {
                                         </div>
                                         <div>
                                             <h5 className="font-bold text-slate-800 text-sm">{item.type === 'Setor' ? 'Setoran Tabungan' : 'Penarikan Saldo'}</h5>
-                                            <p className="text-[10px] text-slate-500 font-medium">{item.date} • {item.officer}</p>
+                                            <p className="text-[10px] text-slate-500 font-medium">{formatDateLocale(item.date)} • {item.officer}</p>
                                         </div>
                                     </div>
                                     <span className={`font-bold text-sm ${item.type === 'Setor' ? 'text-emerald-600' : 'text-rose-600'

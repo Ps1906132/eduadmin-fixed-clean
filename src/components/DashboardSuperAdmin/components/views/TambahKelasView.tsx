@@ -11,6 +11,7 @@ interface TambahKelasViewProps {
     teachers: any[];
     students: any[];
     setShowAddClassModal: (show: boolean) => void;
+    user?: any;
     /** Opsional: jika tidak di-pass, fallback ke penghapusan lokal */
     handleDeleteClass?: (id: string | number) => Promise<DeleteResult>;
     handleEditClass?: (cls: any) => void;
@@ -23,9 +24,12 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
     teachers,
     students,
     setShowAddClassModal,
+    user,
     handleDeleteClass,
     handleEditClass
 }) => {
+    const role = user?.roleCode || user?.role || user?.role_type;
+    const isKS = role?.toLowerCase() === 'ks';
     const [visibleCount, setVisibleCount] = useState<number>(20);
     const [deletingId, setDeletingId] = useState<string | number | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | number | null>(null);
@@ -113,12 +117,14 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
                         <p className="text-xs text-slate-400 mt-0.5">Total {sortedClasses.length} kelas terdaftar</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setShowAddClassModal(true)}
-                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2 hover:bg-blue-700 transition-colors"
-                >
-                    <Plus size={18} /> Buat Kelas
-                </button>
+                {!isKS && (
+                    <button
+                        onClick={() => setShowAddClassModal(true)}
+                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2 hover:bg-blue-700 transition-colors"
+                    >
+                        <Plus size={18} /> Buat Kelas
+                    </button>
+                )}
             </div>
 
             {/* Table Container dengan Scroll */}
@@ -152,28 +158,32 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
                                         </td>
                                         <td className="p-4 text-slate-600 border-r border-slate-50">{cls.paralel}</td>
                                         <td className="p-4 text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                {handleEditClass && (
+                                            {isKS ? (
+                                                <span className="text-xs text-slate-400 italic">Read Only</span>
+                                            ) : (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {handleEditClass && (
+                                                        <button
+                                                            onClick={() => handleEditClass(cls)}
+                                                            className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                            title="Edit Kelas"
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                    )}
                                                     <button
-                                                        onClick={() => handleEditClass(cls)}
-                                                        className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-                                                        title="Edit Kelas"
+                                                        onClick={() => { setDeleteError(null); setConfirmDeleteId(cls.id); }}
+                                                        disabled={deletingId === cls.id}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        title="Hapus Kelas"
                                                     >
-                                                        <Edit size={18} />
+                                                        {deletingId === cls.id
+                                                            ? <Loader2 size={18} className="animate-spin" />
+                                                            : <Trash2 size={18} />
+                                                        }
                                                     </button>
-                                                )}
-                                                <button
-                                                    onClick={() => { setDeleteError(null); setConfirmDeleteId(cls.id); }}
-                                                    disabled={deletingId === cls.id}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    title="Hapus Kelas"
-                                                >
-                                                    {deletingId === cls.id
-                                                        ? <Loader2 size={18} className="animate-spin" />
-                                                        : <Trash2 size={18} />
-                                                    }
-                                                </button>
-                                            </div>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -185,7 +195,7 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
                                                 <Plus size={24} />
                                             </div>
                                             <p className="text-slate-500 font-medium text-sm">Belum ada data kelas</p>
-                                            <p className="text-xs text-slate-400">Klik tombol "Buat Kelas" untuk menambahkan kelas baru</p>
+                                            {!isKS && <p className="text-xs text-slate-400">Klik tombol "Buat Kelas" untuk menambahkan kelas baru</p>}
                                         </div>
                                     </td>
                                 </tr>
@@ -225,7 +235,7 @@ const TambahKelasView: React.FC<TambahKelasViewProps> = ({
             MODAL: KONFIRMASI HAPUS KELAS
             Ditampilkan di luar div utama agar tidak ter-clip oleh overflow
         ══════════════════════════════════════════════════════════════════════ */}
-        {confirmDeleteId !== null && (
+        {!isKS && confirmDeleteId !== null && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div
                     className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"

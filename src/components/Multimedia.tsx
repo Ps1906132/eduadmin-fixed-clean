@@ -24,7 +24,13 @@ import { Broadcast } from '../data/sharedData';
 
 
 
-const Multimedia: React.FC = () => {
+interface MultimediaProps {
+    user?: any;
+}
+
+const Multimedia: React.FC<MultimediaProps> = ({ user }) => {
+    const role = user?.roleCode || user?.role || user?.role_type;
+    const isKS = role?.toLowerCase() === 'ks';
     const [activeTab, setActiveTab] = useState('dashboard');
     const { broadcasts, setBroadcasts, channelSettings, setChannelSettings } = useMultimedia();
 
@@ -165,9 +171,11 @@ const Multimedia: React.FC = () => {
 
                 {/* Quick Actions */}
                 <div className="flex gap-4">
-                    <button onClick={() => { setIsFormOpen(true); setEditMode(false); setFormData({ category: 'Edukasi', status: 'Draft' }); }} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
-                        <Plus size={20} /> Tambah Siaran Baru
-                    </button>
+                    {!isKS && (
+                        <button onClick={() => { setIsFormOpen(true); setEditMode(false); setFormData({ category: 'Edukasi', status: 'Draft' }); }} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
+                            <Plus size={20} /> Tambah Siaran Baru
+                        </button>
+                    )}
                     <button onClick={() => setActiveTab('siaran')} className="flex-1 bg-white border border-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-50 transition flex items-center justify-center gap-2">
                         <ListVideo size={20} /> Kelola Daftar Siaran
                     </button>
@@ -180,9 +188,11 @@ const Multimedia: React.FC = () => {
         <div className="space-y-6 animate-in fade-in">
             <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><ListVideo size={20} /> Daftar Siaran</h3>
-                <button onClick={() => { setIsFormOpen(true); setEditMode(false); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700 transition">
-                    <Plus size={16} /> Tambah
-                </button>
+                {!isKS && (
+                    <button onClick={() => { setIsFormOpen(true); setEditMode(false); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700 transition">
+                        <Plus size={16} /> Tambah
+                    </button>
+                )}
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -229,23 +239,27 @@ const Multimedia: React.FC = () => {
                                     )}
                                 </td>
                                 <td className="p-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {currentPlayingId === b.id ? (
-                                            <button onClick={handleStop} title="Stop Siaran" className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
-                                                <Pause size={16} fill="currentColor" />
+                                    {isKS ? (
+                                        <span className="text-xs text-slate-400 italic">Read Only</span>
+                                    ) : (
+                                        <div className="flex items-center justify-end gap-2">
+                                            {currentPlayingId === b.id ? (
+                                                <button onClick={handleStop} title="Stop Siaran" className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
+                                                    <Pause size={16} fill="currentColor" />
+                                                </button>
+                                            ) : (
+                                                <button onClick={() => handlePlay(b.id)} title="Putar Siaran" className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition">
+                                                    <Play size={16} fill="currentColor" />
+                                                </button>
+                                            )}
+                                            <button onClick={() => openEdit(b)} title="Edit" className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition">
+                                                <Edit size={16} />
                                             </button>
-                                        ) : (
-                                            <button onClick={() => handlePlay(b.id)} title="Putar Siaran" className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition">
-                                                <Play size={16} fill="currentColor" />
+                                            <button onClick={() => handleDelete(b.id)} title="Hapus" className="p-2 bg-white border border-slate-200 text-rose-500 rounded-lg hover:bg-rose-50 transition">
+                                                <Trash2 size={16} />
                                             </button>
-                                        )}
-                                        <button onClick={() => openEdit(b)} title="Edit" className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition">
-                                            <Edit size={16} />
-                                        </button>
-                                        <button onClick={() => handleDelete(b.id)} title="Hapus" className="p-2 bg-white border border-slate-200 text-rose-500 rounded-lg hover:bg-rose-50 transition">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+                                        </div>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -324,7 +338,7 @@ const Multimedia: React.FC = () => {
                     {[
                         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
                         { id: 'siaran', label: 'Kelola Siaran', icon: <ListVideo size={18} /> },
-                        { id: 'settings', label: 'Pengaturan', icon: <Settings size={18} /> },
+                        ...(!isKS ? [{ id: 'settings', label: 'Pengaturan', icon: <Settings size={18} /> }] : []),
                     ].map((item) => (
                         <button
                             key={item.id}
@@ -345,7 +359,7 @@ const Multimedia: React.FC = () => {
             </div>
 
             {/* Modal Form */}
-            {isFormOpen && (
+            {!isKS && isFormOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 lg:p-8 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">

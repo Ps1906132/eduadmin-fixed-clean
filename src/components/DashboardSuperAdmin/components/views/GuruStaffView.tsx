@@ -9,6 +9,7 @@ interface GuruStaffViewProps {
 const GuruStaffView: React.FC<GuruStaffViewProps> = ({ setActiveView, user }) => {
     const rawRole = (user?.roleCode || user?.role || user?.role_type || '').toLowerCase();
     const isKurikulum = rawRole === 'kurikulum' || rawRole === 'wakil kurikulum';
+    const isKS = rawRole === 'ks';
 
     return (
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in flex flex-col">
@@ -18,20 +19,24 @@ const GuruStaffView: React.FC<GuruStaffViewProps> = ({ setActiveView, user }) =>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <button onClick={() => setActiveView('tambah_mapel_view')} className="flex flex-col items-center justify-center gap-3 p-8 bg-blue-50 hover:bg-blue-100 rounded-[2.5rem] transition-all group border-2 border-transparent hover:border-blue-200">
-                    <div className="w-16 h-16 bg-blue-600 text-white rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><BookOpen size={32} /></div>
-                    <span className="font-bold text-lg text-blue-900">Tambah Mata Pelajaran</span>
-                </button>
-                {!isKurikulum && (
+                {!isKS && (
+                    <button onClick={() => setActiveView('tambah_mapel_view')} className="flex flex-col items-center justify-center gap-3 p-8 bg-blue-50 hover:bg-blue-100 rounded-[2.5rem] transition-all group border-2 border-transparent hover:border-blue-200">
+                        <div className="w-16 h-16 bg-blue-600 text-white rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><BookOpen size={32} /></div>
+                        <span className="font-bold text-lg text-blue-900">Tambah Mata Pelajaran</span>
+                    </button>
+                )}
+                {!isKurikulum && !isKS && (
                     <button onClick={() => setActiveView('tambah_jabatan_view')} className="flex flex-col items-center justify-center gap-3 p-8 bg-purple-50 hover:bg-purple-100 rounded-[2.5rem] transition-all group border-2 border-transparent hover:border-purple-200">
                         <div className="w-16 h-16 bg-purple-600 text-white rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><Award size={32} /></div>
                         <span className="font-bold text-lg text-purple-900">Tambah Jabatan</span>
                     </button>
                 )}
-                <button onClick={() => setActiveView('tambah_guru_view')} className="flex flex-col items-center justify-center gap-3 p-8 bg-green-50 hover:bg-green-100 rounded-[2.5rem] transition-all group border-2 border-transparent hover:border-green-200">
-                    <div className="w-16 h-16 bg-green-600 text-white rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><UserPlus size={32} /></div>
-                    <span className="font-bold text-lg text-green-900">Tambah Data Guru</span>
-                </button>
+                {!isKS && (
+                    <button onClick={() => setActiveView('tambah_guru_view')} className="flex flex-col items-center justify-center gap-3 p-8 bg-green-50 hover:bg-green-100 rounded-[2.5rem] transition-all group border-2 border-transparent hover:border-green-200">
+                        <div className="w-16 h-16 bg-green-600 text-white rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><UserPlus size={32} /></div>
+                        <span className="font-bold text-lg text-green-900">Tambah Data Guru</span>
+                    </button>
+                )}
             </div>
         </div>
     );

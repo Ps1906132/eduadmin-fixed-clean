@@ -37,6 +37,8 @@ interface UsePermissionsReturn {
   isKurikulum: boolean;
   /** Apakah role ini adalah keuangan */
   isKeuangan: boolean;
+  /** Apakah role ini adalah kepala sekolah */
+  isKS: boolean;
 }
 
 /**
@@ -115,6 +117,7 @@ export function usePermissions(
     isAdmin:     normalizedRole === 'admin',
     isKurikulum: normalizedRole === 'kurikulum',
     isKeuangan:  normalizedRole === 'keuangan',
+    isKS:        normalizedRole === 'ks',
   };
 }
 
@@ -134,11 +137,17 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
     lowerRole === 'super admin' || 
     lowerRole === 'operator' || 
     lowerRole === 'operator data' || 
-    lowerRole === 'multimedia' || 
+    lowerRole === 'multimedia'
+  ) {
+    return 'admin';
+  }
+
+  // KS (KEPALA SEKOLAH): READ ONLY
+  if (
     lowerRole === 'ks' ||
     lowerRole.includes('kepala sekolah')
   ) {
-    return 'admin';
+    return 'ks';
   }
 
   // KURIKULUM: Managing Academic Data (Jadwal, Nilai, Rapot)

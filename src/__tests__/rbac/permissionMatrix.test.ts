@@ -28,12 +28,13 @@ import type { AdminRoleType, AppModule, CrudAction } from '@/lib/rbac/types';
 // =============================================================================
 
 describe('[UNIT] Struktur Permission Matrix', () => {
-  it('MATRIX harus memuat tepat 3 role: admin, kurikulum, keuangan', () => {
+  it('MATRIX harus memuat 4 role: admin, kurikulum, keuangan, ks', () => {
     const roles = Object.keys(PERMISSION_MATRIX);
-    expect(roles).toHaveLength(3);
+    expect(roles).toHaveLength(4);
     expect(roles).toContain('admin');
     expect(roles).toContain('kurikulum');
     expect(roles).toContain('keuangan');
+    expect(roles).toContain('ks');
   });
 
   it('MODULE_OWNER harus mendefinisikan owner untuk 18 modul', () => {

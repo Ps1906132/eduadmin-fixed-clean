@@ -16,14 +16,15 @@ import EditYearModal from '../modals/EditYearModal';
 
 interface KeuanganViewProps {
     students: any[];
+    classes?: any[];
     user?: any;
 }
 
-const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user }) => {
+const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, classes: rawClasses, user }) => {
     const students = Array.isArray(rawStudents) ? rawStudents : [];
-    const role = user?.roleCode || user?.role || user?.role_type;
-    const lowerRole = role?.toLowerCase();
-    const isKeuangan = !role || lowerRole.includes('keuangan') || lowerRole.includes('tata usaha');
+    const classes = Array.isArray(rawClasses) ? rawClasses : [];
+    const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+    const isKeuangan = roleCode === 'keuangan';
 
     // --- KEUANGAN STATE ---
     const [financeActiveTab, setFinanceActiveTab] = useState('dashboard'); // dashboard, data, tagihan, pembayaran, pengeluaran, kas, laporan, pengaturan
@@ -53,6 +54,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
     const [showEditYearModal, setShowEditYearModal] = useState(false);
     const [editingPaymentType, setEditingPaymentType] = useState<any>(null);
     const [newPaymentType, setNewPaymentType] = useState({ name: '', type: 'BULANAN', amount: 0, category: 'Lainnya' });
+    const [classFilter, setClassFilter] = useState('');
     const [searchStudentForPayment, setSearchStudentForPayment] = useState('');
     const [selectedStudentForPay, setSelectedStudentForPay] = useState<any>(null);
     const [selectedBillIds, setSelectedBillIds] = useState<(string | number)[]>([]);
@@ -471,11 +473,23 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
 
                     {/* Table Tagihan */}
                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                        <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
                             <h3 className="font-bold text-slate-800">Daftar Tagihan Siswa</h3>
-                            <div className="relative">
-                                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                <input placeholder="Cari Siswa..." className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+                            <div className="flex items-center gap-3">
+                                <select
+                                    value={classFilter}
+                                    onChange={(e) => setClassFilter(e.target.value)}
+                                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                                >
+                                    <option value="">Semua Kelas</option>
+                                    {[...new Set(studentBills.map((b: any) => b.class).filter(Boolean))].sort().map((c: any) => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                                <div className="relative">
+                                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input placeholder="Cari Siswa..." className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+                                </div>
                             </div>
                         </div>
                         <table className="w-full text-left border-collapse">
@@ -491,7 +505,9 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-sm">
-                                {studentBills.map((bill) => (
+                                {studentBills
+                                    .filter((bill: any) => !classFilter || bill.class === classFilter)
+                                    .map((bill: any) => (
                                     <tr key={bill.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="p-4 font-bold text-slate-700">{bill.studentName}</td>
                                         <td className="p-4 text-center text-slate-500">{bill.class}</td>
@@ -539,6 +555,20 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
                             {/* Step 1: Cari Siswa */}
                             <div className="space-y-4">
                                 <label className="text-sm font-bold text-slate-500 uppercase">1. Cari Data Siswa</label>
+                                <select
+                                    value={classFilter}
+                                    onChange={(e) => {
+                                        setClassFilter(e.target.value);
+                                        setSelectedStudentForPay(null);
+                                        setSearchStudentForPayment('');
+                                    }}
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-sm"
+                                >
+                                    <option value="">Semua Kelas</option>
+                                    {[...new Set(students.map((s: any) => s.kelas).filter(Boolean))].sort().map((c: any) => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
                                 <div className="relative">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                                     <input
@@ -547,20 +577,51 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
                                         value={searchStudentForPayment}
                                         onChange={(e) => {
                                             setSearchStudentForPayment(e.target.value);
-                                            // Auto-select student if exact match found
-                                            const student = students.find(s =>
-                                                s.nama.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                                                s.nis.includes(e.target.value)
-                                            );
-                                            if (student && (student.nama.toLowerCase() === e.target.value.toLowerCase() || student.nis === e.target.value)) {
-                                                setSelectedStudentForPay(student);
-                                            }
+                                            setSelectedStudentForPay(null);
                                         }}
                                         className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-lg"
                                     />
                                 </div>
-                                {/* Dynamic Student Result */}
-                                {selectedStudentForPay ? (
+                                {/* Dynamic Student Results */}
+                                {searchStudentForPayment ? (
+                                    <div className="max-h-[200px] overflow-y-auto space-y-1 custom-scrollbar">
+                                        {students
+                                            .filter((s: any) =>
+                                                (!classFilter || s.kelas === classFilter) &&
+                                                (s.nama.toLowerCase().includes(searchStudentForPayment.toLowerCase()) ||
+                                                s.nis.includes(searchStudentForPayment))
+                                            )
+                                            .slice(0, 10)
+                                            .map((s: any) => (
+                                                <div
+                                                    key={s.id}
+                                                    onClick={() => {
+                                                        setSelectedStudentForPay(s);
+                                                        setSearchStudentForPayment(s.nama);
+                                                    }}
+                                                    className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedStudentForPay?.id === s.id
+                                                        ? 'border-blue-500 bg-blue-50'
+                                                        : 'border-slate-200 hover:border-blue-400 bg-white'
+                                                    }`}
+                                                >
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-bold text-slate-700 text-sm">{s.nama}</span>
+                                                        <span className="text-xs text-slate-400">{s.kelas}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400">NIS: {s.nis}</p>
+                                                </div>
+                                            ))}
+                                        {students.filter((s: any) =>
+                                            (!classFilter || s.kelas === classFilter) &&
+                                            (s.nama.toLowerCase().includes(searchStudentForPayment.toLowerCase()) ||
+                                            s.nis.includes(searchStudentForPayment))
+                                        ).length === 0 && (
+                                            <div className="p-4 bg-slate-50 rounded-2xl text-center text-slate-400">
+                                                <p className="text-sm">Siswa tidak ditemukan</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : selectedStudentForPay ? (
                                     <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-4 cursor-pointer hover:bg-blue-100 transition-colors">
                                         <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center font-bold text-blue-600 border border-blue-200">
                                             {selectedStudentForPay.nama.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
@@ -572,7 +633,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, user
                                     </div>
                                 ) : (
                                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center text-slate-400">
-                                        <p className="text-sm">Masukkan nama atau NIS siswa</p>
+                                        <p className="text-sm">Pilih kelas dan masukkan nama atau NIS siswa</p>
                                     </div>
                                 )}
                             </div>

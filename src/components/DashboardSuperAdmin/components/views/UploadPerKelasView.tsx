@@ -42,10 +42,9 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
         }
     }, [classes]);
 
-    const role = user?.roleCode || user?.role || user?.role_type;
-    const lowerRole = role?.toLowerCase();
-    const isAdmin = !role || lowerRole === 'admin' || lowerRole === 'super admin' || lowerRole === 'operator data' || lowerRole === 'multimedia';
-    const isKeuangan = lowerRole === 'keuangan' || lowerRole.includes('tata usaha');
+    const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+    const isAdmin = roleCode === 'admin';
+    const isKeuangan = roleCode === 'keuangan';
 
     return (
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in slide-in-from-right flex flex-col">

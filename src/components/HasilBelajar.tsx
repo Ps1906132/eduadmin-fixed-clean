@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, ClipboardList, FileSpreadsheet, BookOpen } from 'lucide-react';
 import RapotSiswa from './RapotSiswa';
 import DetailNilai from './DetailNilai';
@@ -13,50 +13,102 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
     const [detailCategory, setDetailCategory] = useState<'Nilai Ulangan' | 'Nilai Ujian'>('Nilai Ulangan');
     const [chartData, setChartData] = useState<any[]>([]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const levels = ['1', '2', '3', '4', '5', '6'];
         const colors = ['bg-yellow-400', 'bg-[#9F8FEF]', 'bg-[#EE8686]', 'bg-[#8DBF82]', 'bg-[#4AB7CC]', 'bg-orange-400'];
         const borders = ['border-yellow-600', 'border-[#7c69db]', 'border-[#d66565]', 'border-[#6ea063]', 'border-[#388A99]', 'border-orange-600'];
 
-        const dynamicData: any[] = [];
-        const studentName = user?.studentName || user?.nama;
-        const currentClass = user?.studentClass || '1A';
-        const parallel = currentClass.replace(/\d+/, '');
+        const buildChart = (records: { classId: string; score: number }[]) => {
+            const grouped: Record<string, number[]> = {};
+            records.forEach(r => {
+                const level = r.classId.match(/^(\d+)/)?.[1];
+                if (!level) return;
+                if (!grouped[level]) grouped[level] = [];
+                grouped[level].push(r.score);
+            });
 
-        levels.forEach((lvl, idx) => {
-            const className = `${lvl}${parallel}`;
-            let totalGrade = 0;
-            let subjectCount = 0;
+            const data: any[] = [];
+            levels.forEach((lvl, idx) => {
+                const scores = grouped[lvl];
+                if (scores && scores.length > 0) {
+                    const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+                    data.push({
+                        label: `Kelas ${lvl}`,
+                        value: avg,
+                        color: colors[idx],
+                        borderColor: borders[idx]
+                    });
+                }
+            });
+            return data;
+        };
 
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key?.startsWith(`grades_v2_${className}_`)) {
-                    try {
-                        const data = JSON.parse(localStorage.getItem(key) || '[]');
-                        const student = data.find((s: any) => s.studentName === studentName);
-                        if (student && student.finalScore) {
-                            totalGrade += student.finalScore;
-                            subjectCount++;
-                        }
-                    } catch (e) { }
+        const fetchFromD1 = async () => {
+            const studentId = user?.studentId || user?.id;
+            if (!studentId) return null;
+
+            const token = localStorage.getItem('eduadmin_token');
+            if (!token) return null;
+
+            try {
+                const res = await fetch(`/api/grades?student_id=eq.${studentId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) return null;
+
+                return data.map((g: any) => ({
+                    classId: g.class_id || '',
+                    score: Number(g.grade_value) || 0
+                }));
+            } catch {
+                return null;
+            }
+        };
+
+        const loadChartData = async () => {
+            const studentName = user?.studentName || user?.nama;
+            const currentClass = user?.studentClass || '1A';
+            const parallel = currentClass.replace(/\d+/, '');
+            let data: any[] | null = null;
+
+            // Priority 1: D1
+            const d1Records = await fetchFromD1();
+            if (d1Records && d1Records.length > 0) {
+                data = buildChart(d1Records);
+            }
+
+            // Priority 2: Fallback localStorage
+            if (!data || data.length === 0) {
+                const localRecords: { classId: string; score: number }[] = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key?.startsWith('grades_v2_')) {
+                        const parts = key.replace('grades_v2_', '').split('_');
+                        const className = parts[0];
+                        try {
+                            const arr = JSON.parse(localStorage.getItem(key) || '[]');
+                            const student = arr.find((s: any) => s.studentName === studentName);
+                            if (student && student.finalScore) {
+                                localRecords.push({ classId: className, score: student.finalScore });
+                            }
+                        } catch { }
+                    }
+                }
+                if (localRecords.length > 0) {
+                    data = buildChart(localRecords);
                 }
             }
 
-            if (subjectCount > 0) {
-                dynamicData.push({
-                    label: `Kelas ${lvl}`,
-                    value: Math.round(totalGrade / subjectCount),
-                    color: colors[idx],
-                    borderColor: borders[idx]
-                });
+            if (!data || data.length === 0) {
+                setChartData([{ label: 'No Data', value: 0, color: 'bg-slate-200', borderColor: 'border-slate-300' }]);
+            } else {
+                setChartData(data);
             }
-        });
+        };
 
-        if (dynamicData.length === 0) {
-            setChartData([{ label: 'No Data', value: 0, color: 'bg-slate-200', borderColor: 'border-slate-300' }]);
-        } else {
-            setChartData(dynamicData);
-        }
+        loadChartData();
     }, [user]);
 
     if (internalView === 'rapot') {

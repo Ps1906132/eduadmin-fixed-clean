@@ -41,7 +41,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
     const role = user?.roleCode || user?.role || user?.role_type;
     const { saveGradesBatch } = useGrades();
     const lowerRole = role?.toLowerCase();
-    const isKurikulum = !role || lowerRole === 'kurikulum' || lowerRole === 'kepala sekolah';
+    const isKurikulum = lowerRole === 'kurikulum';
+    const readOnly = isKurikulum || lowerRole === 'kepala sekolah' || lowerRole === 'ks';
 
     // --- LOCAL DATABASE STATES ---
     const [classes] = useState<any[]>(() => {
@@ -459,7 +460,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                         <button className="p-2 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded-xl transition-colors" title="Export Excel">
                             <Download size={20} />
                         </button>
-                        {isKurikulum && (
+                        {!readOnly && (
                             <>
                                 <button className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Import Excel">
                                     <Upload size={20} />
@@ -573,8 +574,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                                             value={grade[tpKey] || ''}
                                                             onChange={(e) => handleInputChange(grade.studentId, tpKey as keyof GradeRow, e.target.value)}
                                                             placeholder="0"
-                                                            readOnly={!isKurikulum}
-                                                            className={`w-16 h-10 text-center border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all font-bold ${getScoreColor(Number(grade[tpKey]))} ${!isKurikulum ? 'bg-slate-50 cursor-default' : ''}`}
+                                                            readOnly={readOnly}
+                                                            className={`w-16 h-10 text-center border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all font-bold ${getScoreColor(Number(grade[tpKey]))} ${readOnly ? 'bg-slate-50 cursor-default' : ''}`}
                                                         />
                                                     </td>
                                                 );
@@ -599,8 +600,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                                     min="0" max="100"
                                                     value={grade.pts || ''}
                                                     onChange={(e) => handleInputChange(grade.studentId, 'pts', e.target.value)}
-                                                    readOnly={!isKurikulum}
-                                                    className={`w-28 h-10 text-center border-2 border-amber-100 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-bold text-amber-700 bg-white shadow-sm ${!isKurikulum ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
+                                                    readOnly={readOnly}
+                                                    className={`w-28 h-10 text-center border-2 border-amber-100 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-bold text-amber-700 bg-white shadow-sm ${readOnly ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
                                                 />
                                             </td>
                                             <td></td>
@@ -616,8 +617,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                                     value={grade.pas || ''}
                                                     onChange={(e) => handleInputChange(grade.studentId, 'pas', e.target.value)}
                                                     placeholder="PAS"
-                                                    readOnly={!isKurikulum}
-                                                    className={`w-24 h-10 text-center border-2 border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none transition-all font-bold text-purple-700 bg-white shadow-sm ${!isKurikulum ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
+                                                    readOnly={readOnly}
+                                                    className={`w-24 h-10 text-center border-2 border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none transition-all font-bold text-purple-700 bg-white shadow-sm ${readOnly ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
                                                 />
                                             </td>
                                             <td className="p-2 text-center bg-rose-50/20">
@@ -627,8 +628,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                                     value={grade.pat || ''}
                                                     onChange={(e) => handleInputChange(grade.studentId, 'pat', e.target.value)}
                                                     placeholder="PAT"
-                                                    readOnly={!isKurikulum}
-                                                    className={`w-24 h-10 text-center border-2 border-rose-100 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all font-bold text-rose-700 bg-white shadow-sm ${!isKurikulum ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
+                                                    readOnly={readOnly}
+                                                    className={`w-24 h-10 text-center border-2 border-rose-100 rounded-lg focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all font-bold text-rose-700 bg-white shadow-sm ${readOnly ? 'bg-slate-50 cursor-default border-slate-200' : ''}`}
                                                 />
                                             </td>
 
@@ -678,8 +679,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                                     value={grade.description}
                                                     onChange={(e) => handleDescriptionChange(grade.studentId, e.target.value)}
                                                     placeholder="Deskripsi otomatis..."
-                                                    readOnly={!isKurikulum}
-                                                    className={`w-full p-2 text-xs border border-slate-200 rounded-lg focus:border-blue-400 outline-none resize-none h-16 bg-white ${!isKurikulum ? 'bg-slate-50 text-slate-500 cursor-default' : ''}`}
+                                                    readOnly={readOnly}
+                                                    className={`w-full p-2 text-xs border border-slate-200 rounded-lg focus:border-blue-400 outline-none resize-none h-16 bg-white ${readOnly ? 'bg-slate-50 text-slate-500 cursor-default' : ''}`}
                                                 />
                                             </td>
                                         </>

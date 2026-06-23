@@ -37,7 +37,7 @@ const SettingsView: React.FC = () => {
                             name: s.school_name || prev.name,
                             address: s.school_address || prev.address,
                             principal: s.principal_name || prev.principal,
-                            logo: s.school_logo || prev.logo
+                            logo: s.logo_url || prev.logo
                         }));
                     }
                 }
@@ -76,7 +76,7 @@ const SettingsView: React.FC = () => {
                         school_name: schoolSettings.name,
                         school_address: schoolSettings.address,
                         principal_name: schoolSettings.principal,
-                        school_logo: schoolSettings.logo
+                        logo_url: schoolSettings.logo
                     })
                 });
             } catch (err) {
