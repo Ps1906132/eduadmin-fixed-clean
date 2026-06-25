@@ -535,9 +535,11 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                    <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-colors border border-green-200 shadow-sm">
-                        <Download size={18} /> Template
-                    </button>
+                    {!isKurikulum && !isKS && (
+                        <button onClick={handleDownloadTemplate} className="flex items-center gap-2 px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-colors border border-green-200 shadow-sm">
+                            <Download size={18} /> Template
+                        </button>
+                    )}
                     {!isKurikulum && !isKS && (
                         <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors border border-blue-200 shadow-sm">
                             <UploadCloud size={18} /> Upload
