@@ -710,6 +710,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             subjects={subjects}
                             derivedClasses={derivedClasses}
                             setConfirmModal={setConfirmModal}
+                            user={user}
                         />
                     )}
 

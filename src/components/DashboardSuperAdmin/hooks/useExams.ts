@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MasterExamSchedule, ExamScheduleItem, examsDataGlobal, updateExamsDataGlobal } from '../../../data/sharedData';
+import { hasPermission } from '../../../lib/rbac/permissionMatrix';
+import { toast } from 'react-hot-toast';
+
+/** Get current user role from localStorage */
+const getCurrentUserRole = (): string | null => {
+    try {
+        const raw = localStorage.getItem('eduadmin_user');
+        if (!raw) return null;
+        const user = JSON.parse(raw);
+        return (user?.roleCode || user?.role || user?.role_type || '').toLowerCase() || null;
+    } catch {
+        return null;
+    }
+};
 
 export const useExams = () => {
     const [loading, setLoading] = useState(false);
@@ -55,6 +69,14 @@ export const useExams = () => {
     const syncExams = useCallback(async (newExams: MasterExamSchedule[]) => {
         const token = localStorage.getItem('eduadmin_token');
         if (!token) return;
+
+        // Permission check
+        const role = getCurrentUserRole();
+        if (!role || !hasPermission(role, 'jadwal-ujian', 'UPDATE')) {
+            toast.error('Anda tidak memiliki akses untuk mengubah jadwal ujian');
+            return;
+        }
+
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`

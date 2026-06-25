@@ -19,6 +19,7 @@ interface JadwalUjianViewProps {
     subjects: any[];
     derivedClasses: any[];
     setConfirmModal: (modal: any) => void;
+    user?: any;
 }
 
 const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -30,8 +31,11 @@ const JadwalUjianView: React.FC<JadwalUjianViewProps> = ({
     setActiveExamId,
     subjects,
     derivedClasses,
-    setConfirmModal
+    setConfirmModal,
+    user
 }) => {
+    const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+    const isKurikulum = roleCode === 'kurikulum';
     const [selectedExamTingkat, setSelectedExamTingkat] = useState<string>('1');
     const [selectedExamClass, setSelectedExamClass] = useState<string>('');
 
@@ -183,58 +187,74 @@ const JadwalUjianView: React.FC<JadwalUjianViewProps> = ({
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => {
-                        if (!activeExamId) return;
+                    {isKurikulum && (
+                        <button onClick={() => {
+                            if (!activeExamId) return;
 
-                        // Convert local examScheduleItems back to ExamScheduleItem[] format
-                        const items: ExamScheduleItem[] = Object.entries(examScheduleItems).map(([key, val]) => {
-                            const [day, timeSlotId] = key.split('-');
-                            return {
-                                id: `${activeExamId}-${day}-${timeSlotId}`,
-                                examId: activeExamId,
-                                classId: selectedExamClass,
-                                day,
-                                timeSlotId: parseInt(timeSlotId) || 0,
-                                subjectName: val.subject,
-                                teacherName: val.teacher,
-                                color: val.color
-                            };
-                        });
+                            // Convert local examScheduleItems back to ExamScheduleItem[] format
+                            const items: ExamScheduleItem[] = Object.entries(examScheduleItems).map(([key, val]) => {
+                                const [day, timeSlotId] = key.split('-');
+                                return {
+                                    id: `${activeExamId}-${day}-${timeSlotId}`,
+                                    examId: activeExamId,
+                                    classId: selectedExamClass,
+                                    day,
+                                    timeSlotId: parseInt(timeSlotId) || 0,
+                                    subjectName: val.subject,
+                                    teacherName: val.teacher,
+                                    color: val.color
+                                };
+                            });
 
-                        // Update examSchedules with local state changes → triggers syncExams
-                        setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? {
-                            ...ex,
-                            items,
-                            timeSlots: examTimeSlots
-                        } : ex));
+                            // Update examSchedules with local state changes → triggers syncExams
+                            setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? {
+                                ...ex,
+                                items,
+                                timeSlots: examTimeSlots
+                            } : ex));
 
-                        toast.success("Konfigurasi Jadwal Ujian berhasil disimpan!");
-                    }} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
-                        <Save size={16} /> Simpan
-                    </button>
-                    <button onClick={() => {
-                        if (!activeExamId) return;
-                        setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? { ...ex, status: 'published' } : ex));
-                        toast.success("Jadwal Ujian berhasil dipublikasikan! Siswa dan Orang Tua kini dapat melihat jadwal ini.", { icon: '🚀' });
-                    }} className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200">
-                        <Zap size={16} /> Publikasi
-                    </button>
-                    <button onClick={() => {
-                        setConfirmModal({
-                            show: true,
-                            message: 'Apakah anda yakin ingin mereset/menghapus semua jadwal ujian?',
-                            onConfirm: () => {
-                                setExamSchedules([]);
-                                toast.success("Jadwal ujian berhasil direset.");
-                                setConfirmModal({ show: false, message: '', onConfirm: () => { } });
-                            }
-                        });
-                    }} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors border border-red-100">
-                        <RotateCcw size={14} /> Reset
-                    </button>
-                    <button onClick={() => setShowExamModal(true)} className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors shadow-lg">
-                        <FolderPlus size={16} /> Tambah Jenis
-                    </button>
+                            toast.success("Konfigurasi Jadwal Ujian berhasil disimpan!");
+                        }} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+                            <Save size={16} /> Simpan
+                        </button>
+                    )}
+                    {isKurikulum && (
+                        <button onClick={() => {
+                            if (!activeExamId) return;
+                            setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? { ...ex, status: 'published' } : ex));
+                            toast.success("Jadwal Ujian berhasil dipublikasikan! Siswa dan Orang Tua kini dapat melihat jadwal ini.", { icon: '🚀' });
+                        }} className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200">
+                            <Zap size={16} /> Publikasi
+                        </button>
+                    )}
+                    {isKurikulum && (
+                        <button onClick={() => {
+                            if (!activeExamId) return;
+                            const activeExam = examSchedules.find(e => e.id === activeExamId);
+                            setConfirmModal({
+                                show: true,
+                                message: `Reset semua jadwal ujian ${activeExam?.type || ''}?`,
+                                onConfirm: () => {
+                                    // Only reset items for the active exam, not all exams
+                                    setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? {
+                                        ...ex,
+                                        items: [],
+                                        timeSlots: []
+                                    } : ex));
+                                    setExamScheduleItems({});
+                                    toast.success(`Jadwal ujian ${activeExam?.type || ''} berhasil direset.`);
+                                    setConfirmModal({ show: false, message: '', onConfirm: () => { } });
+                                }
+                            });
+                        }} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors border border-red-100">
+                            <RotateCcw size={14} /> Reset
+                        </button>
+                    )}
+                    {isKurikulum && (
+                        <button onClick={() => setShowExamModal(true)} className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors shadow-lg">
+                            <FolderPlus size={16} /> Tambah Jenis
+                        </button>
+                    )}
                 </div>
             </div>
 
