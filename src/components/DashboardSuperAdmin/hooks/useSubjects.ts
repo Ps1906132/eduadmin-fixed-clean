@@ -1,6 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { subjectsDataGlobal } from '../../../data/sharedData';
 import { toast } from 'react-hot-toast';
+import { hasPermission } from '../../../lib/rbac/permissionMatrix';
+
+/** Get current user role from localStorage */
+const getCurrentUserRole = (): string | null => {
+    try {
+        const raw = localStorage.getItem('eduadmin_user');
+        if (!raw) return null;
+        const user = JSON.parse(raw);
+        return (user?.roleCode || user?.role || user?.role_type || '').toLowerCase() || null;
+    } catch {
+        return null;
+    }
+};
 
 export interface SubjectGroup {
     id: string | number;
@@ -87,6 +100,14 @@ export const useSubjects = () => {
     const syncSubjectGroups = async (prev: SubjectGroup[], next: SubjectGroup[]) => {
         const token = localStorage.getItem('eduadmin_token');
         if (!token) return;
+
+        // Permission check
+        const role = getCurrentUserRole();
+        if (!role || !hasPermission(role, 'mata-pelajaran', 'UPDATE')) {
+            toast.error('Anda tidak memiliki akses untuk mengubah kelompok mata pelajaran');
+            return;
+        }
+
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -147,6 +168,14 @@ export const useSubjects = () => {
     const syncSubjects = async (prev: Subject[], next: Subject[]) => {
         const token = localStorage.getItem('eduadmin_token');
         if (!token) return;
+
+        // Permission check
+        const role = getCurrentUserRole();
+        if (!role || !hasPermission(role, 'mata-pelajaran', 'UPDATE')) {
+            toast.error('Anda tidak memiliki akses untuk mengubah mata pelajaran');
+            return;
+        }
+
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
