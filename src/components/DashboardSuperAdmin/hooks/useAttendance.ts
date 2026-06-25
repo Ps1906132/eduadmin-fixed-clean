@@ -1,10 +1,24 @@
 import { useState, useCallback } from 'react';
+import { hasPermission } from '../../../lib/rbac/permissionMatrix';
+import { toast } from 'react-hot-toast';
 
 const STATUS_MAP: Record<string, string> = {
     'H': 'hadir',
     'S': 'sakit',
     'I': 'izin',
     'A': 'alpa'
+};
+
+/** Get current user role from localStorage */
+const getCurrentUserRole = (): string | null => {
+    try {
+        const raw = localStorage.getItem('eduadmin_user');
+        if (!raw) return null;
+        const user = JSON.parse(raw);
+        return (user?.roleCode || user?.role || user?.role_type || '').toLowerCase() || null;
+    } catch {
+        return null;
+    }
 };
 
 interface AttendanceSaveRecord {
@@ -22,6 +36,13 @@ export const useAttendance = () => {
         records: AttendanceSaveRecord[]
     ): Promise<{ success: boolean; error?: string }> => {
         if (records.length === 0) return { success: true };
+
+        // Permission check
+        const role = getCurrentUserRole();
+        if (!role || !hasPermission(role, 'absen', 'UPDATE')) {
+            toast.error('Anda tidak memiliki akses untuk mengubah data absensi');
+            return { success: false, error: 'Permission denied' };
+        }
 
         setSaving(true);
         const token = localStorage.getItem('eduadmin_token');

@@ -58,7 +58,7 @@ const ADMIN_PERMISSIONS: ModulePermission[] = [
 const KURIKULUM_PERMISSIONS: ModulePermission[] = [
   // 6 Modul Kurikulum — Full CRUD
   { module: 'jadwal',        actions: ALL_CRUD,  notes: 'Full control, primary owner' },
-  { module: 'absen',         actions: ALL_CRUD,  notes: 'Attendance management' },
+  { module: 'absen',         actions: READ_ONLY,  notes: 'View attendance statistics (input by Guru)' },
   { module: 'jadwal-ujian',  actions: ALL_CRUD,  notes: 'Exam scheduling' },
   { module: 'nilai',         actions: ALL_CRUD,  notes: 'Grade input & management' },
   { module: 'rapot',         actions: ALL_CRUD,  notes: 'Generate & manage reports' },

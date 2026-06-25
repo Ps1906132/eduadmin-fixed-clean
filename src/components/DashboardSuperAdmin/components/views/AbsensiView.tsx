@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { CirclePlus, UserCog, ChevronLeft, ChevronRight, CheckSquare, Search, Save, Loader2, BarChart3, Users, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAttendance } from '../../hooks/useAttendance';
@@ -21,7 +21,7 @@ const AbsensiView: React.FC<AbsensiViewProps> = ({
     const isKurikulum = roleCode === 'kurikulum';
 
     if (isKurikulum) {
-        return <AbsensiRekap students={students} classes={classes} attendanceData={attendanceDataGlobal} />;
+        return <AbsensiRekap students={students} classes={classes} />;
     }
 
     return <AbsensiInput students={students} classes={classes} subjects={subjects} />;
@@ -351,9 +351,10 @@ const AbsensiInput: React.FC<{ students: any[]; classes: any[]; subjects: any[] 
 
 /* ============================================================
    KOMPONEN REKAP ABSENSI (untuk Kurikulum — view-only)
+   Fetch data dari D1: /api/attendance
    ============================================================ */
-const AbsensiRekap: React.FC<{ students: any[]; classes: any[]; attendanceData: AttendanceRecord[] }> = ({
-    students, classes, attendanceData
+const AbsensiRekap: React.FC<{ students: any[]; classes: any[] }> = ({
+    students, classes
 }) => {
     const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '');
     const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -361,6 +362,35 @@ const AbsensiRekap: React.FC<{ students: any[]; classes: any[]; attendanceData: 
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [attendanceData, setAttendanceData] = useState<any[]>([]);
+
+    // Fetch attendance from D1
+    const fetchAttendance = useCallback(async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            if (!token) return;
+            const headers = { 'Authorization': `Bearer ${token}` };
+            const res = await fetch('/api/attendance?select=*', { headers });
+            if (res.ok) {
+                const data = await res.json();
+                // Map D1 format ke AttendanceRecord format
+                const mapped = data.map((r: any) => ({
+                    studentId: r.student_id,
+                    date: r.date,
+                    status: r.status, // 'hadir', 'sakit', 'izin', 'alpa'
+                }));
+                setAttendanceData(mapped);
+            }
+        } catch (err) {
+            console.error('Error fetching attendance:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchAttendance(); }, [fetchAttendance]);
 
     const classStudents = useMemo(() =>
         students.filter((s: any) => s.kelas === selectedClass),
@@ -380,21 +410,21 @@ const AbsensiRekap: React.FC<{ students: any[]; classes: any[]; attendanceData: 
         const records = filteredAttendance;
         const totalEntries = records.length || 1; // avoid div by zero
 
-        const hadir = records.filter(r => r.status === 'H' || r.status === 'Hadir').length;
-        const sakit = records.filter(r => r.status === 'S' || r.status === 'Sakit').length;
-        const izin = records.filter(r => r.status === 'I' || r.status === 'Izin').length;
-        const alfa = records.filter(r => r.status === 'A' || r.status === 'Alpha').length;
+        const hadir = records.filter((r: any) => r.status === 'hadir').length;
+        const sakit = records.filter((r: any) => r.status === 'sakit').length;
+        const izin = records.filter((r: any) => r.status === 'izin').length;
+        const alfa = records.filter((r: any) => r.status === 'alpa').length;
 
         return { total, totalEntries, hadir, sakit, izin, alfa };
     }, [classStudents, filteredAttendance]);
 
     const perStudentStats = useMemo(() => {
         return classStudents.map((s: any) => {
-            const records = filteredAttendance.filter(r => r.studentId === s.id);
-            const hadir = records.filter(r => r.status === 'H' || r.status === 'Hadir').length;
-            const sakit = records.filter(r => r.status === 'S' || r.status === 'Sakit').length;
-            const izin = records.filter(r => r.status === 'I' || r.status === 'Izin').length;
-            const alfa = records.filter(r => r.status === 'A' || r.status === 'Alpha').length;
+            const records = filteredAttendance.filter((r: any) => r.studentId === s.id);
+            const hadir = records.filter((r: any) => r.status === 'hadir').length;
+            const sakit = records.filter((r: any) => r.status === 'sakit').length;
+            const izin = records.filter((r: any) => r.status === 'izin').length;
+            const alfa = records.filter((r: any) => r.status === 'alpa').length;
             const total = hadir + sakit + izin + alfa;
             const pctHadir = total > 0 ? Math.round((hadir / total) * 100) : 0;
             return { ...s, hadir, sakit, izin, alfa, total, pctHadir };
@@ -411,6 +441,26 @@ const AbsensiRekap: React.FC<{ students: any[]; classes: any[]; attendanceData: 
         return arr;
     }, []);
 
+    if (loading) {
+        return (
+            <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in flex flex-col">
+                <div className="flex items-center gap-3 mb-6">
+                    <BarChart3 size={28} className="text-blue-600" />
+                    <div>
+                        <h2 className="text-xl font-bold text-[#1E1B4B]">Rekap Absensi</h2>
+                        <p className="text-slate-500 text-sm">Memuat data dari database...</p>
+                    </div>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-slate-500">Memuat data absensi...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in flex flex-col">
             <div className="flex flex-col gap-6 mb-6">
@@ -419,7 +469,7 @@ const AbsensiRekap: React.FC<{ students: any[]; classes: any[]; attendanceData: 
                         <BarChart3 size={28} className="text-blue-600" />
                         <div>
                             <h2 className="text-xl font-bold text-[#1E1B4B]">Rekap Absensi</h2>
-                            <p className="text-slate-500 text-sm">Statistik kehadiran siswa per kelas (view-only)</p>
+                            <p className="text-slate-500 text-sm">Statistik kehadiran siswa per kelas (view-only) — dari database</p>
                         </div>
                     </div>
                 </div>
