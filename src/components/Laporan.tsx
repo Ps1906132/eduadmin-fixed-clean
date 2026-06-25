@@ -22,9 +22,10 @@ interface LaporanProps {
 const Laporan: React.FC<LaporanProps> = ({ user, students, classes }) => {
     const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
     const isKurikulum = roleCode === 'kurikulum';
-    const isKS = roleCode === 'ks';
 
-    if (isKurikulum || isKS) {
+    // KS sudah punya akses "Monitor Nilai" via menu 'nilai'
+    // Jadi di menu 'Laporan', KS melihat Laporan Keuangan
+    if (isKurikulum) {
         return <LaporanAkademik user={user} students={students || []} classes={classes || []} />;
     }
 
