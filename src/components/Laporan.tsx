@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import {
     BarChart3,
@@ -12,7 +12,6 @@ import {
     GraduationCap,
 } from 'lucide-react';
 import { useFinance } from './DashboardSuperAdmin/hooks/useFinance';
-import { attendanceDataGlobal } from '../data/sharedData';
 
 interface LaporanProps {
     user?: any;
@@ -23,9 +22,10 @@ interface LaporanProps {
 const Laporan: React.FC<LaporanProps> = ({ user, students, classes }) => {
     const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
     const isKurikulum = roleCode === 'kurikulum';
+    const isKS = roleCode === 'ks';
 
-    if (isKurikulum) {
-        return <LaporanAkademik students={students || []} classes={classes || []} />;
+    if (isKurikulum || isKS) {
+        return <LaporanAkademik user={user} students={students || []} classes={classes || []} />;
     }
 
     return <LaporanKeuangan />;
@@ -33,10 +33,38 @@ const Laporan: React.FC<LaporanProps> = ({ user, students, classes }) => {
 
 /* ============================================================
    LAPORAN AKADEMIK (untuk Kurikulum / KS)
+   Data fetched from D1: /api/grades, /api/attendance
    ============================================================ */
-export const LaporanAkademik: React.FC<{ students: any[]; classes: any[] }> = ({ students, classes }) => {
+export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: any[] }> = ({ user, students, classes }) => {
     const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '');
     const [selectedSemester, setSelectedSemester] = useState('Ganjil');
+    const [loading, setLoading] = useState(true);
+
+    // D1 data
+    const [gradesFromDB, setGradesFromDB] = useState<any[]>([]);
+    const [attendanceFromDB, setAttendanceFromDB] = useState<any[]>([]);
+
+    const token = localStorage.getItem('eduadmin_token');
+
+    // Fetch grades + attendance from D1
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const headers = { Authorization: `Bearer ${token}` };
+            const [gradesRes, attRes] = await Promise.all([
+                fetch('/api/grades?select=*', { headers }),
+                fetch('/api/attendance?select=*', { headers }),
+            ]);
+            if (gradesRes.ok) setGradesFromDB(await gradesRes.json());
+            if (attRes.ok) setAttendanceFromDB(await attRes.json());
+        } catch {
+            toast.error('Gagal memuat data laporan');
+        } finally {
+            setLoading(false);
+        }
+    }, [token]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     const classStudents = useMemo(() =>
         students.filter((s: any) => !selectedClass || s.kelas === selectedClass),
@@ -45,38 +73,84 @@ export const LaporanAkademik: React.FC<{ students: any[]; classes: any[] }> = ({
 
     const totalKelas = useMemo(() => new Set(students.map((s: any) => s.kelas)).size, [students]);
 
-    // Attendance stats from global data
+    // --- Attendance stats from D1 ---
     const attendanceStats = useMemo(() => {
-        const records = attendanceDataGlobal.filter((a: any) =>
-            classStudents.some((s: any) => s.id === a.studentId)
-        );
+        // Find student IDs in current view
+        const studentIds = new Set(classStudents.map((s: any) => s.id));
+        const records = attendanceFromDB.filter((a: any) => studentIds.has(a.student_id));
         const total = records.length || 1;
-        const hadir = records.filter((r: any) => r.status === 'H' || r.status === 'Hadir').length;
+        const hadir = records.filter((r: any) => r.status === 'hadir').length;
         return {
             totalRecords: records.length,
             pctHadir: Math.round((hadir / total) * 100),
         };
-    }, [classStudents]);
+    }, [classStudents, attendanceFromDB]);
 
-    // Simulated grade stats (read from localStorage)
+    // --- Grade stats from D1 (global for summary card) ---
     const gradeStats = useMemo(() => {
-        if (!selectedClass) return { avgScore: 0, studentsWithData: 0 };
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('grades_v2_'));
+        const studentIds = new Set(classStudents.map((s: any) => s.id));
+        const records = gradesFromDB.filter((g: any) => studentIds.has(g.student_id));
         let totalScore = 0;
         let count = 0;
-        keys.forEach(key => {
-            try {
-                const data = JSON.parse(localStorage.getItem(key) || '[]');
-                data.forEach((g: any) => {
-                    if (g.finalScore > 0) { totalScore += g.finalScore; count++; }
-                });
-            } catch { }
+        records.forEach((g: any) => {
+            const val = parseFloat(g.grade_value);
+            if (!isNaN(val) && val > 0) { totalScore += val; count++; }
         });
         return {
             avgScore: count > 0 ? Math.round(totalScore / count) : 0,
             studentsWithData: count,
         };
-    }, [selectedClass]);
+    }, [classStudents, gradesFromDB]);
+
+    // --- Per-class breakdown: attendance + grades from D1 ---
+    const classBreakdown = useMemo(() => {
+        const kelasList = selectedClass
+            ? [selectedClass]
+            : [...new Set(students.map((s: any) => s.kelas))];
+
+        return kelasList.map(kelas => {
+            const siswa = students.filter((s: any) => s.kelas === kelas);
+            const siswaIds = new Set(siswa.map((s: any) => s.id));
+
+            // Attendance per class
+            const attRecords = attendanceFromDB.filter((a: any) => siswaIds.has(a.student_id));
+            const totalAtt = attRecords.length || 1;
+            const hadirAtt = attRecords.filter((r: any) => r.status === 'hadir').length;
+            const pctHadir = Math.round((hadirAtt / totalAtt) * 100);
+
+            // Grades per class
+            const gradeRecords = gradesFromDB.filter((g: any) => siswaIds.has(g.student_id));
+            let totalScore = 0;
+            let gradeCount = 0;
+            gradeRecords.forEach((g: any) => {
+                const val = parseFloat(g.grade_value);
+                if (!isNaN(val) && val > 0) { totalScore += val; gradeCount++; }
+            });
+            const avgNilai = gradeCount > 0 ? Math.round(totalScore / gradeCount) : 0;
+
+            return { kelas, jumlahSiswa: siswa.length, pctHadir, avgNilai, gradeCount };
+        });
+    }, [students, selectedClass, attendanceFromDB, gradesFromDB]);
+
+    if (loading) {
+        return (
+            <div className="h-full flex flex-col">
+                <div className="flex items-center gap-3 mb-6">
+                    <GraduationCap size={28} className="text-blue-600" />
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Laporan Akademik</h2>
+                        <p className="text-slate-500 text-sm">Memuat data dari database...</p>
+                    </div>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-slate-500">Memuat data...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col">
@@ -84,8 +158,8 @@ export const LaporanAkademik: React.FC<{ students: any[]; classes: any[] }> = ({
                 <div className="flex items-center gap-3">
                     <GraduationCap size={28} className="text-blue-600" />
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Laporan Akademik</h2>
-                        <p className="text-slate-500 text-sm">Statistik hasil belajar dan kehadiran per kelas</p>
+                        <h2 className="text-2xl font-bold text-slate-800">Monitor Nilai</h2>
+                        <p className="text-slate-500 text-sm">Statistik hasil belajar dan kehadiran per kelas (dari database)</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -140,30 +214,25 @@ export const LaporanAkademik: React.FC<{ students: any[]; classes: any[] }> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {(selectedClass ? [selectedClass] : [...new Set(students.map((s: any) => s.kelas))]).map(kelas => {
-                            const siswa = students.filter((s: any) => s.kelas === kelas);
-                            const attRecords = attendanceDataGlobal.filter((a: any) =>
-                                siswa.some((s: any) => s.id === a.studentId)
-                            );
-                            const totalAtt = attRecords.length || 1;
-                            const hadirAtt = attRecords.filter((r: any) => r.status === 'H' || r.status === 'Hadir').length;
-                            const pctHadir = Math.round((hadirAtt / totalAtt) * 100);
-
-                            return (
-                                <tr key={kelas} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                    <td className="p-3 font-bold text-slate-800">Kelas {kelas}</td>
-                                    <td className="p-3 text-center text-slate-600">{siswa.length}</td>
-                                    <td className="p-3 text-center">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                            pctHadir >= 90 ? 'bg-green-100 text-green-700' :
-                                            pctHadir >= 75 ? 'bg-blue-100 text-blue-700' :
-                                            'bg-orange-100 text-orange-700'
-                                        }`}>{pctHadir}%</span>
-                                    </td>
-                                    <td className="p-3 text-center text-slate-600">{gradeStats.avgScore > 0 ? gradeStats.avgScore : '-'}</td>
-                                </tr>
-                            );
-                        })}
+                        {classBreakdown.map((row) => (
+                            <tr key={row.kelas} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                <td className="p-3 font-bold text-slate-800">Kelas {row.kelas}</td>
+                                <td className="p-3 text-center text-slate-600">{row.jumlahSiswa}</td>
+                                <td className="p-3 text-center">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        row.pctHadir >= 90 ? 'bg-green-100 text-green-700' :
+                                        row.pctHadir >= 75 ? 'bg-blue-100 text-blue-700' :
+                                        'bg-orange-100 text-orange-700'
+                                    }`}>{row.pctHadir}%</span>
+                                </td>
+                                <td className="p-3 text-center text-slate-600">{row.avgNilai > 0 ? row.avgNilai : '-'}</td>
+                            </tr>
+                        ))}
+                        {classBreakdown.length === 0 && (
+                            <tr>
+                                <td colSpan={4} className="p-8 text-center text-slate-400 italic">Tidak ada data kelas.</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

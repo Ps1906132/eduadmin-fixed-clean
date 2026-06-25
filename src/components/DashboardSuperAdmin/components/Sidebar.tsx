@@ -96,7 +96,19 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     const allowedMenus = ROLE_MENUS[normalizedRole] || ['dashboard'];
 
-    return menuItems.filter(item => allowedMenus.includes(item.id));
+    return menuItems
+        .filter(item => allowedMenus.includes(item.id))
+        .map(item => {
+            // KS: ubah label "Manajemen Multimedia" → "Channel Sekolah"
+            if (normalizedRole === 'ks' && item.id === 'multimedia') {
+                return { ...item, label: 'Channel Sekolah' };
+            }
+            // KS: ubah label "Manajemen Nilai" → "Monitor Nilai"
+            if (normalizedRole === 'ks' && item.id === 'nilai') {
+                return { ...item, label: 'Monitor Nilai' };
+            }
+            return item;
+        });
     }, [user]);
 
     const getLinkClass = (id: string) => {

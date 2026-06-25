@@ -543,9 +543,11 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                             <UploadCloud size={18} /> Upload
                         </button>
                     )}
-                    <button onClick={handlePrintAllCards} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-colors border border-indigo-200 shadow-sm">
-                        <Printer size={18} /> Cetak Semua
-                    </button>
+                    {!isKurikulum && !isKS && (
+                        <button onClick={handlePrintAllCards} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold hover:bg-indigo-100 transition-colors border border-indigo-200 shadow-sm">
+                            <Printer size={18} /> Cetak Semua
+                        </button>
+                    )}
                     {!isKurikulum && !isKS && (
                         <button onClick={handleAddTeacher} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors border border-emerald-200 shadow-sm">
                             <UserPlus size={18} /> Tambah Guru
@@ -621,7 +623,9 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 </td>
                                 <td className="p-4 text-slate-600">{guru.username}</td>
                                 <td className="p-4 flex justify-center gap-2">
-                                    <button onClick={() => handlePrintSingleCard(guru)} title="Cetak Kartu Login" className="p-2 hover:bg-indigo-50 text-indigo-500 rounded-lg"><Printer size={16} /></button>
+                                    {!isKurikulum && !isKS && (
+                                        <button onClick={() => handlePrintSingleCard(guru)} title="Cetak Kartu Login" className="p-2 hover:bg-indigo-50 text-indigo-500 rounded-lg"><Printer size={16} /></button>
+                                    )}
                                     {!isKurikulum && !isKS && (
                                         <button onClick={() => handleOpenReset(guru)} title="Reset Password" className="p-2 hover:bg-amber-50 text-amber-500 rounded-lg"><KeyRound size={16} /></button>
                                     )}

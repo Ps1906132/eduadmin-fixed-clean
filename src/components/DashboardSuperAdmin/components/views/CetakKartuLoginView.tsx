@@ -1,12 +1,35 @@
 import React, { useRef, useState } from 'react';
-import { ArrowLeft, Printer, Search, Download } from 'lucide-react';
+import { ArrowLeft, Printer, Search, Download, AlertCircle } from 'lucide-react';
 interface CetakKartuLoginViewProps {
     setActiveView: (view: string) => void;
     students: any[];
     classes: any[];
+    user?: any;
 }
 
-const CetakKartuLoginView: React.FC<CetakKartuLoginViewProps> = ({ setActiveView, students, classes }) => {
+const CetakKartuLoginView: React.FC<CetakKartuLoginViewProps> = ({ setActiveView, students, classes, user }) => {
+    // Guard: KS tidak boleh mengakses cetak kartu (kredensial login siswa)
+    const role = user?.roleCode || user?.role || user?.role_type;
+    const isKS = role?.toLowerCase() === 'ks';
+
+    if (isKS) {
+        return (
+            <div className="bg-white rounded-[2.5rem] p-8 h-full shadow-sm animate-in fade-in flex flex-col items-center justify-center">
+                <AlertCircle size={64} className="text-red-300 mb-4" />
+                <h2 className="text-xl font-bold text-slate-700 mb-2">Akses Dibatasi</h2>
+                <p className="text-slate-500 text-center mb-6 max-w-md">
+                    Anda tidak memiliki izin untuk mengakses halaman ini. Cetak Kartu Login hanya tersedia untuk Administrator.
+                </p>
+                <button
+                    onClick={() => setActiveView('data_siswa')}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition"
+                >
+                    <ArrowLeft size={18} /> Kembali ke Data Siswa
+                </button>
+            </div>
+        );
+    }
+
     const componentRef = useRef<HTMLDivElement>(null);
     const [selectedClass, setSelectedClass] = useState('Semua Kelas');
     const [searchQuery, setSearchQuery] = useState('');

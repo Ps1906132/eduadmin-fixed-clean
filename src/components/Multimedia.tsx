@@ -272,7 +272,19 @@ const Multimedia: React.FC<MultimediaProps> = ({ user }) => {
         </div>
     );
 
-    const SettingsView = () => (
+    const SettingsView = () => {
+        // Guard: KS tidak boleh mengakses pengaturan
+        if (isKS) {
+            return (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <AlertCircle size={48} className="mb-4 opacity-50" />
+                    <p className="text-lg font-bold">Akses Dibatasi</p>
+                    <p className="text-sm">Anda tidak memiliki izin untuk mengubah pengaturan ini.</p>
+                </div>
+            );
+        }
+
+        return (
         <div className="space-y-6 animate-in fade-in max-w-2xl">
             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                 <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 pb-4 border-b border-slate-100">
@@ -322,7 +334,8 @@ const Multimedia: React.FC<MultimediaProps> = ({ user }) => {
                 </div>
             </div>
         </div>
-    );
+        );
+    };
 
     return (
         <div className="h-full flex flex-col gap-6">
@@ -330,14 +343,14 @@ const Multimedia: React.FC<MultimediaProps> = ({ user }) => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                        <Video className="text-rose-600" /> Studio Channel Sekolahku
+                        <Video className="text-rose-600" /> {isKS ? 'Channel Sekolah' : 'Studio Channel Sekolahku'}
                     </h2>
-                    <p className="text-slate-500 text-sm">Pusat penyiaran dan konten multimedia sekolah.</p>
+                    <p className="text-slate-500 text-sm">{isKS ? 'Siaran dan konten multimedia sekolah.' : 'Pusat penyiaran dan konten multimedia sekolah.'}</p>
                 </div>
                 <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex">
                     {[
-                        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-                        { id: 'siaran', label: 'Kelola Siaran', icon: <ListVideo size={18} /> },
+                        { id: 'dashboard', label: isKS ? 'Channel Aktif' : 'Dashboard', icon: <LayoutDashboard size={18} /> },
+                        { id: 'siaran', label: isKS ? 'Channel Sekolah' : 'Kelola Siaran', icon: <ListVideo size={18} /> },
                         ...(!isKS ? [{ id: 'settings', label: 'Pengaturan', icon: <Settings size={18} /> }] : []),
                     ].map((item) => (
                         <button

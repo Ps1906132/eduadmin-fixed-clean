@@ -65,7 +65,7 @@ const DataSiswaView: React.FC<DataSiswaViewProps> = ({ setActiveView, user, stud
                 </div>
 
                 {/* Stat Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-gradient-to-br from-blue-50 to-white p-5 rounded-2xl border border-blue-100/50">
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Siswa</p>
                         <p className="text-3xl font-bold text-slate-800 mt-1">{stats.total}</p>
@@ -78,10 +78,6 @@ const DataSiswaView: React.FC<DataSiswaViewProps> = ({ setActiveView, user, stud
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rata-rata/Kelas</p>
                         <p className="text-3xl font-bold text-slate-800 mt-1">{classes.length ? Math.round(stats.total / classes.length) : 0}</p>
                     </div>
-                    <button onClick={() => setActiveView('cetak_kartu_login')} className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-2xl border border-emerald-100/50 hover:shadow-md transition-all cursor-pointer text-left">
-                        <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1"><CreditCard size={14} /> Cetak Kartu</p>
-                        <p className="text-sm font-bold text-slate-600 mt-1">Cetak Kartu Login Siswa</p>
-                    </button>
                 </div>
 
                 {/* Filter */}

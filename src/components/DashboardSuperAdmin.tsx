@@ -157,7 +157,6 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [showSubjectModal, setShowSubjectModal] = useState(false);
     const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
     const [positions, setPositions] = useState<{ id: number; nama: string; kategori: string }[]>([
-        { id: 1, nama: 'Kepala Sekolah', kategori: 'Struktural' },
         { id: 2, nama: 'Wakil Kurikulum', kategori: 'Struktural' },
         { id: 3, nama: 'Guru Kelas', kategori: 'Fungsional' },
         { id: 4, nama: 'Guru Mata Pelajaran', kategori: 'Fungsional' },
@@ -513,7 +512,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                     {/* --- VIEW: CETAK KARTU LOGIN --- */}
                     {activeView === 'cetak_kartu_login' && (
-                        <CetakKartuLoginView setActiveView={setActiveView} students={students} classes={classes} />
+                        <CetakKartuLoginView setActiveView={setActiveView} students={students} classes={classes} user={user} />
                     )}
 
                     {/* --- VIEW: TAMBAH KELAS --- */}
@@ -750,7 +749,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     )}
                     {activeView === 'nilai' && roleCode === 'ks' && (
                         <div className="bg-white rounded-[2.5rem] p-8 h-full shadow-sm animate-in fade-in overflow-auto">
-                            <LaporanAkademik students={students} classes={classes} />
+                            <LaporanAkademik user={user} students={students} classes={classes} />
                         </div>
                     )}
 
