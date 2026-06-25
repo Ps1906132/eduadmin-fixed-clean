@@ -185,6 +185,29 @@ const JadwalUjianView: React.FC<JadwalUjianViewProps> = ({
                 <div className="flex gap-2">
                     <button onClick={() => {
                         if (!activeExamId) return;
+
+                        // Convert local examScheduleItems back to ExamScheduleItem[] format
+                        const items: ExamScheduleItem[] = Object.entries(examScheduleItems).map(([key, val]) => {
+                            const [day, timeSlotId] = key.split('-');
+                            return {
+                                id: `${activeExamId}-${day}-${timeSlotId}`,
+                                examId: activeExamId,
+                                classId: selectedExamClass,
+                                day,
+                                timeSlotId: parseInt(timeSlotId) || 0,
+                                subjectName: val.subject,
+                                teacherName: val.teacher,
+                                color: val.color
+                            };
+                        });
+
+                        // Update examSchedules with local state changes → triggers syncExams
+                        setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? {
+                            ...ex,
+                            items,
+                            timeSlots: examTimeSlots
+                        } : ex));
+
                         toast.success("Konfigurasi Jadwal Ujian berhasil disimpan!");
                     }} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
                         <Save size={16} /> Simpan
