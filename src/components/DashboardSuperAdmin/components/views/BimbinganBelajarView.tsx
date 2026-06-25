@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     LayoutDashboard, Book, UserCog, FileText, Plus, SquarePen, 
     Trash2, UserPlus, Video, X, ChevronRight, Eye, EyeOff,
-    UserCheck, Calendar, CheckCircle, AlertCircle, Clock, XCircle
+    UserCheck, Calendar, CheckCircle, AlertCircle, Clock, XCircle, KeyRound
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -83,19 +83,43 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
             if (teachRes.ok) {
                 const teachData = await teachRes.json();
                 if (teachData && Array.isArray(teachData)) {
-                    const mapped = teachData.map(t => ({
-                        id: Number(t.id),
-                        name: t.name,
-                        source: t.source,
-                        subjectId: t.subject_id,
-                        subjectName: t.subject_name,
-                        classId: t.class_id,
-                        scheduleDay: t.schedule_day,
-                        scheduleStart: t.schedule_start,
-                        scheduleEnd: t.schedule_end,
-                        studentsCount: Number(t.students_count || 0),
-                        status: t.status
-                    }));
+
+                    // Fetch profiles for username (role=gb)
+                    let profileMap = new Map();
+                    try {
+                        const profRes = await fetch('/api/profiles?role=eq.gb', { headers });
+                        if (profRes.ok) {
+                            const profiles = await profRes.json();
+                            if (Array.isArray(profiles)) {
+                                profiles.forEach((p: any) => {
+                                    const username = p.email ? p.email.split('@')[0] : '';
+                                    profileMap.set(p.id?.toString(), { username, passwordHash: p.password_hash });
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Gagal fetch profiles untuk username:', e);
+                    }
+
+                    const mapped = teachData.map(t => {
+                        const profileId = `bimbel_${t.id}`;
+                        const profile = profileMap.get(profileId) || {};
+                        return {
+                            id: Number(t.id),
+                            name: t.name,
+                            source: t.source,
+                            subjectId: t.subject_id,
+                            subjectName: t.subject_name,
+                            classId: t.class_id,
+                            scheduleDay: t.schedule_day,
+                            scheduleStart: t.schedule_start,
+                            scheduleEnd: t.schedule_end,
+                            studentsCount: Number(t.students_count || 0),
+                            status: t.status,
+                            username: profile.username || '',
+                            passwordHash: profile.passwordHash || ''
+                        };
+                    });
                     setTutoringTeachers(mapped);
                     updateTutoringTeachersGlobal(mapped);
                 }
@@ -149,6 +173,50 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
     const [newTutoringTeacher, setNewTutoringTeacher] = useState({ name: '', source: 'internal', subjectId: '', classId: '', scheduleDay: 'Senin', scheduleStart: '14:00', scheduleEnd: '15:00', username: '', password: '' });
     const [showTutoringPassword, setShowTutoringPassword] = useState(false);
     const [editingTutoringTeacherId, setEditingTutoringTeacherId] = useState<number | null>(null);
+
+    // Reset Password state
+    const [resetModal, setResetModal] = useState(false);
+    const [resetTarget, setResetTarget] = useState<any>(null);
+    const [newResetPassword, setNewResetPassword] = useState('');
+    const [showResetPassword, setShowResetPassword] = useState(false);
+    const [resetting, setResetting] = useState(false);
+
+    const handleOpenReset = (teacher: any) => {
+        setResetTarget(teacher);
+        setNewResetPassword('');
+        setShowResetPassword(false);
+        setResetModal(true);
+    };
+
+    const handleResetPassword = async () => {
+        if (!newResetPassword || newResetPassword.length < 6) {
+            toast.error('Password minimal 6 karakter!');
+            return;
+        }
+        setResetting(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const hash = await hashPassword(newResetPassword);
+            const profileId = `bimbel_${resetTarget.id}`;
+            const res = await fetch(`/api/profiles?id=eq.${profileId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ password_hash: hash })
+            });
+            if (!res.ok) throw new Error('Gagal reset password');
+            toast.success(`Password ${resetTarget.nama || resetTarget.name} berhasil direset!`);
+            setResetModal(false);
+            setResetTarget(null);
+            setNewResetPassword('');
+        } catch (err) {
+            toast.error('Gagal reset password');
+        } finally {
+            setResetting(false);
+        }
+    };
 
     const getStudentName = (studentId: number | string) => {
         const sid = Number(studentId);
@@ -671,6 +739,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                                                 <td className="p-4 text-center">
                                                     <div className="flex justify-center gap-3">
                                                         <button onClick={() => handleManageTutoringStudents(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Kelola Siswa"><UserPlus size={18} /></button>
+                                                        <button onClick={() => handleOpenReset(t)} className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors" title="Reset Password"><KeyRound size={18} /></button>
                                                         <button onClick={() => handleEditTutoringTeacher(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><SquarePen size={18} /></button>
                                                         <button onClick={() => handleDeleteTutoringTeacher(t.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={18} /></button>
                                                     </div>
@@ -1015,6 +1084,63 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                     onRemoveStudent={handleRemoveStudentFromTutoring}
                     filterClassId={selectedTutoringGroup?.classId}
                 />
+            )}
+
+            {/* MODAL RESET PASSWORD GURU BIMBEL */}
+            {resetModal && resetTarget && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8">
+                        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <h3 className="font-bold text-lg text-slate-800">Reset Password Guru Bimbel</h3>
+                            <button onClick={() => { setResetModal(false); setResetTarget(null); }} className="text-slate-400 hover:text-red-500">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="mb-4">
+                            <p className="text-sm text-slate-600 mb-1">Guru:</p>
+                            <p className="font-bold text-slate-800">{resetTarget.name}</p>
+                            <p className="text-xs text-slate-400">Username: {resetTarget.username || '-'}</p>
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password Baru</label>
+                            <div className="relative">
+                                <input
+                                    type={showResetPassword ? 'text' : 'password'}
+                                    value={newResetPassword}
+                                    onChange={(e) => setNewResetPassword(e.target.value)}
+                                    className="w-full p-3 pr-10 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors font-mono"
+                                    placeholder="Masukkan password baru"
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowResetPassword(!showResetPassword)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showResetPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1 ml-1">Minimal 6 karakter</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                type="button"
+                                onClick={() => { setResetModal(false); setResetTarget(null); }}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleResetPassword}
+                                disabled={resetting}
+                                className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all disabled:opacity-50"
+                            >
+                                {resetting ? 'Menyimpan...' : 'Reset Password'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

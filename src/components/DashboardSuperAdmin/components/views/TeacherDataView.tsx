@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    ChevronRight, Download, UploadCloud, UserPlus, Save, Edit, Trash2, Printer
+    ChevronRight, Download, UploadCloud, UserPlus, Save, Edit, Trash2, Printer, KeyRound, Eye, EyeOff
 } from 'lucide-react';
+import { hashPassword } from '../../../../utils/auth';
+import { toast } from 'react-hot-toast';
 
 interface TeacherDataViewProps {
     teachers: any[];
@@ -36,9 +38,51 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
     const isKurikulum = rawRole === 'kurikulum' || rawRole === 'wakil kurikulum';
     const isKS = rawRole === 'ks';
 
+    const [resetModal, setResetModal] = useState(false);
+    const [resetTarget, setResetTarget] = useState<any>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [resetting, setResetting] = useState(false);
+
     const classOptions = classes && classes.length > 0
         ? classes.map((c: any) => c.nama)
         : [];
+
+    const handleOpenReset = (guru: any) => {
+        setResetTarget(guru);
+        setNewPassword('');
+        setShowNewPassword(false);
+        setResetModal(true);
+    };
+
+    const handleResetPassword = async () => {
+        if (!newPassword || newPassword.length < 6) {
+            toast.error('Password minimal 6 karakter!');
+            return;
+        }
+        setResetting(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const hash = await hashPassword(newPassword);
+            const res = await fetch(`/api/profiles?id=eq.${resetTarget.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ password_hash: hash })
+            });
+            if (!res.ok) throw new Error('Gagal reset password');
+            toast.success(`Password ${resetTarget.nama} berhasil direset!`);
+            setResetModal(false);
+            setResetTarget(null);
+            setNewPassword('');
+        } catch (err) {
+            toast.error('Gagal reset password');
+        } finally {
+            setResetting(false);
+        }
+    };
 
     const handlePrintSingleCard = (guru: any) => {
         const savedSettings = localStorage.getItem('school_settings_v10');
@@ -579,6 +623,9 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 <td className="p-4 flex justify-center gap-2">
                                     <button onClick={() => handlePrintSingleCard(guru)} title="Cetak Kartu Login" className="p-2 hover:bg-indigo-50 text-indigo-500 rounded-lg"><Printer size={16} /></button>
                                     {!isKurikulum && !isKS && (
+                                        <button onClick={() => handleOpenReset(guru)} title="Reset Password" className="p-2 hover:bg-amber-50 text-amber-500 rounded-lg"><KeyRound size={16} /></button>
+                                    )}
+                                    {!isKurikulum && !isKS && (
                                         <button onClick={() => handleEditItem(guru, 'Data Guru')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"><Edit size={16} /></button>
                                     )}
                                     {!isKurikulum && !isKS && (
@@ -590,6 +637,63 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                     </tbody>
                 </table>
             </div>
+
+            {/* MODAL RESET PASSWORD */}
+            {resetModal && resetTarget && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8">
+                        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <h3 className="font-bold text-lg text-slate-800">Reset Password</h3>
+                            <button onClick={() => { setResetModal(false); setResetTarget(null); }} className="text-slate-400 hover:text-red-500">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div className="mb-4">
+                            <p className="text-sm text-slate-600 mb-1">Guru:</p>
+                            <p className="font-bold text-slate-800">{resetTarget.nama}</p>
+                            <p className="text-xs text-slate-400">Username: {resetTarget.username}</p>
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Password Baru</label>
+                            <div className="relative">
+                                <input
+                                    type={showNewPassword ? 'text' : 'password'}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full p-3 pr-10 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors font-mono"
+                                    placeholder="Masukkan password baru"
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1 ml-1">Minimal 6 karakter</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                type="button"
+                                onClick={() => { setResetModal(false); setResetTarget(null); }}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleResetPassword}
+                                disabled={resetting}
+                                className="flex-1 py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all disabled:opacity-50"
+                            >
+                                {resetting ? 'Menyimpan...' : 'Reset Password'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

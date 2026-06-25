@@ -211,13 +211,28 @@ export const useTeachers = () => {
                             dbRole2 = 'guru';
                         }
 
+                        // Build profile update payload
+                        const profileUpdate: any = {
+                            full_name: teacher.nama,
+                            role: dbRole2
+                        };
+
+                        // Masalah 2: Sync username (email) jika berubah
+                        if (current.username !== teacher.username) {
+                            profileUpdate.email = email2;
+                        }
+
+                        // Masalah 3: Sync password_hash jika berubah
+                        const newPw = teacher.password;
+                        const pwChanged = current.password !== newPw && newPw && newPw !== '••••••••' && !newPw.startsWith('$2');
+                        if (pwChanged) {
+                            profileUpdate.password_hash = await hashPassword(newPw);
+                        }
+
                         const res1 = await fetch(`/api/profiles?id=eq.${idStr}`, {
                             method: 'PATCH',
                             headers,
-                            body: JSON.stringify({
-                                full_name: teacher.nama,
-                                role: dbRole2
-                            })
+                            body: JSON.stringify(profileUpdate)
                         });
                         if (!res1.ok) throw new Error(`Failed to update profile for ${teacher.nama}`);
 
