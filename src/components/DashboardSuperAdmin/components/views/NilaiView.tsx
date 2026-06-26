@@ -42,7 +42,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
     const { saveGradesBatch } = useGrades();
     const lowerRole = role?.toLowerCase();
     const isKurikulum = lowerRole === 'kurikulum';
-    const readOnly = isKurikulum || lowerRole === 'kepala sekolah' || lowerRole === 'ks';
+    const readOnly = isKurikulum || lowerRole === 'admin' || lowerRole === 'kepala sekolah' || lowerRole === 'ks';
 
     // --- LOCAL DATABASE STATES ---
     const [classes] = useState<any[]>(() => {
@@ -134,17 +134,6 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
             setTpCount(4); // Default
         }
     }, [selectedClass, selectedSubject, selectedSemester]);
-
-    const updateTpCount = (newCount: number) => {
-        setTpCount(newCount);
-        const countKey = `tp_count_${selectedClass}_${selectedSubject}_${selectedSemester}`;
-        localStorage.setItem(countKey, newCount.toString());
-    };
-
-    const removeTpCount = () => {
-        if (tpCount <= 1) return;
-        updateTpCount(tpCount - 1);
-    };
 
     // --- LOAD MASTER DESCRIPTIONS ---
     useEffect(() => {
@@ -492,27 +481,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                                 U {i + 1}
                                             </th>
                                         ))}
-                                        {/* Add Button */}
-                                        {isKurikulum && (
-                                            <th className="py-4 px-2 w-20 text-center border-b bg-[#F8FAFC]">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <button
-                                                        onClick={() => updateTpCount(Math.min(tpCount + 1, 15))}
-                                                        className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors"
-                                                        title="Tambah Kolom Ulangan"
-                                                    >
-                                                        <Plus size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={removeTpCount}
-                                                        className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
-                                                        title="Hapus Kolom Ulangan Terakhir"
-                                                    >
-                                                        <Minus size={14} />
-                                                    </button>
-                                                </div>
-                                            </th>
-                                        )}
+                                        {/* TP column +/- buttons removed — Guru inputs via DashboardGuru, Kurikulum/Admin view only */}
                                         <th className="py-4 px-4 w-32 text-center border-b bg-blue-50 text-blue-700 border-l border-r border-blue-100">Rerata Nilai</th>
                                         <th className="border-b bg-[#F8FAFC] min-w-[20px]"></th>
                                     </>

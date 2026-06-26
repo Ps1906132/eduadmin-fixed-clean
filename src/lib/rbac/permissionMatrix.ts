@@ -41,7 +41,7 @@ const ADMIN_PERMISSIONS: ModulePermission[] = [
   { module: 'jadwal',        actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
   { module: 'absen',         actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
   { module: 'jadwal-ujian',  actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
-  { module: 'nilai',         actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
+  { module: 'nilai',         actions: READ_ONLY, notes: 'READ ONLY (admin tidak ada menu ini di sidebar)' },
   { module: 'rapot',         actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
   { module: 'naik-kelas',    actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
 
@@ -60,7 +60,7 @@ const KURIKULUM_PERMISSIONS: ModulePermission[] = [
   { module: 'jadwal',        actions: ALL_CRUD,  notes: 'Full control, primary owner' },
   { module: 'absen',         actions: READ_ONLY,  notes: 'View attendance statistics (input by Guru)' },
   { module: 'jadwal-ujian',  actions: ALL_CRUD,  notes: 'Exam scheduling' },
-  { module: 'nilai',         actions: ALL_CRUD,  notes: 'Grade input & management' },
+  { module: 'nilai',         actions: READ_ONLY,  notes: 'View only — input by Guru via DashboardGuru' },
   { module: 'rapot',         actions: ALL_CRUD,  notes: 'Generate & manage reports' },
   { module: 'naik-kelas',    actions: ALL_CRUD,  notes: 'Grade promotion' },
 

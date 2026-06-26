@@ -66,7 +66,7 @@ const RaporSettingsView: React.FC<RaporSettingsViewProps> = ({ setActiveView, sh
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ rapor_descriptions: JSON.stringify(descriptions) })
-        }).catch(() => {});
+        }).catch(() => { toast.error('Gagal menyimpan deskripsi rapor ke server'); });
     }, [descriptions]);
 
     React.useEffect(() => {
@@ -79,10 +79,12 @@ const RaporSettingsView: React.FC<RaporSettingsViewProps> = ({ setActiveView, sh
                     try {
                         const parsed = JSON.parse(data[0].rapor_descriptions);
                         if (Array.isArray(parsed) && parsed.length > 0) setDescriptions(parsed);
-                    } catch (e) {}
+                    } catch (e) {
+                        toast.error('Gagal memuat deskripsi rapor: data tidak valid');
+                    }
                 }
             })
-            .catch(() => {});
+            .catch(() => { toast.error('Gagal memuat deskripsi rapor dari server'); });
     }, []);
 
     const handleAddDescription = () => {

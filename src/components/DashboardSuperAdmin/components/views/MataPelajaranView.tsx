@@ -33,6 +33,7 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
     user
 }) => {
     const roleCode = (user?.roleCode || user?.role || user?.role_type || '').toLowerCase();
+    const isAdmin = roleCode === 'admin' || roleCode === 'super admin' || roleCode === 'operator data';
     const isKurikulum = roleCode === 'kurikulum';
 
     const getStatusLabel = (guru: any): string => {
@@ -89,7 +90,7 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
                 <button onClick={() => setMapelViewMode('plotting')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mapelViewMode === 'plotting' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Plotting Guru</button>
                 <button onClick={() => setMapelViewMode('master')} className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mapelViewMode === 'master' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Data Master Mapel</button>
             </div>
-            {!isKurikulum && (
+            {isAdmin && (
                 <div className="flex flex-wrap gap-3 mt-4">
                     {mapelViewMode === 'master' ? (
                         <>
@@ -200,7 +201,7 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
                                 <th className="p-4 border-r border-slate-200">Kode</th>
                                 <th className="p-4 border-r border-slate-200">Tingkat</th>
                                 <th className="p-4 border-r border-slate-200">Kelompok</th>
-                                {!isKurikulum && <th className="p-4 text-center">Aksi</th>}
+                                {isAdmin && <th className="p-4 text-center">Aksi</th>}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-100">
@@ -211,7 +212,7 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
                                     <td className="p-4 font-mono text-slate-600">{mapel.code}</td>
                                     <td className="p-4 text-slate-600">{mapel.level}</td>
                                     <td className="p-4"><span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">{mapel.group}</span></td>
-                                    {!isKurikulum && (
+                                    {isAdmin && (
                                         <td className="p-4 flex justify-center gap-2">
                                             <button onClick={() => handleEditItem(mapel, 'Mata Pelajaran')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg"><Edit size={16} /></button>
                                             <button onClick={() => handleDeleteSubject && handleDeleteSubject(mapel.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash2 size={16} /></button>

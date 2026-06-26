@@ -43,8 +43,9 @@ export const useExams = () => {
                         teacherName: item.teacher_id
                     }));
 
+                    const currentYear = new Date().getFullYear();
                     const baseExam = examsDataGlobal[0] || { 
-                        id: 1, type: 'UTS', semester: 'Ganjil', year: '2025/2026', 
+                        id: 1, type: 'UTS', semester: 'Ganjil', year: `${currentYear}/${currentYear + 1}`, 
                         status: 'published', items: [], timeSlots: [] 
                     };
 
@@ -60,7 +61,7 @@ export const useExams = () => {
                 }
             }
         } catch (err) {
-            console.error('Error fetching exams from API:', err);
+            toast.error('Gagal memuat data jadwal ujian');
         } finally {
             setLoading(false);
         }
@@ -124,7 +125,7 @@ export const useExams = () => {
                 }
             }
         } catch (err) {
-            console.error('Failed to sync exams with API:', err);
+            toast.error('Gagal menyinkronkan jadwal ujian');
         }
     }, []);
 

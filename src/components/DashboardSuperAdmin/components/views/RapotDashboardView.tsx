@@ -30,7 +30,7 @@ const RapotDashboardView: React.FC<RapotDashboardViewProps> = ({
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-[#1E1B4B]">Dashboard E-Rapor</h2>
-                        <p className="text-slate-500 text-sm">Tahun Ajaran 2025/2026 • Semester Ganjil</p>
+                        <p className="text-slate-500 text-sm">Tahun Ajaran {new Date().getFullYear()}/{new Date().getFullYear() + 1}</p>
                     </div>
                 </div>
 
@@ -39,8 +39,8 @@ const RapotDashboardView: React.FC<RapotDashboardViewProps> = ({
                         <Settings size={20} />
                     </button>
                     <select className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 cursor-pointer">
-                        <option>2025/2026 Ganjil</option>
-                        <option>2025/2026 Genap</option>
+                        <option>{new Date().getFullYear()}/{new Date().getFullYear() + 1} Ganjil</option>
+                        <option>{new Date().getFullYear()}/{new Date().getFullYear() + 1} Genap</option>
                     </select>
                     <select className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 cursor-pointer">
                         <option value="">Semua Kelas</option>

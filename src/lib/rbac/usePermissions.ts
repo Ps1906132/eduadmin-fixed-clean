@@ -14,7 +14,29 @@
 import { useMemo, useCallback } from 'react';
 import { hasPermission, getAccessibleModules, isModuleOwner, getOwnedModules } from './permissionMatrix';
 import { logUnauthorizedAccess } from './auditLog';
+import { mapRoleToCode } from './roleMapping';
 import type { AdminRoleType, AppModule, CrudAction } from './types';
+
+// =============================================================================
+// UTILITY: getCurrentUserRole
+// Get the current user's normalized role from localStorage.
+// Used by hooks (useGrades, useSubjects, etc.) for permission checks outside React components.
+// =============================================================================
+
+export function getCurrentUserRole(): AdminRoleType {
+  try {
+    const saved = localStorage.getItem('eduadmin_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const role = parsed.roleCode || parsed.role || parsed.role_type || '';
+      const normalized = mapRoleToCode(role);
+      return normalized as AdminRoleType;
+    }
+  } catch (e) {
+    console.warn('getCurrentUserRole: failed to parse user data', e);
+  }
+  return 'ortu' as AdminRoleType; // default fallback
+}
 
 // =============================================================================
 // HOOK: usePermissions

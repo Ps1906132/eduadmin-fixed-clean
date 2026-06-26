@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-hot-toast';
 import { schoolSettingsGlobal } from '../../../data/sharedData';
 
 export interface CashAccount {
@@ -114,7 +115,7 @@ export const useFinance = () => {
                 setPaymentHistory(dbPayments);
             }
         } catch (err) {
-            console.error('Error fetching finance data from D1:', err);
+            toast.error('Gagal memuat data keuangan dari database');
         } finally {
             setLoading(false);
         }
@@ -153,7 +154,6 @@ export const useFinance = () => {
             }
             return { success: false, error: 'Gagal menyimpan transaksi' };
         } catch (err) {
-            console.error('Error saving payment:', err);
             return { success: false, error: 'Terjadi kesalahan jaringan' };
         }
     };
@@ -183,7 +183,6 @@ export const useFinance = () => {
             }
             return { success: false, error: 'Gagal menyimpan pengeluaran' };
         } catch (err) {
-            console.error('Error saving expense:', err);
             return { success: false, error: 'Terjadi kesalahan jaringan' };
         }
     };

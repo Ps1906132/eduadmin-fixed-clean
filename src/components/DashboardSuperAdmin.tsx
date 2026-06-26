@@ -731,7 +731,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     {/* --- VIEW: RAPOR PRINT (Detail Cetak) --- */}
                     {activeView === 'rapot_print' && (
                         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in overflow-hidden">
-                            <RaporView setActiveView={setActiveView} />
+                            <RaporView setActiveView={setActiveView} classes={classes} students={students} teachers={teachers} />
                         </div>
                     )}
 

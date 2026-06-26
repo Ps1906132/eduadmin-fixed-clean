@@ -370,21 +370,25 @@ const AbsensiRekap: React.FC<{ students: any[]; classes: any[] }> = ({
         setLoading(true);
         try {
             const token = localStorage.getItem('eduadmin_token');
-            if (!token) return;
+            if (!token) {
+                toast.error('Sesi berakhir, silakan login kembali');
+                return;
+            }
             const headers = { 'Authorization': `Bearer ${token}` };
             const res = await fetch('/api/attendance?select=*', { headers });
             if (res.ok) {
                 const data = await res.json();
-                // Map D1 format ke AttendanceRecord format
                 const mapped = data.map((r: any) => ({
                     studentId: r.student_id,
                     date: r.date,
-                    status: r.status, // 'hadir', 'sakit', 'izin', 'alpa'
+                    status: r.status,
                 }));
                 setAttendanceData(mapped);
+            } else {
+                toast.error('Gagal memuat data kehadiran');
             }
         } catch (err) {
-            console.error('Error fetching attendance:', err);
+            toast.error('Gagal memuat data kehadiran');
         } finally {
             setLoading(false);
         }

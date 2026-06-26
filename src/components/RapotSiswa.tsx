@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Search, Users, ArrowLeft } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface RapotSiswaProps {
     onBack: () => void;
@@ -13,11 +14,6 @@ interface StudentGrade {
     report: number;
 }
 
-const subjectList = [
-    "Pendidikan Agama", "Pendidikan Pancasila", "Bahasa Indonesia",
-    "Matematika", "IPAS", "Seni Budaya", "PJOK", "Bahasa Inggris"
-];
-
 const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
     const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -26,6 +22,7 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
     const [subjects, setSubjects] = useState<StudentGrade[]>([]);
     const [loadingRaport, setLoadingRaport] = useState(false);
     const [selectedSemester, setSelectedSemester] = useState('Semester 1');
+    const [subjectList, setSubjectList] = useState<string[]>([]);
 
     const waliKelas = user?.kelas || '';
 
@@ -38,14 +35,24 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                 const token = localStorage.getItem('eduadmin_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const res = await fetch('/api/students', { headers });
-                if (res.ok) {
-                    const data = await res.json();
+                const [studentsRes, subjectsRes] = await Promise.all([
+                    fetch('/api/students', { headers }),
+                    fetch('/api/subjects', { headers })
+                ]);
+
+                if (studentsRes.ok) {
+                    const data = await studentsRes.json();
                     const filtered = Array.isArray(data) ? data.filter((s: any) => s.kelas === waliKelas) : [];
                     setStudents(filtered);
                 }
+
+                if (subjectsRes.ok) {
+                    const subs = await subjectsRes.json();
+                    if (Array.isArray(subs)) setSubjectList(subs.map((s: any) => s.name));
+                }
             } catch (e) {
                 console.error('Failed to load students:', e);
+                toast.error('Gagal memuat data siswa');
             } finally {
                 setLoading(false);
             }
@@ -65,6 +72,8 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                 const headers = { 'Authorization': `Bearer ${token}` };
                 const loaded: StudentGrade[] = [];
 
+                const semesterNum = selectedSemester === 'Semester 1' ? '1' : '2';
+
                 for (const subj of subjectList) {
                     const subjRes = await fetch(`/api/subjects?name=eq.${encodeURIComponent(subj)}`, { headers });
                     const subjData = subjRes.ok ? await subjRes.json() : [];
@@ -73,7 +82,7 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                     let daily = 0, exam = 0, report = 0;
 
                     if (targetSubject) {
-                        const gradeRes = await fetch(`/api/grades?student_id=eq.${selectedStudent.id}&subject_id=eq.${targetSubject.id}`, { headers });
+                        const gradeRes = await fetch(`/api/grades?student_id=eq.${selectedStudent.id}&subject_id=eq.${targetSubject.id}&semester=eq.${semesterNum}`, { headers });
                         if (gradeRes.ok) {
                             const gradeData = await gradeRes.json();
                             if (Array.isArray(gradeData) && gradeData.length > 0) {
@@ -95,13 +104,14 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                 setSubjects(loaded);
             } catch (e) {
                 console.error('Failed to load grades:', e);
+                toast.error('Gagal memuat data rapor');
             } finally {
                 setLoadingRaport(false);
             }
         };
 
         loadRaport();
-    }, [selectedStudent, selectedSemester]);
+    }, [selectedStudent, selectedSemester, subjectList]);
 
     const averageReport = subjects.length > 0 ? Math.round(subjects.reduce((acc, curr) => acc + curr.report, 0) / subjects.length) : 0;
 

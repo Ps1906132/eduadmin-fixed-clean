@@ -15,7 +15,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
     students,
     classes
 }) => {
-    const { updateStudents } = useStudents();
+    const { updateStudents, persistStudentClassUpdates } = useStudents();
     const [promotionActiveTab, setPromotionActiveTab] = useState('dashboard'); // dashboard, persiapan, proses, lulus, riwayat
 
     const [promotionYear, setPromotionYear] = useState(() => {
@@ -24,7 +24,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
     });
 
     useEffect(() => {
-        localStorage.setItem('promotion_year_v1', JSON.stringify(promotionYear));
+        localStorage.setItem('promotion_year_v10', JSON.stringify(promotionYear));
     }, [promotionYear]);
 
     const [promotionChecklist, setPromotionChecklist] = useState({ year: true, classes: true, report: false, distinct: true });
@@ -65,6 +65,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
 
     const [selectedPromotionClass, setSelectedPromotionClass] = useState('');
     const [targetPromotionClass, setTargetPromotionClass] = useState('');
+    const [studentStats, setStudentStats] = useState<Record<string, { avgGrade: number; attendance: number }>>({});
     const [promotionStudents, setPromotionStudents] = useState<any[]>([]); // Temp holder
 
     const handleCheckPreparation = () => {
@@ -95,7 +96,7 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         );
     };
 
-    const handleLoadPromotionStudents = (className: string) => {
+    const handleLoadPromotionStudents = async (className: string) => {
         setSelectedPromotionClass(className);
         const level = parseInt(className.match(/\d+/)?.[0] || '0');
         const parallel = className.replace(/\d+/, '');
@@ -126,6 +127,49 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         });
 
         setPromotionStudents(mappedStudents);
+
+        // Fetch real grades & attendance from D1 for each student
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            if (!token) return;
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            const [gradesRes, attendanceRes] = await Promise.all([
+                fetch('/api/grades?select=*', { headers }),
+                fetch('/api/attendance?select=*', { headers })
+            ]);
+
+            const gradesData = gradesRes.ok ? await gradesRes.json() : [];
+            const attendanceData = attendanceRes.ok ? await attendanceRes.json() : [];
+
+            const newStats: Record<string, { avgGrade: number; attendance: number }> = {};
+
+            classStudents.forEach(s => {
+                const sid = s.id.toString();
+
+                // Calculate average grade for this student
+                const studentGrades = Array.isArray(gradesData)
+                    ? gradesData.filter((g: any) => g.student_id === sid && g.assessment_type?.startsWith('tp'))
+                    : [];
+                const avgGrade = studentGrades.length > 0
+                    ? Math.round(studentGrades.reduce((sum: number, g: any) => sum + (g.grade_value || 0), 0) / studentGrades.length)
+                    : 0;
+
+                // Calculate attendance percentage for this student
+                const studentAttendance = Array.isArray(attendanceData)
+                    ? attendanceData.filter((a: any) => a.student_id === sid)
+                    : [];
+                const totalDays = studentAttendance.length;
+                const hadirDays = studentAttendance.filter((a: any) => a.status === 'hadir' || a.status === 1).length;
+                const attendance = totalDays > 0 ? Math.round((hadirDays / totalDays) * 100) : 0;
+
+                newStats[sid] = { avgGrade, attendance };
+            });
+
+            setStudentStats(newStats);
+        } catch (err) {
+            console.warn('Gagal fetch stats siswa untuk promosi:', err);
+        }
     };
 
     const handleExecutePromotion = async () => {
@@ -140,12 +184,25 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         const count = toPromote.length;
 
         if (confirm(`Yakin ingin memproses kenaikan kelas untuk ${count} siswa dari ${selectedPromotionClass} ke ${targetPromotionClass}?`)) {
+            // Persist class changes to D1
+            const classUpdates = toPromote.map(s => ({
+                studentId: s.id,
+                newKelas: targetPromotionClass,
+                newTingkat: (s.tingkat || 1) + 1,
+            }));
+
+            const persistResult = await persistStudentClassUpdates(classUpdates);
+            if (!persistResult.success) {
+                toast.error(`Gagal menyimpan perubahan kelas ke database: ${persistResult.error}`);
+                return;
+            }
+
+            // Update local UI state
             const updatedStudents = toPromote.map(s => ({
                 ...s,
                 kelas: targetPromotionClass,
                 tingkat: (s.tingkat || 1) + 1,
             }));
-
             updateStudents(updatedStudents);
 
             const newHistory = toPromote.map((s, idx) => ({
@@ -174,7 +231,10 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(d1Records)
-            }).catch(err => console.error('Gagal simpan riwayat ke D1:', err));
+            }).catch(err => {
+                console.error('Gagal simpan riwayat ke D1:', err);
+                toast.error('Gagal menyimpan riwayat kenaikan kelas ke server');
+            });
             setPromotionStudents([]);
             setSelectedPromotionClass('');
             toast.success("Proses Kenaikan Kelas Berhasil! Data siswa telah diperbarui.");
@@ -191,12 +251,25 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         }
 
         if (confirm(`Yakin ingin meluluskan ${count} siswa dari kelas ${selectedPromotionClass}? Siswa akan dipindahkan ke data Alumni.`)) {
+            // Persist class changes to D1 (move to Alumni)
+            const classUpdates = toGraduate.map(s => ({
+                studentId: s.id,
+                newKelas: 'Alumni',
+                newTingkat: 7,
+            }));
+
+            const persistResult = await persistStudentClassUpdates(classUpdates);
+            if (!persistResult.success) {
+                toast.error(`Gagal menyimpan perubahan kelulusan ke database: ${persistResult.error}`);
+                return;
+            }
+
+            // Update local UI state
             const updatedStudents = toGraduate.map(s => ({
                 ...s,
                 kelas: 'Alumni',
                 tingkat: 7,
             }));
-
             updateStudents(updatedStudents);
 
             const newHistory = toGraduate.map((s, idx) => ({
@@ -225,7 +298,10 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(d1Records)
-            }).catch(err => console.error('Gagal simpan riwayat ke D1:', err));
+            }).catch(err => {
+                console.error('Gagal simpan riwayat ke D1:', err);
+                toast.error('Gagal menyimpan riwayat kelulusan ke server');
+            });
             setPromotionStudents([]);
             setSelectedPromotionClass('');
             toast.success("Proses Kelulusan Berhasil! Siswa telah dipindahkan ke Alumni.");
@@ -409,8 +485,8 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
                                                         {s.nama}
                                                         <div className="text-xs text-slate-400 font-normal">{s.nis}</div>
                                                     </td>
-                                                    <td className="p-4 text-center text-slate-600 font-mono font-bold">85.5</td>
-                                                    <td className="p-4 text-center text-slate-600">98%</td>
+                                                    <td className="p-4 text-center text-slate-600 font-mono font-bold">{studentStats[s.id]?.avgGrade ?? '-'}</td>
+                                                    <td className="p-4 text-center text-slate-600">{studentStats[s.id]?.attendance != null ? `${studentStats[s.id].attendance}%` : '-'}</td>
                                                     <td className="p-4 text-center">
                                                         <div className="flex justify-center gap-2">
                                                             <button

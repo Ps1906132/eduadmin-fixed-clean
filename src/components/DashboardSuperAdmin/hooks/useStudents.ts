@@ -549,6 +549,148 @@ export const useStudents = () => {
         });
     };
 
+    /**
+     * Persist class/tingkat changes for multiple students to D1.
+     * Used by NaikKelasView for promotion and graduation.
+     * Updates both `students` table (kelas, tingkat) and `class_students` table (class_id).
+     */
+    const persistStudentClassUpdates = async (
+        updates: Array<{ studentId: string | number; newKelas: string; newTingkat: number }>
+    ): Promise<{ success: boolean; error?: string }> => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return { success: false, error: 'Token tidak ditemukan' };
+
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+        // Backup for rollback
+        const backupStudents = students;
+
+        // Optimistic update UI
+        setStudents(prev => {
+            const newStudents = [...prev];
+            updates.forEach(u => {
+                const idx = newStudents.findIndex(s => s.id.toString() === u.studentId.toString());
+                if (idx !== -1) {
+                    newStudents[idx] = { ...newStudents[idx], kelas: u.newKelas, tingkat: u.newTingkat };
+                }
+            });
+            return newStudents;
+        });
+
+        try {
+            // Fetch all classes to build name->id map
+            let classNameToId: Record<string, string> = {};
+            try {
+                const classRes = await fetch('/api/classes', { headers });
+                if (classRes.ok) {
+                    const classData = await classRes.json();
+                    if (Array.isArray(classData)) {
+                        classData.forEach((c: any) => {
+                            classNameToId[c.name?.toString()] = c.id?.toString();
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('Gagal fetch classes untuk mapping:', e);
+            }
+
+            // Fetch current class_students for each student
+            const studentIds = updates.map(u => u.studentId.toString());
+            const csMap: Record<string, any> = {}; // studentId -> class_student record
+            try {
+                for (const sid of studentIds) {
+                    const csRes = await fetch(`/api/class_students?student_id=eq.${sid}`, { headers });
+                    if (csRes.ok) {
+                        const csData = await csRes.json();
+                        if (Array.isArray(csData) && csData.length > 0) {
+                            csMap[sid] = csData[0];
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Gagal fetch class_students:', e);
+            }
+
+            // Process each student update
+            const errors: string[] = [];
+            for (const u of updates) {
+                const sid = u.studentId.toString();
+                try {
+                    // 1. PATCH students table (kelas & tingkat via class mapping)
+                    // Note: students table may not have 'kelas' column directly —
+                    // the kelas info comes from class_students + classes join.
+                    // We update class_students to point to the new class.
+
+                    const newClassId = classNameToId[u.newKelas];
+
+                    if (csMap[sid]) {
+                        // Update existing class_students record
+                        if (newClassId) {
+                            const patchRes = await fetch(`/api/class_students?id=eq.${csMap[sid].id}`, {
+                                method: 'PATCH',
+                                headers,
+                                body: JSON.stringify({ class_id: newClassId })
+                            });
+                            if (!patchRes.ok) {
+                                errors.push(`Gagal update class_students untuk siswa ${sid}`);
+                            }
+                        }
+                    } else if (newClassId) {
+                        // No existing record — create new class_students
+                        let academicYearId: string | null = null;
+                        try {
+                            let ayRes = await fetch('/api/academic_years?is_active=eq.1', { headers });
+                            if (ayRes.ok) {
+                                const ayData = await ayRes.json();
+                                if (Array.isArray(ayData) && ayData.length > 0) academicYearId = ayData[0].id;
+                            }
+                            if (!academicYearId) {
+                                ayRes = await fetch('/api/academic_years?order=start_date.desc&limit=1', { headers });
+                                if (ayRes.ok) {
+                                    const ayData = await ayRes.json();
+                                    if (Array.isArray(ayData) && ayData.length > 0) academicYearId = ayData[0].id;
+                                }
+                            }
+                        } catch (e) { /* skip */ }
+
+                        if (academicYearId) {
+                            const postRes = await fetch('/api/class_students', {
+                                method: 'POST',
+                                headers,
+                                body: JSON.stringify({
+                                    id: `cs-${sid}-${newClassId}`,
+                                    student_id: sid,
+                                    class_id: newClassId,
+                                    academic_year_id: academicYearId,
+                                    enrollment_date: new Date().toISOString().split('T')[0],
+                                    is_active: 1
+                                })
+                            });
+                            if (!postRes.ok) {
+                                errors.push(`Gagal membuat class_students baru untuk siswa ${sid}`);
+                            }
+                        }
+                    }
+                } catch (singleErr) {
+                    errors.push(`Error updating siswa ${sid}: ${singleErr}`);
+                }
+            }
+
+            if (errors.length > 0) {
+                console.error('Beberapa update gagal:', errors);
+                return { success: false, error: errors.join('; ') };
+            }
+
+            return { success: true };
+        } catch (err) {
+            // Rollback UI on total failure
+            setStudents(backupStudents);
+            const msg = err instanceof Error ? err.message : 'Unknown error';
+            console.error('persistStudentClassUpdates error:', err);
+            return { success: false, error: msg };
+        }
+    };
+
 
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [showAddStudentModal, setShowAddStudentModal] = useState(false);
@@ -732,6 +874,7 @@ export const useStudents = () => {
         addNewStudent,
         updateStudent,
         updateStudents,
+        persistStudentClassUpdates,
         selectedStudent,
         setSelectedStudent,
         showAddStudentModal,

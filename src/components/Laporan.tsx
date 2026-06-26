@@ -8,7 +8,6 @@ import {
     TrendingDown,
     BookOpen,
     CheckCircle,
-    AlertTriangle,
     GraduationCap,
 } from 'lucide-react';
 import { useFinance } from './DashboardSuperAdmin/hooks/useFinance';
@@ -41,31 +40,44 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
     const [selectedSemester, setSelectedSemester] = useState('Ganjil');
     const [loading, setLoading] = useState(true);
 
-    // D1 data
     const [gradesFromDB, setGradesFromDB] = useState<any[]>([]);
     const [attendanceFromDB, setAttendanceFromDB] = useState<any[]>([]);
 
-    const token = localStorage.getItem('eduadmin_token');
-
     // Fetch grades + attendance from D1
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (signal?: AbortSignal) => {
         setLoading(true);
         try {
+            const token = localStorage.getItem('eduadmin_token');
             const headers = { Authorization: `Bearer ${token}` };
+            const semesterNum = selectedSemester === 'Ganjil' ? '1' : '2';
             const [gradesRes, attRes] = await Promise.all([
-                fetch('/api/grades?select=*', { headers }),
-                fetch('/api/attendance?select=*', { headers }),
+                fetch(`/api/grades?semester=eq.${semesterNum}`, { headers, signal }),
+                fetch(`/api/attendance?select=*`, { headers, signal }),
             ]);
-            if (gradesRes.ok) setGradesFromDB(await gradesRes.json());
-            if (attRes.ok) setAttendanceFromDB(await attRes.json());
-        } catch {
-            toast.error('Gagal memuat data laporan');
+            if (gradesRes.ok) {
+                setGradesFromDB(await gradesRes.json());
+            } else {
+                toast.error('Gagal memuat data nilai');
+            }
+            if (attRes.ok) {
+                setAttendanceFromDB(await attRes.json());
+            } else {
+                toast.error('Gagal memuat data kehadiran');
+            }
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                toast.error('Gagal memuat data laporan');
+            }
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, [selectedSemester]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchData(controller.signal);
+        return () => controller.abort();
+    }, [fetchData]);
 
     const classStudents = useMemo(() =>
         students.filter((s: any) => !selectedClass || s.kelas === selectedClass),
@@ -76,14 +88,13 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
 
     // --- Attendance stats from D1 ---
     const attendanceStats = useMemo(() => {
-        // Find student IDs in current view
         const studentIds = new Set(classStudents.map((s: any) => s.id));
         const records = attendanceFromDB.filter((a: any) => studentIds.has(a.student_id));
-        const total = records.length || 1;
         const hadir = records.filter((r: any) => r.status === 'hadir').length;
         return {
             totalRecords: records.length,
-            pctHadir: Math.round((hadir / total) * 100),
+            pctHadir: records.length > 0 ? Math.round((hadir / records.length) * 100) : 0,
+            hasData: records.length > 0,
         };
     }, [classStudents, attendanceFromDB]);
 
@@ -95,7 +106,7 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
         let count = 0;
         records.forEach((g: any) => {
             const val = parseFloat(g.grade_value);
-            if (!isNaN(val) && val > 0) { totalScore += val; count++; }
+            if (!isNaN(val)) { totalScore += val; count++; }
         });
         return {
             avgScore: count > 0 ? Math.round(totalScore / count) : 0,
@@ -115,9 +126,9 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
 
             // Attendance per class
             const attRecords = attendanceFromDB.filter((a: any) => siswaIds.has(a.student_id));
-            const totalAtt = attRecords.length || 1;
             const hadirAtt = attRecords.filter((r: any) => r.status === 'hadir').length;
-            const pctHadir = Math.round((hadirAtt / totalAtt) * 100);
+            const pctHadir = attRecords.length > 0 ? Math.round((hadirAtt / attRecords.length) * 100) : 0;
+            const hasAttData = attRecords.length > 0;
 
             // Grades per class
             const gradeRecords = gradesFromDB.filter((g: any) => siswaIds.has(g.student_id));
@@ -125,11 +136,11 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
             let gradeCount = 0;
             gradeRecords.forEach((g: any) => {
                 const val = parseFloat(g.grade_value);
-                if (!isNaN(val) && val > 0) { totalScore += val; gradeCount++; }
+                if (!isNaN(val)) { totalScore += val; gradeCount++; }
             });
             const avgNilai = gradeCount > 0 ? Math.round(totalScore / gradeCount) : 0;
 
-            return { kelas, jumlahSiswa: siswa.length, pctHadir, avgNilai, gradeCount };
+            return { kelas, jumlahSiswa: siswa.length, pctHadir, avgNilai, gradeCount, hasAttData };
         });
     }, [students, selectedClass, attendanceFromDB, gradesFromDB]);
 
@@ -188,8 +199,8 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
                 {[
                     { label: 'Total Siswa', value: classStudents.length, icon: <Users size={24} />, bg: 'bg-blue-500' },
                     { label: 'Jumlah Kelas', value: totalKelas, icon: <BookOpen size={24} />, bg: 'bg-emerald-500' },
-                    { label: 'Rata-rata Kehadiran', value: `${attendanceStats.pctHadir}%`, icon: <CheckCircle size={24} />, bg: 'bg-green-500' },
-                    { label: 'Rata-rata Nilai', value: gradeStats.avgScore > 0 ? gradeStats.avgScore : '-', icon: <BarChart3 size={24} />, bg: 'bg-purple-500' },
+                    { label: 'Rata-rata Kehadiran', value: attendanceStats.hasData ? `${attendanceStats.pctHadir}%` : '-', icon: <CheckCircle size={24} />, bg: 'bg-green-500' },
+                    { label: 'Rata-rata Nilai', value: gradeStats.studentsWithData > 0 ? gradeStats.avgScore : '-', icon: <BarChart3 size={24} />, bg: 'bg-purple-500' },
                 ].map((card, i) => (
                     <div key={i} className={`${card.bg} text-white p-6 rounded-3xl shadow-lg relative overflow-hidden`}>
                         <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-bl-[4rem]"></div>
@@ -221,10 +232,11 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
                                 <td className="p-3 text-center text-slate-600">{row.jumlahSiswa}</td>
                                 <td className="p-3 text-center">
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        !row.hasAttData ? 'bg-slate-100 text-slate-500' :
                                         row.pctHadir >= 90 ? 'bg-green-100 text-green-700' :
                                         row.pctHadir >= 75 ? 'bg-blue-100 text-blue-700' :
                                         'bg-orange-100 text-orange-700'
-                                    }`}>{row.pctHadir}%</span>
+                                    }`}>{row.hasAttData ? `${row.pctHadir}%` : '-'}</span>
                                 </td>
                                 <td className="p-3 text-center text-slate-600">{row.avgNilai > 0 ? row.avgNilai : '-'}</td>
                             </tr>
@@ -246,7 +258,8 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
    ============================================================ */
 const LaporanKeuangan: React.FC = () => {
     const [activeTab, setActiveTab] = useState('ringkasan');
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const currentYear = new Date().getFullYear();
+    const [selectedYear, setSelectedYear] = useState(currentYear);
 
     // Navigation Items - Phase 1 Only
     const tabs = [
@@ -258,18 +271,35 @@ const LaporanKeuangan: React.FC = () => {
     // Real Data from Hook
     const { studentBills, expenses, cashAccounts } = useFinance();
 
-    // Calculations
-    const totalIncome = studentBills
+    // Filter data by selected year
+    const filteredBills = useMemo(() =>
+        studentBills.filter((b: any) => {
+            const year = b.period ? parseInt(b.period.split('-')[0]) : selectedYear;
+            return year === selectedYear;
+        }),
+        [studentBills, selectedYear]
+    );
+
+    const filteredExpenses = useMemo(() =>
+        expenses.filter((e: any) => {
+            const year = e.date ? new Date(e.date).getFullYear() : selectedYear;
+            return year === selectedYear;
+        }),
+        [expenses, selectedYear]
+    );
+
+    // Calculations (using filtered data)
+    const totalIncome = filteredBills
         .filter(b => b.status === 'Lunas')
         .reduce((sum, b) => sum + b.amount, 0);
 
-    const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalExpense = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
     const totalBalance = cashAccounts.reduce((sum, a) => sum + a.balance, 0);
-    const totalPiutang = studentBills
+    const totalPiutang = filteredBills
         .filter(b => b.status === 'Belum Lunas')
         .reduce((sum, b) => sum + b.amount, 0);
 
-    const piutangStudents = studentBills.filter(b => b.status === 'Belum Lunas');
+    const piutangStudents = filteredBills.filter(b => b.status === 'Belum Lunas');
     const uniquePiutangStudents = Array.from(new Set(piutangStudents.map(b => b.studentId))).length;
 
     // Helper to format currency
@@ -394,8 +424,8 @@ const LaporanKeuangan: React.FC = () => {
                 <div>
                     <h4 className="font-bold text-lg text-red-600 mb-4 pb-2 border-b-2 border-red-100">PENGELUARAN (BIAYA)</h4>
                     <div className="space-y-3">
-                        {Array.from(new Set(expenses.map(e => e.category))).map(cat => {
-                            const catTotal = expenses
+                        {Array.from(new Set(filteredExpenses.map(e => e.category))).map(cat => {
+                            const catTotal = filteredExpenses
                                 .filter(e => e.category === cat)
                                 .reduce((sum, e) => sum + e.amount, 0);
                             return (
@@ -490,9 +520,9 @@ const LaporanKeuangan: React.FC = () => {
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
                         className="bg-transparent font-bold text-slate-700 text-sm outline-none cursor-pointer py-1 pr-2"
                     >
-                        <option>2024</option>
-                        <option>2025</option>
-                        <option>2026</option>
+                        {[currentYear - 1, currentYear, currentYear + 1].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
                     </select>
                 </div>
             </div>

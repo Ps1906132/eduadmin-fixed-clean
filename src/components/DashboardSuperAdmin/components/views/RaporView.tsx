@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Printer, User, ArrowLeft } from 'lucide-react';
-import { studentsDataGlobal, classesDataGlobal, schoolSettingsGlobal, teachersDataGlobal } from '../../../../data/sharedData';
+import { schoolSettingsGlobal } from '../../../../data/sharedData';
 import { useGrades } from '../../hooks/useGrades';
 
 // Types for the Report Card Data
@@ -17,86 +17,62 @@ interface RaporData {
 
 interface RaporViewProps {
     setActiveView: (view: string) => void;
+    classes?: any[];
+    students?: any[];
+    teachers?: any[];
 }
 
-const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
-    // --- LOCAL DATABASE STATES ---
-    const [classes] = useState<any[]>(() => {
-        const saved = localStorage.getItem('classes_data_v11');
-        return saved ? JSON.parse(saved) : [];
-    });
-    const [students] = useState<any[]>(() => {
-        const saved = localStorage.getItem('students_data_v11');
-        return saved ? JSON.parse(saved) : [];
-    });
-    const [teachers] = useState<any[]>(() => {
-        const saved = localStorage.getItem('teachers_data_v11');
-        return saved ? JSON.parse(saved) : [];
-    });
+const ERapor: React.FC<RaporViewProps> = ({ setActiveView, classes: classesProp, students: studentsProp, teachers: teachersProp }) => {
+    const classes = classesProp || [];
+    const students = studentsProp || [];
+    const teachers = teachersProp || [];
 
     // State
     const [selectedClass, setSelectedClass] = useState(classes.length > 0 ? classes[0].nama : '');
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
     const [selectedStudentId, setSelectedStudentId] = useState<number | string>('');
     const [raporType, setRaporType] = useState<'resmi' | 'yayasan'>('resmi');
-    const { fetchReportData } = useGrades();
+    const { fetchGrades } = useGrades();
+    const [d1Grades, setD1Grades] = useState<any[]>([]);
     const [d1ReportData, setD1ReportData] = useState<any>(null);
 
     React.useEffect(() => {
         if (!selectedStudentId || !selectedClass) return;
         const targetClass = classes.find((c: any) => c.nama === selectedClass);
         if (!targetClass) return;
-        fetchReportData(targetClass.id.toString(), selectedStudentId.toString())
-            .then(data => { if (data) setD1ReportData(data); })
-            .catch(() => {});
-    }, [selectedClass, selectedStudentId]);
 
-    // Helper to get dynamic description from Settings (localStorage)
-    const getDynamicDesc = (type: 'k' | 's', defaultVal: string) => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('mock_descriptions');
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    // Use the latest description added in Settings as a demo
-                    if (data.length > 0) {
-                        const latest = data[data.length - 1];
-                        return type === 'k' ? latest.knowledge : latest.skill;
-                    }
-                } catch (e) { console.error('Error parsing mock_descriptions', e); }
-            }
-        }
-        return defaultVal;
-    };
+        fetchGrades({ classId: targetClass.id.toString() })
+            .then((data: any) => { if (data) setD1Grades(data); })
+            .catch(() => {});
+    }, [selectedClass, selectedStudentId, fetchGrades]);
 
     // --- REAL DATA INTEGRATION ---
     const getRealReportData = () => {
         const student = students.find(s => s.id === selectedStudentId);
         if (!student) return null;
 
-        const subjectListRaw = localStorage.getItem('subjects_data_v10');
-        const subjectsData = subjectListRaw ? JSON.parse(subjectListRaw) : [];
+        const targetClass = classes.find((c: any) => c.nama === selectedClass);
+        const subjectsRaw = localStorage.getItem('subjects_data_v10');
+        const subjectsData = subjectsRaw ? JSON.parse(subjectsRaw) : [];
 
         const subjectsWithGrades = subjectsData.map((sub: any) => {
-            const storageKey = `grades_v2_${selectedClass}_${sub.name}_${selectedSemester}`;
-            const savedGrades = localStorage.getItem(storageKey);
-            let k_nilai = 0;
-            let predikat = 'D';
-            let desc = '-';
+            const studentGrades = d1Grades.filter(
+                (g: any) => g.student_id === selectedStudentId && g.subject_id === sub.id
+            );
+            const tpGrades = studentGrades.filter((g: any) => g.assessment_type?.startsWith('tp'));
+            const ptsGrade = studentGrades.find((g: any) => g.assessment_type === 'pts');
+            const patGrade = studentGrades.find((g: any) => g.assessment_type === 'pat');
 
-            if (savedGrades) {
-                try {
-                    const parsed = JSON.parse(savedGrades);
-                    const record = parsed.find((g: any) => g.studentId === selectedStudentId);
-                    if (record) {
-                        k_nilai = record.finalScore || 0;
-                        predikat = record.predicate || 'D';
-                        desc = record.description || '-';
-                    }
-                } catch (e) {
-                    console.error("Error building report for " + sub.name, e);
-                }
+            let k_nilai = 0;
+            if (tpGrades.length > 0) {
+                k_nilai = Math.round(tpGrades.reduce((sum: number, g: any) => sum + (g.grade_value || 0), 0) / tpGrades.length);
             }
+            const examScore = Math.max(ptsGrade?.grade_value || 0, patGrade?.grade_value || 0);
+            if (examScore > 0) k_nilai = Math.round((k_nilai + examScore) / 2);
+            if (k_nilai === 0 && examScore > 0) k_nilai = examScore;
+
+            const predikat = k_nilai >= 90 ? 'SB' : k_nilai >= 80 ? 'B' : k_nilai >= 70 ? 'BSH' : k_nilai >= 60 ? 'K' : 'KK';
+            const desc = k_nilai >= 75 ? 'Sangat baik' : k_nilai >= 60 ? 'Baik' : 'Perlu bimbingan';
 
             return {
                 id: sub.id,
@@ -104,13 +80,12 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
                 k_nilai: k_nilai,
                 k_predikat: predikat,
                 k_desc: desc,
-                s_nilai: k_nilai, // Simplified: mirrors knowledge for now
+                s_nilai: k_nilai,
                 s_predikat: predikat,
                 s_desc: desc
             };
         });
 
-        // Pull Supplementary Data (from Wali Kelas)
         const suppKey = `rapor_supp_${selectedClass}_${selectedStudentId}_${selectedSemester}`;
         const savedSupp = localStorage.getItem(suppKey);
         const supp = savedSupp ? JSON.parse(savedSupp) : {
@@ -129,15 +104,19 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
         };
         if (d1ReportData) Object.assign(supp, d1ReportData);
 
+        const now = new Date();
+        const dynamicDate = `${now.getDate()} ${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+        const currentYear = now.getFullYear();
+
         return {
             schoolName: schoolSettingsGlobal.name,
             schoolAddress: schoolSettingsGlobal.address,
-            studentName: student.nama,
+            studentName: student.nama || student.full_name,
             nis: student.nis,
-            nisn: student.nisn || "0012345678",
+            nisn: student.nisn || "-",
             class: selectedClass,
             semester: selectedSemester,
-            year: schoolSettingsGlobal.academicYear || "2025/2026",
+            year: schoolSettingsGlobal.academicYear || `${currentYear}/${currentYear + 1}`,
             subjects: subjectsWithGrades,
             attitudes: supp.attitudes,
             extracurriculars: supp.extracurriculars,
@@ -149,7 +128,7 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
                 final: subjectsWithGrades.length > 0 && (subjectsWithGrades.reduce((acc: number, s: any) => acc + s.k_nilai, 0) / subjectsWithGrades.length) >= 75 ? "A" : "B"
             },
             decision: selectedSemester.includes('Genap') ? `NAIK KE KELAS: ${parseInt(selectedClass) + 1} (${(parseInt(selectedClass) + 1).toString()})` : "",
-            date: "20 Desember 2025",
+            date: dynamicDate,
             note: supp.note
         };
     };
@@ -579,8 +558,8 @@ const ERapor: React.FC<RaporViewProps> = ({ setActiveView }) => {
 
                             <div className="w-[200px]">
                                 <p className="mb-20">Kepala Sekolah</p>
-                                <p className="font-bold underline uppercase">{schoolSettingsGlobal.principal || "H. AHMAD FULAN, M.Pd"}</p>
-                                <p>NIP. {schoolSettingsGlobal.nipPrincipal || "19800101 200501 1 001"}</p>
+                                <p className="font-bold underline uppercase">{schoolSettingsGlobal.principal || "-"}</p>
+                                <p>NIP. {schoolSettingsGlobal.nipPrincipal || "-"}</p>
                             </div>
 
                             <div className="w-[200px]">
