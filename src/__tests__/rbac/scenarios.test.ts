@@ -84,13 +84,14 @@ describe('[UAT] Skenario B — Kurikulum: Manajemen Akademik', () => {
     expect(isModuleOwner('kurikulum', 'jadwal')).toBe(true);
   });
 
-  it('B2. Kurikulum dapat mencatat absensi siswa (CREATE absen)', () => {
-    expect(hasPermission('kurikulum', 'absen', 'CREATE')).toBe(true);
+  it('B2. Kurikulum dapat melihat rekap absensi siswa (READ absen) — input by Guru', () => {
+    expect(hasPermission('kurikulum', 'absen', 'READ')).toBe(true);
+    expect(hasPermission('kurikulum', 'absen', 'CREATE')).toBe(false);
   });
 
-  it('B3. Kurikulum dapat menginput nilai ulangan (CREATE nilai)', () => {
-    expect(hasPermission('kurikulum', 'nilai', 'CREATE')).toBe(true);
-    expect(isModuleOwner('kurikulum', 'nilai')).toBe(true);
+  it('B3. Kurikulum dapat melihat nilai siswa (READ nilai) — input by Guru', () => {
+    expect(hasPermission('kurikulum', 'nilai', 'READ')).toBe(true);
+    expect(hasPermission('kurikulum', 'nilai', 'CREATE')).toBe(false);
   });
 
   it('B4. Kurikulum dapat menggenerate rapot (CREATE rapot)', () => {
@@ -118,12 +119,15 @@ describe('[UAT] Skenario B — Kurikulum: Manajemen Akademik', () => {
     expect(hasPermission('kurikulum', 'tabungan', 'READ')).toBe(false);
   });
 
-  it('B10. Kurikulum hanya memiliki 6 modul yang bisa di-CRUD penuh', () => {
+  it('B10. Kurikulum memiliki 4 modul CRUD penuh + 2 READ_ONLY', () => {
     const owned = getOwnedModules('kurikulum');
-    expect(owned.length).toBe(6);
+    expect(owned.length).toBe(4);
     expect(owned).toContain('jadwal');
-    expect(owned).toContain('nilai');
+    expect(owned).toContain('jadwal-ujian');
     expect(owned).toContain('rapot');
+    expect(owned).toContain('naik-kelas');
+    expect(owned).not.toContain('absen');
+    expect(owned).not.toContain('nilai');
     expect(owned).not.toContain('data-siswa');
     expect(owned).not.toContain('keuangan');
   });

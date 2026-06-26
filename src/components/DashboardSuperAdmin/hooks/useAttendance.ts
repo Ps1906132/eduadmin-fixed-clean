@@ -39,7 +39,7 @@ export const useAttendance = () => {
 
         // Permission check
         const role = getCurrentUserRole();
-        if (!role || !hasPermission(role, 'absen', 'UPDATE')) {
+        if (!role || !hasPermission(role as any, 'absen', 'UPDATE')) {
             toast.error('Anda tidak memiliki akses untuk mengubah data absensi');
             return { success: false, error: 'Permission denied' };
         }

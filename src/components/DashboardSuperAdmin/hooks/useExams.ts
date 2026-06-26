@@ -26,39 +26,68 @@ export const useExams = () => {
             if (!token) return;
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const res = await fetch('/api/exam_schedules', { headers });
-            if (!res.ok) throw new Error('Gagal mengambil data jadwal ujian');
+            // Fetch exams master
+            const examsRes = await fetch('/api/exams', { headers });
+            const examsData = examsRes.ok ? await examsRes.json() : [];
 
-            const data = await res.json();
-            if (data && Array.isArray(data)) {
-                if (data.length > 0) {
-                    // Map normalized rows back to ExamScheduleItem format
-                    const mappedItems: ExamScheduleItem[] = data.map(item => ({
+            // Fetch exam_schedules items
+            const schedRes = await fetch('/api/exam_schedules', { headers });
+            const schedData = schedRes.ok ? await schedRes.json() : [];
+
+            if (examsData && Array.isArray(examsData) && examsData.length > 0) {
+                const currentYear = new Date().getFullYear();
+
+                // Group schedule items by exam_id
+                const itemsByExam: Record<string, ExamScheduleItem[]> = {};
+                schedData.forEach((item: any) => {
+                    const examId = item.exam_id;
+                    if (!itemsByExam[examId]) itemsByExam[examId] = [];
+                    itemsByExam[examId].push({
                         id: item.id.toString(),
-                        examId: parseInt(item.exam_id) || 1,
+                        examId: parseInt(examId) || 1,
                         classId: item.class_id,
-                        day: item.exam_date, // Re-using exam_date as day for simple mapping
-                        timeSlotId: 0, // Fallback
-                        subjectName: item.subject_id, // Subject ID used as name for now
-                        teacherName: item.teacher_id
-                    }));
+                        day: item.exam_date || '',
+                        timeSlotId: 0,
+                        subjectName: item.subject_id || '',
+                        teacherName: item.teacher_id || '-',
+                        color: 'bg-blue-100 border-blue-200 text-blue-700'
+                    });
+                });
 
-                    const currentYear = new Date().getFullYear();
-                    const baseExam = examsDataGlobal[0] || { 
-                        id: 1, type: 'UTS', semester: 'Ganjil', year: `${currentYear}/${currentYear + 1}`, 
-                        status: 'published', items: [], timeSlots: [] 
-                    };
+                // Build time slots from unique start_time/end_time combos
+                const slotMap = new Map<string, number>();
+                const timeSlots: { id: number; start: string; end: string }[] = [];
+                schedData.forEach((item: any) => {
+                    const key = `${item.start_time}-${item.end_time}`;
+                    if (!slotMap.has(key)) {
+                        const idx = timeSlots.length;
+                        slotMap.set(key, idx);
+                        timeSlots.push({ id: idx, start: item.start_time || '08:00', end: item.end_time || '10:00' });
+                    }
+                });
 
-                    const updatedExam: MasterExamSchedule = {
-                        ...baseExam,
-                        items: mappedItems,
-                        status: 'published'
-                    };
+                // Map exam rows to MasterExamSchedule
+                const finalExams: MasterExamSchedule[] = examsData.map((exam: any) => ({
+                    id: parseInt(exam.id) || exam.id,
+                    type: exam.type || 'UTS',
+                    semester: exam.semester === 1 ? 'Ganjil' : exam.semester === 2 ? 'Genap' : 'Ganjil',
+                    year: exam.academic_year_id || `${currentYear}/${currentYear + 1}`,
+                    status: exam.status || 'draft',
+                    items: itemsByExam[exam.id] || [],
+                    timeSlots: timeSlots.length > 0 ? timeSlots : [
+                        { id: 0, start: '07:30', end: '09:00' },
+                        { id: 1, start: '09:00', end: '09:30' },
+                        { id: 2, start: '09:30', end: '11:00' },
+                    ],
+                    dailyNotes: {},
+                    dailyUniforms: {}
+                }));
 
-                    const finalExams = [updatedExam];
-                    setExamSchedules(finalExams);
-                    updateExamsDataGlobal(finalExams);
-                }
+                setExamSchedules(finalExams);
+                updateExamsDataGlobal(finalExams);
+            } else {
+                // No exams in D1 — use local defaults
+                setExamSchedules(examsDataGlobal);
             }
         } catch (err) {
             toast.error('Gagal memuat data jadwal ujian');
@@ -73,7 +102,7 @@ export const useExams = () => {
 
         // Permission check
         const role = getCurrentUserRole();
-        if (!role || !hasPermission(role, 'jadwal-ujian', 'UPDATE')) {
+        if (!role || !hasPermission(role as any, 'jadwal-ujian', 'UPDATE')) {
             toast.error('Anda tidak memiliki akses untuk mengubah jadwal ujian');
             return;
         }
@@ -84,43 +113,82 @@ export const useExams = () => {
         };
 
         try {
-            const activeExam = newExams.find(e => e.status === 'published') || newExams[0];
-            if (!activeExam) return;
+            // Sync master exams to /api/exams
+            const examsRes = await fetch('/api/exams', { headers });
+            const currentExams = examsRes.ok ? await examsRes.json() : [];
+            const currentExamIds = new Set(currentExams.map((e: any) => e.id.toString()));
 
-            const res = await fetch('/api/exam_schedules', { headers });
-            const currentData = res.ok ? await res.json() : [];
-            const currentIds = new Set((currentData as any[]).map(d => d.id.toString()));
-            const nextIds = new Set(activeExam.items.map(i => i.id.toString()));
+            for (const exam of newExams) {
+                const examIdStr = exam.id.toString();
+                const examBody = {
+                    id: examIdStr,
+                    name: `${exam.type} ${exam.semester} ${exam.year}`,
+                    type: exam.type,
+                    academic_year_id: exam.year,
+                    semester: exam.semester === 'Ganjil' ? 1 : 2,
+                    status: exam.status
+                };
 
-            const deletedIds = [...currentIds].filter(id => !nextIds.has(id));
+                if (currentExamIds.has(examIdStr)) {
+                    await fetch(`/api/exams?id=eq.${examIdStr}`, {
+                        method: 'PATCH', headers, body: JSON.stringify(examBody)
+                    });
+                } else {
+                    await fetch('/api/exams', {
+                        method: 'POST', headers, body: JSON.stringify(examBody)
+                    });
+                }
+            }
+
+            // Sync schedule items to /api/exam_schedules
+            const schedRes = await fetch('/api/exam_schedules', { headers });
+            const currentSched = schedRes.ok ? await schedRes.json() : [];
+            const currentSchedIds = new Set(currentSched.map((s: any) => s.id.toString()));
+
+            // Collect all items from all exams
+            const allItems: { id: string; examId: string; classId: string; day: string; timeSlotId: number; subjectName: string; teacherName: string }[] = [];
+            for (const exam of newExams) {
+                for (const item of exam.items) {
+                    allItems.push({
+                        id: item.id,
+                        examId: exam.id.toString(),
+                        classId: item.classId,
+                        day: item.day,
+                        timeSlotId: item.timeSlotId,
+                        subjectName: item.subjectName,
+                        teacherName: item.teacherName || '-'
+                    });
+                }
+            }
+            const nextSchedIds = new Set(allItems.map((i: any) => i.id.toString()));
+
+            // Delete items no longer present
+            const deletedIds = [...currentSchedIds].filter((id: string) => !nextSchedIds.has(id));
             for (const id of deletedIds) {
                 await fetch(`/api/exam_schedules?id=eq.${id}`, { method: 'DELETE', headers });
             }
 
-            for (const item of activeExam.items) {
-                const idStr = item.id.toString();
+            // Upsert items
+            for (const item of allItems) {
+                const timeSlot = newExams.find(e => e.id.toString() === item.examId)?.timeSlots.find(ts => ts.id === item.timeSlotId);
                 const body = {
-                    id: idStr,
-                    exam_id: activeExam.id.toString(),
+                    id: item.id,
+                    exam_id: item.examId,
                     class_id: item.classId,
                     subject_id: item.subjectName,
                     teacher_id: item.teacherName || null,
                     exam_date: item.day,
-                    start_time: '08:00', // Default
-                    end_time: '10:00' // Default
+                    start_time: timeSlot?.start || '08:00',
+                    end_time: timeSlot?.end || '10:00'
                 };
 
-                if (currentIds.has(idStr)) {
-                    await fetch(`/api/exam_schedules?id=eq.${idStr}`, {
-                        method: 'PATCH',
-                        headers,
-                        body: JSON.stringify(body)
+                if (currentSchedIds.has(item.id)) {
+                    await fetch(`/api/exam_schedules?id=eq.${item.id}`, {
+                        method: 'PATCH', headers, body: JSON.stringify(body)
                     });
                 } else {
                     await fetch('/api/exam_schedules', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify(body)
+                        method: 'POST', headers, body: JSON.stringify(body)
                     });
                 }
             }

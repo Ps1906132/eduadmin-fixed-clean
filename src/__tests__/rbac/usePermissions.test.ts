@@ -92,11 +92,12 @@ describe('[INTEGRATION] usePermissions — Kurikulum Session', () => {
     expect(result.current.isKeuangan).toBe(false);
   });
 
-  it('Kurikulum: can CREATE nilai (modul miliknya)', () => {
+  it('Kurikulum: can READ nilai (READ_ONLY — input by Guru)', () => {
     const { result } = renderHook(() => usePermissions('kurikulum'));
-    expect(result.current.can('nilai', 'CREATE')).toBe(true);
-    expect(result.current.can('nilai', 'UPDATE')).toBe(true);
-    expect(result.current.can('nilai', 'DELETE')).toBe(true);
+    expect(result.current.can('nilai', 'READ')).toBe(true);
+    expect(result.current.can('nilai', 'CREATE')).toBe(false);
+    expect(result.current.can('nilai', 'UPDATE')).toBe(false);
+    expect(result.current.can('nilai', 'DELETE')).toBe(false);
   });
 
   it('Kurikulum: can READ data-siswa (read-only referensi)', () => {
@@ -127,9 +128,9 @@ describe('[INTEGRATION] usePermissions — Kurikulum Session', () => {
     expect(result.current.accessibleModules).toHaveLength(11);
   });
 
-  it('Kurikulum: ownedModules memuat 6 modul', () => {
+  it('Kurikulum: ownedModules memuat 4 modul', () => {
     const { result } = renderHook(() => usePermissions('kurikulum'));
-    expect(result.current.ownedModules).toHaveLength(6);
+    expect(result.current.ownedModules).toHaveLength(4);
   });
 
   // Normalisasi role legacy

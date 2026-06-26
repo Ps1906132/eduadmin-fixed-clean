@@ -210,10 +210,12 @@ const JadwalUjianView: React.FC<JadwalUjianViewProps> = ({
                             setExamSchedules(prev => prev.map(ex => ex.id === activeExamId ? {
                                 ...ex,
                                 items,
-                                timeSlots: examTimeSlots
+                                timeSlots: examTimeSlots,
+                                dailyNotes: examDailyNotes,
+                                dailyUniforms: examDailyUniforms
                             } : ex));
 
-                            toast.success("Konfigurasi Jadwal Ujian berhasil disimpan!");
+                            toast.success("Jadwal ujian berhasil disimpan ke server!");
                         }} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
                             <Save size={16} /> Simpan
                         </button>

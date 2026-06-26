@@ -50,15 +50,46 @@ const RaporSettingsView: React.FC<RaporSettingsViewProps> = ({ setActiveView, sh
 
     // Description State
     const [newDesc, setNewDesc] = useState({ type: 'Rapor Resmi', predicate: 'A', knowledge: '', skill: '' });
-    // State for Descriptions with LocalStorage persistence
+    // State for Descriptions — init from localStorage for instant display
     const [descriptions, setDescriptions] = useState<{ id: number; subject: string; knowledge: string; skill: string; type?: string; predicate?: string; [key: string]: unknown }[]>(() => {
-        const saved = localStorage.getItem('mock_descriptions');
-        if (saved) return JSON.parse(saved);
+        try {
+            const saved = localStorage.getItem('mock_descriptions');
+            if (saved) return JSON.parse(saved);
+        } catch { /* ignore parse error */ }
         return [];
     });
 
-    // Save desc to local storage whenever it changes
+    const [descriptionsLoaded, setDescriptionsLoaded] = useState(false);
+
+    // On mount: fetch from API first, fallback to localStorage
     React.useEffect(() => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) {
+            setDescriptionsLoaded(true);
+            return;
+        }
+        fetch('/api/school_settings', { headers: { 'Authorization': `Bearer ${token}` } })
+            .then(res => res.ok ? res.json() : [])
+            .then(data => {
+                if (data && data.length > 0 && data[0].rapor_descriptions) {
+                    try {
+                        const parsed = JSON.parse(data[0].rapor_descriptions);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setDescriptions(parsed);
+                            localStorage.setItem('mock_descriptions', JSON.stringify(parsed));
+                        }
+                    } catch {
+                        toast.error('Gagal memuat deskripsi rapor: data tidak valid');
+                    }
+                }
+            })
+            .catch(() => { /* localStorage fallback already in state */ })
+            .finally(() => { setDescriptionsLoaded(true); });
+    }, []);
+
+    // Save to localStorage + API whenever descriptions change (only after initial load)
+    React.useEffect(() => {
+        if (!descriptionsLoaded) return;
         localStorage.setItem('mock_descriptions', JSON.stringify(descriptions));
         const token = localStorage.getItem('eduadmin_token');
         if (!token) return;
@@ -67,25 +98,7 @@ const RaporSettingsView: React.FC<RaporSettingsViewProps> = ({ setActiveView, sh
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ rapor_descriptions: JSON.stringify(descriptions) })
         }).catch(() => { toast.error('Gagal menyimpan deskripsi rapor ke server'); });
-    }, [descriptions]);
-
-    React.useEffect(() => {
-        const token = localStorage.getItem('eduadmin_token');
-        if (!token) return;
-        fetch('/api/school_settings', { headers: { 'Authorization': `Bearer ${token}` } })
-            .then(res => res.ok ? res.json() : [])
-            .then(data => {
-                if (data && data.length > 0 && data[0].rapor_descriptions) {
-                    try {
-                        const parsed = JSON.parse(data[0].rapor_descriptions);
-                        if (Array.isArray(parsed) && parsed.length > 0) setDescriptions(parsed);
-                    } catch (e) {
-                        toast.error('Gagal memuat deskripsi rapor: data tidak valid');
-                    }
-                }
-            })
-            .catch(() => { toast.error('Gagal memuat deskripsi rapor dari server'); });
-    }, []);
+    }, [descriptions, descriptionsLoaded]);
 
     const handleAddDescription = () => {
         if (!selectedSubject) return toast.error("Mohon pilih Mata Pelajaran terlebih dahulu di filter atas.");

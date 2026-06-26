@@ -39,6 +39,23 @@ const NaikKelasView: React.FC<NaikKelasViewProps> = ({
         localStorage.setItem('promotion_history_v10', JSON.stringify(promotionHistory));
     }, [promotionHistory]);
 
+    // Fetch promotion history from D1 on mount
+    useEffect(() => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) return;
+        fetch('/api/promotion_history?order=created_at.desc', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.ok ? res.json() : [])
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    setPromotionHistory(data);
+                    localStorage.setItem('promotion_history_v10', JSON.stringify(data));
+                }
+            })
+            .catch(() => { /* localStorage fallback */ });
+    }, []);
+
     const [academicYearId, setAcademicYearId] = useState<string>('');
 
     useEffect(() => {

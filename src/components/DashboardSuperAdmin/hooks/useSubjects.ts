@@ -103,7 +103,7 @@ export const useSubjects = () => {
 
         // Permission check
         const role = getCurrentUserRole();
-        if (!role || !hasPermission(role, 'mata-pelajaran', 'UPDATE')) {
+        if (!role || !hasPermission(role as any, 'mata-pelajaran', 'UPDATE')) {
             toast.error('Anda tidak memiliki akses untuk mengubah kelompok mata pelajaran');
             return;
         }
@@ -170,7 +170,7 @@ export const useSubjects = () => {
 
         // Permission check
         const role = getCurrentUserRole();
-        if (!role || !hasPermission(role, 'mata-pelajaran', 'UPDATE')) {
+        if (!role || !hasPermission(role as any, 'mata-pelajaran', 'UPDATE')) {
             toast.error('Anda tidak memiliki akses untuk mengubah mata pelajaran');
             return;
         }

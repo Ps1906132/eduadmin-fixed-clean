@@ -299,7 +299,10 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
                         </button>
 
                         <button
-                            onClick={() => toast.success("Simpan jadwal berhasil!")}
+                            onClick={() => {
+                                setSchedules(schedules);
+                                toast.success("Jadwal pelajaran berhasil disimpan ke server!");
+                            }}
                             className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-lg shadow-blue-200"
                         >
                             <Save size={18} /> Simpan

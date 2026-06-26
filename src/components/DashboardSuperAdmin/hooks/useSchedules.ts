@@ -71,7 +71,7 @@ export const useSchedules = () => {
 
         // Permission check
         const role = getCurrentUserRole();
-        if (!role || !hasPermission(role, 'jadwal', 'UPDATE')) {
+        if (!role || !hasPermission(role as any, 'jadwal', 'UPDATE')) {
             toast.error('Anda tidak memiliki akses untuk mengubah jadwal');
             return;
         }

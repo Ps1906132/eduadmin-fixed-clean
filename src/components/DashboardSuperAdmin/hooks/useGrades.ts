@@ -49,7 +49,7 @@ export const useGrades = () => {
 
     const saveGradesBatch = async (records: GradeRecord[]) => {
         const role = getCurrentUserRole();
-        if (!hasPermission(role, 'nilai', 'UPDATE')) {
+        if (!hasPermission(role as any, 'nilai', 'UPDATE')) {
             console.error('Permission denied: nilai UPDATE');
             return { success: false, error: 'Anda tidak memiliki hak akses untuk mengubah nilai' };
         }
@@ -160,7 +160,7 @@ export const useGrades = () => {
 
     const saveReportData = async (classId: string, studentId: string, data: any) => {
         const role = getCurrentUserRole();
-        if (!hasPermission(role, 'nilai', 'UPDATE')) {
+        if (!hasPermission(role as any, 'nilai', 'UPDATE')) {
             console.error('Permission denied: nilai UPDATE');
             return { success: false, error: 'Anda tidak memiliki hak akses untuk mengubah nilai' };
         }

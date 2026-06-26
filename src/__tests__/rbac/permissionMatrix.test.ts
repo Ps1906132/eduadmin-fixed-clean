@@ -47,9 +47,9 @@ describe('[UNIT] Struktur Permission Matrix', () => {
     expect(owned).toHaveLength(9);
   });
 
-  it('Kurikulum harus memiliki 6 modul CRUD penuh', () => {
+  it('Kurikulum harus memiliki 4 modul CRUD penuh', () => {
     const owned = getOwnedModules('kurikulum');
-    expect(owned).toHaveLength(6);
+    expect(owned).toHaveLength(4);
   });
 
   it('Keuangan harus memiliki 3 modul CRUD penuh', () => {
@@ -103,13 +103,22 @@ describe('[UNIT] hasPermission — Admin Role', () => {
 
 describe('[UNIT] hasPermission — Kurikulum Role', () => {
   const allCrud: CrudAction[] = ['CREATE', 'READ', 'UPDATE', 'DELETE'];
-  const kurikulumOwnedModules: AppModule[] = ['jadwal', 'absen', 'jadwal-ujian', 'nilai', 'rapot', 'naik-kelas'];
+  const kurikulumOwnedModules: AppModule[] = ['jadwal', 'jadwal-ujian', 'rapot', 'naik-kelas'];
 
-  // Kurikulum FULL CRUD pada 6 modul miliknya
+  // Kurikulum FULL CRUD pada 4 modul miliknya
   it.each(kurikulumOwnedModules)('Kurikulum: CRUD penuh pada modul %s', (mod) => {
     allCrud.forEach(action => {
       expect(hasPermission('kurikulum', mod, action)).toBe(true);
     });
+  });
+
+  // Kurikulum READ-ONLY pada absen & nilai (input by Guru)
+  const readOnlyKurikulumModules: AppModule[] = ['absen', 'nilai'];
+  it.each(readOnlyKurikulumModules)('Kurikulum: READ-ONLY pada modul %s (input by Guru)', (mod) => {
+    expect(hasPermission('kurikulum', mod, 'READ')).toBe(true);
+    expect(hasPermission('kurikulum', mod, 'CREATE')).toBe(false);
+    expect(hasPermission('kurikulum', mod, 'UPDATE')).toBe(false);
+    expect(hasPermission('kurikulum', mod, 'DELETE')).toBe(false);
   });
 
   // Kurikulum READ-ONLY pada data master admin
@@ -243,9 +252,8 @@ describe('[UNIT] Default DENY — Principle of Least Privilege', () => {
     expect(hasPermission('admin', 'modul-tidak-ada', 'READ')).toBe(false);
   });
 
-  it('Kurikulum TIDAK bisa DELETE modul miliknya sendiri... tunggu, seharusnya BISA — verifikasi ALL CRUD', () => {
-    // Kurikulum adalah pemilik 'nilai', seharusnya bisa DELETE
-    expect(hasPermission('kurikulum', 'nilai', 'DELETE')).toBe(true);
+  it('Kurikulum TIDAK bisa DELETE modul absen — READ_ONLY (input by Guru)', () => {
+    expect(hasPermission('kurikulum', 'absen', 'DELETE')).toBe(false);
   });
 
   it('Admin TIDAK bisa CREATE di modul Kurikulum (jadwal)', () => {

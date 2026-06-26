@@ -117,6 +117,7 @@ const BimbinganBelajarView: React.FC<BimbinganBelajarViewProps> = ({
                             studentsCount: Number(t.students_count || 0),
                             status: t.status,
                             username: profile.username || '',
+                            password: profile.passwordHash || '',
                             passwordHash: profile.passwordHash || ''
                         };
                     });
