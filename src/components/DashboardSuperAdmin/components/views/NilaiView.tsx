@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Save, ArrowLeft, Download, Upload, Search, Filter,
-    Calculator, CheckCircle, AlertCircle, FileSpreadsheet,
-    Trophy, BookOpen, User, ChevronDown, Plus, Minus
+    Save, Download, Upload, Search,
+    Calculator, CheckCircle, FileSpreadsheet,
+    Trophy, BookOpen, ChevronDown
 } from 'lucide-react';
-import { studentsDataGlobal, classesDataGlobal } from '../../../../data/sharedData';
 import { toast } from 'react-hot-toast';
 import { useGrades, GradeRecord } from '../../hooks/useGrades';
 
 interface NilaiViewProps {
     setActiveView: (view: string) => void;
     user?: any;
+    classes: any[];
+    students: any[];
+    subjects: any[];
 }
 
 // Tipe data untuk struktur nilai lokal
@@ -37,103 +39,138 @@ interface GradeRow {
     [key: string]: any; // Allow dynamic TP columns
 }
 
-const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
+const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, students, subjects: subjectsProp }) => {
     const role = user?.roleCode || user?.role || user?.role_type;
-    const { saveGradesBatch } = useGrades();
+    const { fetchGrades, saveGradesBatch } = useGrades();
     const lowerRole = role?.toLowerCase();
     const isKurikulum = lowerRole === 'kurikulum';
     const readOnly = isKurikulum || lowerRole === 'admin' || lowerRole === 'kepala sekolah' || lowerRole === 'ks';
 
-    // --- LOCAL DATABASE STATES ---
-    const [classes] = useState<any[]>(() => {
-        const saved = localStorage.getItem('classes_data_v11');
-        return saved ? JSON.parse(saved) : [];
-    });
-    const [students] = useState<any[]>(() => {
-        const saved = localStorage.getItem('students_data_v11');
-        return saved ? JSON.parse(saved) : [];
-    });
-
     // --- STATE FILTER ---
-    const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '1A');
-    const [selectedSubject, setSelectedSubject] = useState('Matematika');
+    const [selectedClass, setSelectedClass] = useState(classes[0]?.nama || '');
+    const [selectedSubject, setSelectedSubject] = useState('');
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
 
     // --- DYNAMIC TP STATE ---
-    const [tpCount, setTpCount] = useState(4); // Default 4 columns
+    const [tpCount, setTpCount] = useState(4);
 
     // --- STATE TABLE ---
-    // Expanded tabs to support specific exam types
     const [activeTab, setActiveTab] = useState<'sumatif' | 'pts' | 'pas_pat' | 'rapor'>('sumatif');
     const [searchQuery, setSearchQuery] = useState('');
     const [grades, setGrades] = useState<GradeRow[]>([]);
     const [isDirty, setIsDirty] = useState(false);
     const [masterDescriptions, setMasterDescriptions] = useState<any[]>([]);
+    const [loadingGrades, setLoadingGrades] = useState(false);
 
-    // --- SUBJECTS DATA ---
-    const subjects: string[] = localStorage.getItem('subjects_data_v10')
-        ? JSON.parse(localStorage.getItem('subjects_data_v10')!).map((s: { name: string }) => s.name)
-        : ["Matematika", "B. Indonesia", "IPA", "IPS"];
+    // --- SUBJECTS FROM PROPS ---
+    const subjectNames: string[] = Array.isArray(subjectsProp)
+        ? subjectsProp.map((s: any) => s.name).filter(Boolean)
+        : [];
 
-    // --- INITIALIZE DATA ---
-    // --- STORAGE KEY HELPER ---
-    const getStorageKey = () => `grades_v2_${selectedClass}_${selectedSubject}_${selectedSemester}`;
-
-    // --- INITIALIZE DATA ---
+    // Set default subject when data loads
     useEffect(() => {
-        const key = getStorageKey();
-        const savedData = localStorage.getItem(key);
-
-        if (savedData) {
-            setGrades(JSON.parse(savedData));
-            setIsDirty(false);
-            return;
+        if (subjectNames.length > 0 && !selectedSubject) {
+            setSelectedSubject(subjectNames[0]);
         }
+    }, [subjectNames, selectedSubject]);
 
-        const classStudents = students.filter(s => s.kelas === selectedClass);
-
-        // Initial empty state (0) instead of random mock
-        const initialGrades: GradeRow[] = classStudents.map(s => ({
-            studentId: s.id,
-            studentName: s.nama,
-            studentNis: s.nis,
-            tp1: 0,
-            tp2: 0,
-            tp3: 0,
-            tp4: 0,
-            avgSumatif: 0,
-            pts: 0,
-            pas: 0,
-            pat: 0,
-            ujisn: 0,
-            sas: 0,
-            finalScore: 0,
-            predicate: '-',
-            description: ''
-        }));
-
-        setGrades(initialGrades);
-        setIsDirty(false);
-    }, [selectedClass, selectedSubject, selectedSemester]);
-
-    // --- AUTO SAVE TO LOCAL STORAGE ---
+    // --- FETCH GRADES FROM D1 ---
     useEffect(() => {
-        if (grades.length > 0) {
-            const key = getStorageKey();
-            localStorage.setItem(key, JSON.stringify(grades));
-        }
-    }, [grades, selectedClass, selectedSubject, selectedSemester]);
+        if (!selectedClass || !selectedSubject) return;
 
-    // --- SYNC TP COUNT ---
-    useEffect(() => {
-        const countKey = `tp_count_${selectedClass}_${selectedSubject}_${selectedSemester}`;
-        const savedCount = localStorage.getItem(countKey);
-        if (savedCount) {
-            setTpCount(parseInt(savedCount));
-        } else {
-            setTpCount(4); // Default
-        }
-    }, [selectedClass, selectedSubject, selectedSemester]);
+        const targetClass = classes.find((c: any) => c.nama === selectedClass);
+        const targetSubject = subjectsProp.find((s: any) => s.name === selectedSubject);
+        if (!targetClass || !targetSubject) return;
+
+        let cancelled = false;
+
+        const loadGrades = async () => {
+            setLoadingGrades(true);
+            try {
+                const data = await fetchGrades({
+                    classId: targetClass.id.toString(),
+                    subjectId: targetSubject.id.toString()
+                });
+
+                if (cancelled) return;
+
+                const classStudents = students.filter(s => s.kelas === selectedClass);
+
+                if (Array.isArray(data) && data.length > 0) {
+                    // Map D1 records to GradeRow format
+                    const gradeMap = new Map<string, GradeRow>();
+
+                    classStudents.forEach(s => {
+                        gradeMap.set(s.id.toString(), {
+                            studentId: s.id,
+                            studentName: s.nama || s.full_name,
+                            studentNis: s.nis || '-',
+                            tp1: 0, tp2: 0, tp3: 0, tp4: 0,
+                            avgSumatif: 0,
+                            pts: 0, pas: 0, pat: 0, ujisn: 0, sas: 0,
+                            finalScore: 0,
+                            predicate: '-',
+                            description: ''
+                        });
+                    });
+
+                    data.forEach((g: any) => {
+                        const sid = g.student_id?.toString();
+                        const row = gradeMap.get(sid);
+                        if (!row) return;
+
+                        const type = g.assessment_type;
+                        const val = parseFloat(g.grade_value) || 0;
+
+                        if (type?.startsWith('tp')) {
+                            const idx = parseInt(type.replace('tp', ''));
+                            if (idx >= 1 && idx <= 4) {
+                                (row as any)[`tp${idx}`] = val;
+                            }
+                        } else if (type === 'pts') {
+                            row.pts = val;
+                        } else if (type === 'pas') {
+                            row.pas = val;
+                        } else if (type === 'pat') {
+                            row.pat = val;
+                        } else if (type === 'final') {
+                            row.finalScore = val;
+                            row.description = g.remarks || '';
+                        }
+                    });
+
+                    // Recalculate all rows
+                    const mappedGrades = Array.from(gradeMap.values()).map(row => calculateRow(row));
+                    setGrades(mappedGrades);
+                } else {
+                    // No data in D1 — initialize empty rows
+                    const initialGrades: GradeRow[] = classStudents.map(s => ({
+                        studentId: s.id,
+                        studentName: s.nama || s.full_name,
+                        studentNis: s.nis || '-',
+                        tp1: 0, tp2: 0, tp3: 0, tp4: 0,
+                        avgSumatif: 0,
+                        pts: 0, pas: 0, pat: 0, ujisn: 0, sas: 0,
+                        finalScore: 0,
+                        predicate: '-',
+                        description: ''
+                    }));
+                    setGrades(initialGrades);
+                }
+                setIsDirty(false);
+            } catch (err) {
+                if (!cancelled) {
+                    toast.error('Gagal memuat data nilai');
+                    setGrades([]);
+                }
+            } finally {
+                if (!cancelled) setLoadingGrades(false);
+            }
+        };
+
+        loadGrades();
+        return () => { cancelled = true; };
+    }, [selectedClass, selectedSubject, selectedSemester, classes, students, subjectsProp, fetchGrades]);
 
     // --- LOAD MASTER DESCRIPTIONS ---
     useEffect(() => {
@@ -142,7 +179,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
             try {
                 setMasterDescriptions(JSON.parse(savedDesc));
             } catch (e) {
-                console.error("Failed to load master descriptions", e);
+                // silent
             }
         }
     }, []);
@@ -232,10 +269,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
     };
 
     const handleSave = async () => {
-        const targetClass = JSON.parse(localStorage.getItem('classes_data_v11') || '[]')
-            .find((c: any) => c.nama === selectedClass);
-        const targetSubject = JSON.parse(localStorage.getItem('subjects_data_v10') || '[]')
-            .find((s: any) => s.name === selectedSubject);
+        const targetClass = classes.find((c: any) => c.nama === selectedClass);
+        const targetSubject = subjectsProp.find((s: any) => s.name === selectedSubject);
 
         if (!targetClass || !targetSubject) {
             toast.error('Gagal memetakan ID Kelas/Mapel. Pastikan data master tersedia.');
@@ -354,7 +389,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                                         onChange={(e) => setSelectedSubject(e.target.value)}
                                         className="appearance-none bg-transparent font-bold text-slate-700 outline-none text-sm cursor-pointer pr-6 w-40 truncate"
                                     >
-                                        {subjects.map(s => <option key={s} value={s} className="text-slate-800">{s}</option>)}
+                                        {subjectNames.map(s => <option key={s} value={s} className="text-slate-800">{s}</option>)}
                                     </select>
                                     <ChevronDown size={14} className="absolute right-0 top-1 text-slate-400 pointer-events-none" />
                                 </div>
@@ -679,7 +714,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user }) => {
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
                         <CheckCircle size={14} className="text-emerald-500" />
-                        <span>Semua perubahan tersimpan otomatis di perangkat lokal sementara.</span>
+                        <span>Klik "Simpan Perubahan" untuk menyimpan nilai ke database.</span>
                     </div>
                 </div>
             </div>

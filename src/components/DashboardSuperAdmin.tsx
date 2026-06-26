@@ -745,7 +745,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                     {/* --- VIEW: INPUT NILAI (NEW) --- */}
                     {activeView === 'nilai' && roleCode !== 'ks' && (
                         <div className="h-full">
-                            <NilaiView setActiveView={setActiveView} user={user} />
+                            <NilaiView setActiveView={setActiveView} user={user} classes={classes} students={students} subjects={subjects} />
                         </div>
                     )}
                     {activeView === 'nilai' && roleCode === 'ks' && (
