@@ -411,6 +411,7 @@ CREATE TABLE grades (
     subject_id       TEXT    NOT NULL,
     class_id         TEXT    NOT NULL,
     academic_year_id TEXT    NOT NULL,
+    semester         INTEGER,                  -- 1 atau 2, sync dari academic_years
     grade_type_id    TEXT,                   -- FK ke grade_types (jenis ujian)
     assessment_type  TEXT,                   -- fallback text jika grade_type_id null
     grade_value      DECIMAL(5, 2),
@@ -1106,6 +1107,7 @@ CREATE INDEX idx_grd_student  ON grades(student_id);
 CREATE INDEX idx_grd_subject  ON grades(subject_id);
 CREATE INDEX idx_grd_class    ON grades(class_id);
 CREATE INDEX idx_grd_year     ON grades(academic_year_id);
+CREATE INDEX idx_grd_semester ON grades(semester);
 CREATE INDEX idx_grd_type     ON grades(grade_type_id);
 CREATE INDEX idx_gt_year      ON grade_types(academic_year_id);
 CREATE INDEX idx_rd_subject   ON rapor_descriptions(subject_id);

@@ -74,11 +74,6 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
 
                 const semesterNum = selectedSemester === 'Semester 1' ? '1' : '2';
 
-                // Get active academic year for this semester
-                const ayRes = await fetch(`/api/academic_years?semester=eq.${semesterNum}&is_active=eq.1`, { headers });
-                const academicYears = ayRes.ok ? await ayRes.json() : [];
-                const activeYearId = academicYears.length > 0 ? academicYears[0].id : null;
-
                 for (const subj of subjectList) {
                     const subjRes = await fetch(`/api/subjects?name=eq.${encodeURIComponent(subj)}`, { headers });
                     const subjData = subjRes.ok ? await subjRes.json() : [];
@@ -87,10 +82,7 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                     let daily = 0, exam = 0, report = 0;
 
                     if (targetSubject) {
-                        const gradeUrl = activeYearId
-                            ? `/api/grades?student_id=eq.${selectedStudent.id}&subject_id=eq.${targetSubject.id}&academic_year_id=eq.${activeYearId}`
-                            : `/api/grades?student_id=eq.${selectedStudent.id}&subject_id=eq.${targetSubject.id}`;
-                        const gradeRes = await fetch(gradeUrl, { headers });
+                        const gradeRes = await fetch(`/api/grades?student_id=eq.${selectedStudent.id}&subject_id=eq.${targetSubject.id}&semester=eq.${semesterNum}`, { headers });
                         if (gradeRes.ok) {
                             const gradeData = await gradeRes.json();
                             if (Array.isArray(gradeData) && gradeData.length > 0) {
