@@ -58,6 +58,7 @@ import { useTeachers } from './DashboardSuperAdmin/hooks/useTeachers';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 import { useSubjects } from './DashboardSuperAdmin/hooks/useSubjects';
 import { useExams } from './DashboardSuperAdmin/hooks/useExams';
+import { usePositions } from './DashboardSuperAdmin/hooks/usePositions';
 
 interface SuperAdminProps {
     user: any;
@@ -156,13 +157,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
     const [showGroupModal, setShowGroupModal] = useState(false);
     const [showSubjectModal, setShowSubjectModal] = useState(false);
     const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
-    const [positions, setPositions] = useState<{ id: number; nama: string; kategori: string }[]>([
-        { id: 2, nama: 'Wakil Kurikulum', kategori: 'Struktural' },
-        { id: 3, nama: 'Guru Kelas', kategori: 'Fungsional' },
-        { id: 4, nama: 'Guru Mata Pelajaran', kategori: 'Fungsional' },
-        { id: 5, nama: 'Staff Tata Usaha', kategori: 'Staff' },
-        { id: 6, nama: 'Operator Data', kategori: 'Teknis' },
-    ]);
+    const { positions, addPosition, updatePosition, deletePosition } = usePositions();
 
     // --- JADWAL state managed internally by JadwalPelajaranView ---
 
@@ -291,19 +286,17 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         setShowPositionModal(true);
     };
 
-    const confirmAddPosition = (e: React.FormEvent) => {
+    const confirmAddPosition = async (e: React.FormEvent) => {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
-        const nama = (form.elements.namedItem('positionName') as HTMLInputElement).value;
-        const kategori = (form.elements.namedItem('positionCategory') as HTMLSelectElement).value;
+        const name = (form.elements.namedItem('positionName') as HTMLInputElement).value;
+        const category = (form.elements.namedItem('positionCategory') as HTMLSelectElement).value;
 
-        if (nama && kategori) {
+        if (name && category) {
             if (editItem && editType === 'Jabatan') {
-                setPositions(positions.map(p => p.id === editItem.id ? { ...p, nama, kategori } : p));
-                toast.success("Jabatan berhasil diperbarui");
+                await updatePosition(editItem.id, name, category);
             } else {
-                setPositions([...positions, { id: Date.now(), nama, kategori }]);
-                toast.success("Jabatan berhasil ditambahkan");
+                await addPosition(name, category);
             }
             setShowPositionModal(false);
             setEditItem(null);
@@ -315,9 +308,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         setConfirmModal({
             show: true,
             message: 'Apakah anda yakin ingin menghapus jabatan ini?',
-            onConfirm: () => {
-                setPositions(positions.filter(p => p.id !== id));
-                toast.success("Jabatan berhasil dihapus");
+            onConfirm: async () => {
+                await deletePosition(id);
                 setConfirmModal({ show: false, message: '', onConfirm: () => { } });
             }
         });
@@ -366,7 +358,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 jabatan: newTeacher.jabatan,
                 role: newTeacher.jabatan, // Fix #2: mirror jabatan → role agar Login.tsx bisa baca
                 mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
-                wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
+                wali: newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
                 username: newTeacher.username || t.username,
                 password: newTeacher.password || t.password,
             } : t));
@@ -379,7 +371,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                 jabatan: newTeacher.jabatan,
                 role: newTeacher.jabatan, // Fix #2: mirror jabatan → role agar Login.tsx bisa baca
                 mapel: newTeacher.jabatan === 'Guru Mata Pelajaran' ? newTeacher.mapel : '-',
-                wali: newTeacher.jabatan === 'Guru Kelas' || newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
+                wali: newTeacher.jabatan === 'Wali Kelas' ? newTeacher.class : '-',
                 username: newTeacher.username || (newTeacher.nama.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 100)),
                 password: newTeacher.password || generateRandomPassword()
             };
@@ -899,7 +891,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Wali Kelas</label>
                                             <select name="waliTeacher" defaultValue={editItem && editType === 'Kelas' ? (teachers.find(t => t.wali === editItem.nama)?.id?.toString() || '') : ''} className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none">
                                                 <option value="">- Tidak Ada -</option>
-                                                {teachers.filter(t => t.jabatan === 'Guru Kelas' || t.jabatan === 'Wali Kelas' || t.wali === editItem?.nama).map(t => (
+                                                {teachers.filter(t => t.jabatan === 'Wali Kelas' || t.wali === editItem?.nama).map(t => (
                                                     <option key={t.id} value={t.id}>{t.nama} ({t.wali && t.wali !== '-' ? `Wali: ${t.wali}` : 'Belum jadi wali'})</option>
                                                 ))}
                                             </select>
@@ -1271,11 +1263,11 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                     <form onSubmit={confirmAddPosition} className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Nama Jabatan</label>
-                                            <input name="positionName" required defaultValue={editItem?.nama || ''} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors" placeholder="Contoh: Kepala Lab Komputer" />
+                                            <input name="positionName" required defaultValue={editItem?.name || ''} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors" placeholder="Contoh: Kepala Lab Komputer" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Kategori</label>
-                                            <select name="positionCategory" defaultValue={editItem?.kategori || 'Struktural'} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer">
+                                            <select name="positionCategory" defaultValue={editItem?.category || 'Struktural'} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer">
                                                 <option value="Struktural">Struktural</option>
                                                 <option value="Fungsional">Fungsional</option>
                                                 <option value="Staff">Staff</option>
@@ -1334,7 +1326,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer"
                                                 >
                                                     {positions.map(p => (
-                                                        <option key={p.id} value={p.nama}>{p.nama}</option>
+                                                        <option key={p.id} value={p.name}>{p.name}</option>
                                                     ))}
                                                 </select>
                                             </div>
@@ -1344,7 +1336,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                     value={newTeacher.class}
                                                     onChange={(e) => setNewTeacher({ ...newTeacher, class: e.target.value })}
                                                     className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 cursor-pointer"
-                                                    disabled={newTeacher.jabatan !== 'Guru Kelas' && newTeacher.jabatan !== 'Wali Kelas'}
+                                                    disabled={newTeacher.jabatan !== 'Wali Kelas'}
                                                 >
                                                     <option value="">- Bukan Wali Kelas -</option>
                                                     {classes.map(c => (

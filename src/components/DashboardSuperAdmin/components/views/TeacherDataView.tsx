@@ -601,7 +601,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                         }}
                                     >
                                         {positions.map(p => (
-                                            <option key={p.id} value={p.nama}>{p.nama}</option>
+                                            <option key={p.id} value={p.name}>{p.name}</option>
                                         ))}
                                     </select>
                                 </td>
@@ -610,7 +610,7 @@ const TeacherDataView: React.FC<TeacherDataViewProps> = ({
                                 <td className="p-4 hover:bg-slate-50">
                                     <select className="w-full bg-transparent border-none outline-none text-slate-700 font-bold cursor-pointer disabled:opacity-30"
                                         value={guru.wali || '-'}
-                                        disabled={isKurikulum || isKS || ['Kepala Sekolah', 'Staff Tata Usaha', 'Operator Data'].includes(guru.jabatan)}
+                                        disabled={isKurikulum || isKS || ['Staff Tata Usaha/Keuangan', 'Operator Data'].includes(guru.jabatan)}
                                         onChange={(e) => {
                                             const newTeachers = [...teachers];
                                             newTeachers[i].wali = e.target.value;

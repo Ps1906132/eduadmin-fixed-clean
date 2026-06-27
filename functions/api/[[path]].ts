@@ -95,6 +95,7 @@ const ALLOWED_TABLES = [
   'bimbel_materi',
   'bimbel_latihan',
   'dashboard_cache',
+  'positions',
   'audit_logs'
 ];
 

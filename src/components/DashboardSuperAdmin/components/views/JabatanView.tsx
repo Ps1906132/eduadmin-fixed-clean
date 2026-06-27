@@ -46,8 +46,8 @@ const JabatanView: React.FC<JabatanViewProps> = ({
                         {positions.map((item, i) => (
                             <tr key={item.id} className="hover:bg-purple-50/50 transition-colors">
                                 <td className="p-4 text-center text-slate-500 font-medium">{i + 1}</td>
-                                <td className="p-4 font-bold text-slate-700">{item.nama}</td>
-                                <td className="p-4"><span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold border border-slate-200">{item.kategori}</span></td>
+                                <td className="p-4 font-bold text-slate-700">{item.name}</td>
+                                <td className="p-4"><span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold border border-slate-200">{item.category}</span></td>
                                 <td className="p-4 flex justify-center gap-2">
                                     <button onClick={() => handleEditItem(item, 'Jabatan')} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg transition-colors"><Edit size={16} /></button>
                                     <button onClick={() => handleDeletePosition(item.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"><Trash2 size={16} /></button>

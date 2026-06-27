@@ -9,7 +9,7 @@ interface InputNilaiGuruProps {
 
 const InputNilaiGuru: React.FC<InputNilaiGuruProps> = ({ onBack, user }) => {
     const { fetchGrades, saveGradesBatch, loading: syncing } = useGrades();
-    const isWaliKelas = user?.jabatan === 'Guru Kelas' || user?.jabatan === 'Wali Kelas' || !!user?.kelas;
+    const isWaliKelas = user?.jabatan === 'Wali Kelas' || !!user?.kelas;
     const [selectedClass, setSelectedClass] = useState(user?.kelas || '1A');
     const [selectedMapel, setSelectedMapel] = useState(user?.mapel || 'Matematika');
     const [tipeNilai, setTipeNilai] = useState('tp1');

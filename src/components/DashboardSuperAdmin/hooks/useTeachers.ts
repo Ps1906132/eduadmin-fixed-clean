@@ -125,7 +125,7 @@ export const useTeachers = () => {
                     dbRole = 'kurikulum';
                 } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara') || jabatanLower.includes('tata usaha')) {
                     dbRole = 'keuangan';
-                } else if (jabatanLower.includes('wali kelas') || jabatanLower.includes('guru kelas')) {
+                } else if (jabatanLower.includes('wali kelas')) {
                     dbRole = 'guru';
                 } else {
                     dbRole = 'guru'; // Default for all teaching staff
@@ -205,7 +205,7 @@ export const useTeachers = () => {
                             dbRole2 = 'kurikulum';
                         } else if (jabatanLower2.includes('keuangan') || jabatanLower2.includes('bendahara')) {
                             dbRole2 = 'keuangan';
-                        } else if (jabatanLower2.includes('wali kelas') || jabatanLower2.includes('guru kelas')) {
+                        } else if (jabatanLower2.includes('wali kelas')) {
                             dbRole2 = 'guru';
                         } else {
                             dbRole2 = 'guru';

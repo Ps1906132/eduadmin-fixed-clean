@@ -91,6 +91,9 @@ DROP TABLE IF EXISTS bimbel_materi;
 -- ===== BAGIAN 17 (Dashboard Cache) =====
 DROP TABLE IF EXISTS dashboard_cache;
 
+-- ===== BAGIAN 18 (Positions / Jabatan) =====
+DROP TABLE IF EXISTS positions;
+
 
 -- =============================================================================
 -- BAGIAN 1 — TABEL INTI SISTEM
@@ -1029,6 +1032,25 @@ CREATE TABLE ai_system_settings (
     updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ─── 11.6 positions ───────────────────────────────────────────────────────────
+-- Daftar jabatan/staf yang bisa dipilih saat input data guru.
+-- Hanya untuk guru & staff reguler (Bimbel dikelola terpisah).
+CREATE TABLE positions (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    name      TEXT    NOT NULL UNIQUE,
+    category  TEXT    NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed: 5 jabatan utama
+INSERT INTO positions (id, name, category) VALUES
+(1, 'Operator Data',           'Teknis'),
+(2, 'Wakil Kurikulum',         'Struktural'),
+(3, 'Staff Tata Usaha/Keuangan','Staff'),
+(4, 'Guru Mata Pelajaran',     'Fungsional'),
+(5, 'Wali Kelas',              'Fungsional');
+
 
 -- =============================================================================
 -- BAGIAN 12 — INDEXES
@@ -1041,6 +1063,10 @@ CREATE INDEX idx_profiles_active  ON profiles(is_active);
 CREATE INDEX idx_staff_profile    ON staff(profile_id);
 CREATE INDEX idx_staff_nip        ON staff(nip);
 CREATE INDEX idx_staff_position   ON staff(position);
+
+-- Positions
+CREATE INDEX idx_positions_name   ON positions(name);
+CREATE INDEX idx_positions_active ON positions(is_active);
 
 -- Subjects & Classes
 CREATE INDEX idx_subjects_code    ON subjects(code);
@@ -1276,7 +1302,7 @@ INSERT INTO profiles (id, email, full_name, password_hash, role, is_active) VALU
 
 
 -- =============================================================================
--- RINGKASAN TABEL (49 tabel)
+-- RINGKASAN TABEL (50 tabel)
 -- =============================================================================
 --
 --  GRUP                  TABEL
@@ -1306,4 +1332,5 @@ INSERT INTO profiles (id, email, full_name, password_hash, role, is_active) VALU
 --  **Al-Quran**     (2)  **quran_surahs, quran_verses**
 --  **Notepad**      (1)  **teacher_notes**
 --  **Dashboard**    (1)  **dashboard_cache**
+--  **Positions**    (1)  **positions**
 -- =============================================================================

@@ -38,7 +38,7 @@ const MataPelajaranView: React.FC<MataPelajaranViewProps> = ({
 
     const getStatusLabel = (guru: any): string => {
         const jabatan = (guru?.jabatan || '').toLowerCase();
-        if (jabatan.includes('wali') || jabatan.includes('guru kelas')) return 'Wali Kelas';
+        if (jabatan.includes('wali')) return 'Wali Kelas';
         return 'Guru Mapel';
     };
 

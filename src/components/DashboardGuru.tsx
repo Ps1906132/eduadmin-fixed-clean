@@ -44,7 +44,7 @@ const DashboardGuru: React.FC<DashboardGuruProps> = ({ user, onLogout, schoolNam
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'kehadiran' | 'nilai' | 'deskripsi' | 'latihan' | 'quran' | 'channel' | 'ai' | 'notepad' | 'kelas_ku' | 'raport' | 'informasi' | 'notifikasi' | 'profile'>('home');
 
-    const isWaliKelas = user?.jabatan === 'Guru Kelas' || user?.jabatan === 'Wali Kelas' || !!user?.kelas;
+    const isWaliKelas = user?.jabatan === 'Wali Kelas' || !!user?.kelas;
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
