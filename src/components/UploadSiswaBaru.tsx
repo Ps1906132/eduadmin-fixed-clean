@@ -77,7 +77,23 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
   // Handlers
   const handleDownloadTemplate = () => {
-    alert("Mengunduh Template Excel Siswa Baru...");
+    const headers = [
+      'NIS', 'Nama Lengkap', 'Tempat Lahir', 'Tanggal Lahir',
+      'Nama Ayah', 'Nama Ibu', 'Pekerjaan Ayah', 'Pekerjaan Ibu',
+      'No HP (WA)', 'Username', 'Password'
+    ];
+    const sampleData = [
+      '2606001,Siti Mariam,Garut,20 Januari 2026,Ayah Siti,Ibu Siti,BUMN,IRT,081234567890,2606001,123456'
+    ];
+    const csvContent = [headers.join(','), ...sampleData].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `template_siswa_baru_${selectedKelas}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleUploadClick = () => {
@@ -109,22 +125,27 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
         }
 
         const parsedStudents = dataLines.map((line) => {
-          const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+          const cols = line.split(',').map(col => col.trim());
+
+          const tempatLahir = cols[2] || '';
+          const tanggalLahir = cols[3] || '';
+          const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+
           return {
             id: Date.now() + Math.floor(Math.random() * 100000),
             nis: cols[0] || '',
             nama: cols[1] || '',
-            ttl: cols[2] || '',
+            ttl,
             kelas: selectedKelas,
             tingkat,
             paralel,
-            ayah: cols[3] || '',
-            ibu: cols[4] || '',
-            jobAyah: cols[5] || '',
-            jobIbu: cols[6] || '',
-            noHp: cols[7] || '',
-            username: cols[8] || cols[0] || '',
-            password: cols[9] || '123456',
+            ayah: cols[4] || '',
+            ibu: cols[5] || '',
+            jobAyah: cols[6] || '',
+            jobIbu: cols[7] || '',
+            noHp: cols[8] || '',
+            username: cols[9] || cols[0] || '',
+            password: cols[10] || '123456',
             classId,  // Used for class_students sync in D1
           };
         }).filter(s => s.nis && s.nama);

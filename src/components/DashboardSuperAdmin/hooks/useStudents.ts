@@ -776,9 +776,9 @@ export const useStudents = () => {
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["NIS", "Nama Lengkap", "Tempat Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
+        const headers = ["NIS", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
         const csvContent = headers.join(",") + "\n" + 
-            "2025001,Asep Irama,\"Bandung, 10 Maret 2012\",1 A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
+            "2025001,Asep Irama,Bandung,10 Maret 2012,1 A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -806,22 +806,26 @@ export const useStudents = () => {
                 if (lines.length <= 1) return;
 
                 const parsedData: Student[] = lines.slice(1).map((line, idx) => {
-                    // Handle quoted CSV values correctly
-                    const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+                    const cols = line.split(',').map(col => col.trim());
+
+                    const tempatLahir = cols[2] || '';
+                    const tanggalLahir = cols[3] || '';
+                    const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+
                     return {
                         id: `temp-${Date.now()}-${idx}`,
                         nis: cols[0] || '',
                         nama: cols[1] || '',
-                        ttl: cols[2] || '',
-                        kelas: cols[3] || '',
-                        tingkat: parseInt(cols[4] || '1'),
-                        paralel: cols[5] || 'A',
-                        ayah: cols[6] || '',
-                        ibu: cols[7] || '',
-                        jobAyah: cols[8] || '',
-                        jobIbu: cols[9] || '',
-                        username: cols[11] || cols[0] || '',
-                        noHp: cols[10] || ''
+                        ttl,
+                        kelas: cols[4] || '',
+                        tingkat: parseInt(cols[5] || '1'),
+                        paralel: cols[6] || 'A',
+                        ayah: cols[7] || '',
+                        ibu: cols[8] || '',
+                        jobAyah: cols[9] || '',
+                        jobIbu: cols[10] || '',
+                        username: cols[12] || cols[0] || '',
+                        noHp: cols[11] || ''
                     };
                 }).filter(s => s.nis && s.nama);
 

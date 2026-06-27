@@ -79,7 +79,8 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     const headers = [
       'NIS',
       'Nama Lengkap',
-      'Tempat Tanggal Lahir',
+      'Tempat Lahir',
+      'Tanggal Lahir',
       'Kelas',
       'Tingkat',
       'Paralel',
@@ -93,7 +94,7 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     ];
 
     const sampleData = [
-      '2025891024,Siti Aminah,"Bandung, 10 Maret 2012",Kelas 1,1,A,Asep,Susi,Wiraswasta,Ibu Rumah Tangga,081234567891,2025891024,password123'
+      '2025891024,Siti Aminah,Bandung,10 Maret 2012,Kelas 1,1,A,Asep,Susi,Wiraswasta,Ibu Rumah Tangga,081234567891,2025891024,password123'
     ];
 
     const csvContent = [headers.join(','), ...sampleData].join('\n');
@@ -129,23 +130,27 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
         const dataLines = lines.slice(1).filter(line => line.trim() !== '');
 
         const parsedData = dataLines.map((line) => {
-          const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.replace(/^"|"$/g, '').trim());
+          const cols = line.split(',').map(col => col.trim());
+
+          const tempatLahir = cols[2] || '';
+          const tanggalLahir = cols[3] || '';
+          const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
 
           return {
             id: Date.now() + Math.floor(Math.random() * 1000),
             nis: cols[0] || '',
             nama: cols[1] || '',
-            ttl: cols[2] || '',
-            kelas: cols[3] || '',
-            tingkat: parseInt(cols[4] || '1'),
-            paralel: cols[5] || 'A',
-            ayah: cols[6] || '',
-            ibu: cols[7] || '',
-            jobAyah: cols[8] || '',
-            jobIbu: cols[9] || '',
-            noHp: cols[10] || '',
-            username: cols[11] || cols[0] || '',
-            password: cols[12] || '123456'
+            ttl,
+            kelas: cols[4] || '',
+            tingkat: parseInt(cols[5] || '1'),
+            paralel: cols[6] || 'A',
+            ayah: cols[7] || '',
+            ibu: cols[8] || '',
+            jobAyah: cols[9] || '',
+            jobIbu: cols[10] || '',
+            noHp: cols[11] || '',
+            username: cols[12] || cols[0] || '',
+            password: cols[13] || '123456'
           };
         });
 
