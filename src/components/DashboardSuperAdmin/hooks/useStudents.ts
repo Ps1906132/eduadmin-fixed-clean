@@ -437,7 +437,7 @@ export const useStudents = () => {
             toast.error('Gagal menambah siswa');
             console.error('Error adding student to D1:', err);
             await fetchStudents();
-            alert(`Gagal menambah siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            toast.error(`Gagal menambah siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 
@@ -633,7 +633,7 @@ export const useStudents = () => {
             toast.error('Gagal memperbarui data siswa');
             console.error('Error updating student in D1:', err);
             await fetchStudents();
-            alert(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            toast.error(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
 
@@ -865,7 +865,7 @@ export const useStudents = () => {
                 toast.error('Gagal menghapus siswa');
                 console.error('Error deleting student from D1:', err);
                 await fetchStudents();
-                alert(`Gagal menghapus siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                toast.error(`Gagal menghapus siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
         }
     };
@@ -905,10 +905,10 @@ export const useStudents = () => {
 
                 if (parsedData.length > 0) {
                     setStudents(prev => [...prev, ...parsedData]);
-                    alert(`Berhasil memuat ${parsedData.length} data siswa! Klik Simpan untuk mensinkronisasi ke database.`);
+                    toast.success(`Berhasil memuat ${parsedData.length} data siswa! Klik Simpan untuk menyimpan ke database.`, { duration: 5000 });
                 }
             } catch (err) {
-                alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                toast.error(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
         };
         input.click();
@@ -923,7 +923,7 @@ export const useStudents = () => {
         const newStudents = students.filter(s => s.id.toString().startsWith('temp-'));
         
         if (newStudents.length === 0) {
-            alert("Tidak ada data baru untuk disimpan.");
+            toast("Tidak ada data baru untuk disimpan.", { icon: 'ℹ️' });
             setLoading(false);
             return;
         }
@@ -973,7 +973,12 @@ export const useStudents = () => {
         }
 
         setLoading(false);
-        alert(`Selesai! ${successCount} siswa berhasil disimpan, ${failCount} gagal.`);
+        if (failCount > 0) {
+            toast.success(`${successCount} siswa berhasil disimpan.`, { duration: 4000 });
+            toast.error(`${failCount} siswa gagal disimpan.`, { duration: 4000 });
+        } else {
+            toast.success(`${successCount} siswa berhasil disimpan ke database!`, { duration: 4000 });
+        }
         await fetchStudents(); // Refresh data from server
     };
 

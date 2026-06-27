@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 import { useStudents, parseFileToRows, detectOldFormat } from './DashboardSuperAdmin/hooks/useStudents';
+import { toast } from 'react-hot-toast';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -119,7 +120,7 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
       try {
         const rows = await parseFileToRows(file);
         if (rows.length <= 1) {
-          alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
+          toast.error('File tidak memiliki data siswa. Pastikan format file sesuai template.');
           return;
         }
 
@@ -182,10 +183,10 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
         for (const s of parsedStudents) {
           await addNewStudent(s as any);
         }
-        alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
+        toast.success(`${parsedStudents.length} siswa berhasil diimpor ke kelas ${selectedKelas}!`, { icon: '🎓' });
         if (fileInputRef.current) fileInputRef.current.value = '';
       } catch (err) {
-        alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        toast.error(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     };
 
@@ -317,10 +318,10 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
     if (editId !== null) {
       await updateStudent(editId, studentPayload);
-      alert(`Data siswa ${newStudent.nama} berhasil diperbarui!`);
+      toast.success(`Data siswa ${newStudent.nama} berhasil diperbarui!`);
     } else {
       await addNewStudent(studentPayload as any);
-      alert(`Siswa ${newStudent.nama} berhasil ditambahkan!`);
+      toast.success(`Siswa ${newStudent.nama} berhasil ditambahkan!`);
     }
     setIsAddModalOpen(false);
   };
@@ -374,7 +375,7 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
             </div>
           </div>
 
-          <button onClick={async () => { setIsSaving(true); await refreshStudents(); setIsSaving(false); alert('Data tersimpan dan disinkronisasi!'); }} disabled={isSaving} className="px-6 py-2.5 bg-[#e8415a] text-white rounded-xl hover:bg-[#c9344a] transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 group disabled:opacity-70">
+          <button onClick={async () => { setIsSaving(true); await refreshStudents(); setIsSaving(false); toast.success('Data tersimpan dan disinkronisasi!'); }} disabled={isSaving} className="px-6 py-2.5 bg-[#e8415a] text-white rounded-xl hover:bg-[#c9344a] transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 group disabled:opacity-70">
             {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Bookmark size={18} className="fill-white group-hover:scale-110 transition-transform" />}
             <span className="text-sm font-bold tracking-wide">Simpan</span>
           </button>

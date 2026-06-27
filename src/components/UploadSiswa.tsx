@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStudents, parseFileToRows, detectOldFormat } from './DashboardSuperAdmin/hooks/useStudents';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
+import { toast } from 'react-hot-toast';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -180,11 +181,12 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
       }
 
       setIsUploading(false);
-      alert(`Berhasil memuat dan menyimpan ${parsedData.length} data siswa baru ke database!`);
+      toast.success(`${parsedData.length} data siswa berhasil dimuat!`, { icon: '📋', duration: 3000 });
+      toast('Klik "Simpan" untuk menyimpan ke database', { icon: '💾', duration: 5000 });
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setIsUploading(false);
-      alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -193,7 +195,7 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     setIsSaving(true);
     setTimeout(() => {
       setIsSaving(false);
-      alert('Semua data siswa berhasil disinkronisasi dengan database!');
+      toast.success('Semua data siswa berhasil disimpan ke database!');
     }, 1000);
   };
 
@@ -241,7 +243,7 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
       };
 
       await updateStudent(selectedSiswa.id, payload);
-      alert(`Data siswa ${selectedSiswa.nama} berhasil diperbarui.`);
+      toast.success(`Data siswa ${selectedSiswa.nama} berhasil diperbarui.`);
       setIsModalOpen(false);
     }
   };
