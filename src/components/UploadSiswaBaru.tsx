@@ -77,13 +77,18 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
   // Handlers
   const handleDownloadTemplate = () => {
+    const currentClass = classes.find((c: any) => c.nama === selectedKelas);
+    const tkt = currentClass ? currentClass.tingkat : 1;
+    const prl = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9\s]/g, '') || 'A';
+
     const headers = [
       'NIS', 'Nama Lengkap', 'Tempat Lahir', 'Tanggal Lahir',
+      'Kelas', 'Tingkat', 'Paralel',
       'Nama Ayah', 'Nama Ibu', 'Pekerjaan Ayah', 'Pekerjaan Ibu',
-      'No HP (WA)', 'Username', 'Password'
+      'No HP (WA)', 'Username'
     ];
     const sampleData = [
-      '2606001,Siti Mariam,Garut,20 Januari 2026,Ayah Siti,Ibu Siti,BUMN,IRT,081234567890,2606001,123456'
+      `2606001,Siti Mariam,Garut,20 Januari 2026,${selectedKelas},${tkt},${prl},Ayah Siti,Ibu Siti,BUMN,IRT,081234567890,2606001`
     ];
     const csvContent = [headers.join(','), ...sampleData].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -125,21 +130,26 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
           const tanggalLahir = cols[3] || '';
           const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
 
+          // 13-column format: NIS,Nama,Tempat,Tanggal,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+          // Kelas dari CSV (index 4), fallback ke dropdown
+          const kelasDariCSV = cols[4] || selectedKelas;
+          const tingkatDariCSV = parseInt(cols[5] || '') || tingkat;
+          const paralelDariCSV = cols[6] || paralel;
+
           return {
             id: Date.now() + Math.floor(Math.random() * 100000),
             nis: cols[0] || '',
             nama: cols[1] || '',
             ttl,
-            kelas: selectedKelas,
-            tingkat,
-            paralel,
-            ayah: cols[4] || '',
-            ibu: cols[5] || '',
-            jobAyah: cols[6] || '',
-            jobIbu: cols[7] || '',
-            noHp: cols[8] || '',
-            username: cols[9] || cols[0] || '',
-            password: cols[10] || '123456',
+            kelas: kelasDariCSV,
+            tingkat: tingkatDariCSV,
+            paralel: paralelDariCSV,
+            ayah: cols[7] || '',
+            ibu: cols[8] || '',
+            jobAyah: cols[9] || '',
+            jobIbu: cols[10] || '',
+            noHp: cols[11] || '',
+            username: cols[12] || cols[0] || '',
             classId,  // Used for class_students sync in D1
           };
         }).filter(s => s.nis && s.nama);

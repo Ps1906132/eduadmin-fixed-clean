@@ -94,7 +94,7 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     ];
 
     const sampleData = [
-      '2025891024,Siti Aminah,Bandung,10 Maret 2012,Kelas 1,1,A,Asep,Susi,Wiraswasta,Ibu Rumah Tangga,081234567891,2025891024,password123'
+      '2025891024,Siti Aminah,Bandung,10 Maret 2012,Kelas 1A,1,A,Asep,Susi,Wiraswasta,Ibu Rumah Tangga,081234567891,2025891024,password123'
     ];
 
     const csvContent = [headers.join(','), ...sampleData].join('\n');

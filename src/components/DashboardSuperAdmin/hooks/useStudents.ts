@@ -150,7 +150,13 @@ export const useStudents = () => {
                 const clData = await classRes.json();
                 if (Array.isArray(clData)) {
                     clData.forEach((c: any) => {
-                        const paralel = (c.name || '').replace(/[0-9\s]/g, '').trim() || 'A';
+                        // Extract paralel from class name
+                        // "Kelas 1A" -> "A", "1 A" -> "A", "1A" -> "A", "Kelas 2B" -> "B"
+                        const rawName = (c.name || '').trim();
+                        const cleaned = rawName.replace(/kelas\s*/i, '').replace(/\s+/g, '').toUpperCase();
+                        // Last character(s) that are letters = paralel
+                        const paralelMatch = cleaned.match(/[A-Z]+$/);
+                        const paralel = paralelMatch ? paralelMatch[0] : 'A';
                         classNameMap[c.id?.toString()] = {
                             name: c.name || '-',
                             grade: Number(c.grade_level) || 1,
@@ -807,7 +813,7 @@ export const useStudents = () => {
     const handleDownloadTemplate = () => {
         const headers = ["NIS", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
         const csvContent = headers.join(",") + "\n" + 
-            "2025001,Asep Irama,Bandung,10 Maret 2012,1 A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
+            "2025001,Asep Irama,Bandung,10 Maret 2012,Kelas 1A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -892,8 +898,13 @@ export const useStudents = () => {
                 const classData = await classRes.json();
                 if (Array.isArray(classData)) {
                     classData.forEach((c: any) => {
-                        const name = (c.name || '').replace(/\s+/g, '').toUpperCase();
-                        classMap[name] = c.id?.toString();
+                        // Store multiple normalized forms for flexible matching
+                        const rawName = (c.name || '').trim();
+                        // "Kelas 1A" -> "1A", "1 A" -> "1A", "1A" -> "1A"
+                        const normalized = rawName.replace(/kelas\s*/i, '').replace(/\s+/g, '').toUpperCase();
+                        if (normalized) {
+                            classMap[normalized] = c.id?.toString();
+                        }
                     });
                 }
             }
@@ -904,8 +915,10 @@ export const useStudents = () => {
         for (const student of newStudents) {
             try {
                 const realId = `std-${student.nis}-${Date.now()}`;
-                // Resolve classId from kelas name
-                const normalizedKelas = (student.kelas || '').replace(/\s+/g, '').toUpperCase();
+                // Resolve classId from kelas name - flexible matching
+                // "1 A" -> "1A", "Kelas 1A" -> "1A", "1A" -> "1A"
+                const rawKelas = (student.kelas || '').trim();
+                const normalizedKelas = rawKelas.replace(/kelas\s*/i, '').replace(/\s+/g, '').toUpperCase();
                 const classId = classMap[normalizedKelas] || undefined;
                 await addNewStudent({ ...student, id: realId, classId });
                 successCount++;
