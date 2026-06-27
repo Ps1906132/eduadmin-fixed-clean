@@ -6,41 +6,45 @@ import { toast } from 'react-hot-toast';
 
 /**
  * Parse file (CSV/XLSX) into array of string arrays (rows).
- * Handles both comma-separated CSV and Excel files.
+ * Uses SheetJS for both CSV and Excel to correctly handle quoted fields with commas.
  */
 export const parseFileToRows = (file: File): Promise<string[][]> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const data = e.target?.result;
-            if (!data) { resolve([]); return; }
+            try {
+                const data = e.target?.result;
+                if (!data) { resolve([]); return; }
 
-            const ext = file.name.split('.').pop()?.toLowerCase();
-            if (ext === 'xlsx' || ext === 'xls') {
-                // Parse Excel
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonRows = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
-                // Convert all values to strings and filter empty rows
-                const rows = jsonRows
-                    .map(row => row.map(cell => String(cell ?? '').trim()))
-                    .filter(row => row.some(cell => cell !== ''));
-                resolve(rows);
-            } else {
-                // Parse CSV/TXT
-                const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
-                const lines = text.split('\n').filter(l => l.trim() !== '');
-                const rows = lines.map(line => line.split(',').map(col => col.trim()));
-                resolve(rows);
+                const ext = file.name.split('.').pop()?.toLowerCase();
+                if (ext === 'xlsx' || ext === 'xls') {
+                    // Parse Excel
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonRows = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
+                    const rows = jsonRows
+                        .map(row => row.map(cell => String(cell ?? '').trim()))
+                        .filter(row => row.some(cell => cell !== ''));
+                    resolve(rows);
+                } else {
+                    // Parse CSV — use SheetJS to correctly handle quoted fields
+                    const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+                    const workbook = XLSX.read(text, { type: 'string', raw: true });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonRows = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
+                    const rows = jsonRows
+                        .map(row => row.map(cell => String(cell ?? '').trim()))
+                        .filter(row => row.some(cell => cell !== ''));
+                    resolve(rows);
+                }
+            } catch (err) {
+                reject(err);
             }
         };
         reader.onerror = () => reject(new Error('Gagal membaca file'));
-        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-            reader.readAsArrayBuffer(file);
-        } else {
-            reader.readAsText(file);
-        }
+        reader.readAsText(file);
     });
 };
 
