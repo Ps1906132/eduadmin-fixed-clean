@@ -1043,13 +1043,14 @@ CREATE TABLE positions (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Seed: 5 jabatan utama
+-- Seed: 6 jabatan utama
 INSERT INTO positions (id, name, category) VALUES
 (1, 'Operator Data',           'Teknis'),
-(2, 'Wakil Kurikulum',         'Struktural'),
-(3, 'Staff Tata Usaha/Keuangan','Staff'),
-(4, 'Guru Mata Pelajaran',     'Fungsional'),
-(5, 'Wali Kelas',              'Fungsional');
+(2, 'Kepala Sekolah',          'Struktural'),
+(3, 'Wakil Kurikulum',         'Struktural'),
+(4, 'Staff Tata Usaha/Keuangan','Staff'),
+(5, 'Guru Mata Pelajaran',     'Fungsional'),
+(6, 'Wali Kelas',              'Fungsional');
 
 
 -- =============================================================================

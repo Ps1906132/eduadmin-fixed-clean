@@ -119,8 +119,8 @@ export const useTeachers = () => {
                 // Map jabatan to valid DB role values
                 const jabatanLower = (teacher.jabatan || '').toLowerCase();
                 let dbRole: string;
-                if (['admin', 'operator', 'kepala sekolah', 'wakil kepala'].some(k => jabatanLower.includes(k))) {
-                    dbRole = 'admin';
+                if (jabatanLower.includes('kepala sekolah')) {
+                    dbRole = 'ks';
                 } else if (jabatanLower.includes('kurikulum')) {
                     dbRole = 'kurikulum';
                 } else if (jabatanLower.includes('keuangan') || jabatanLower.includes('bendahara') || jabatanLower.includes('tata usaha')) {
@@ -199,8 +199,8 @@ export const useTeachers = () => {
                         // Map jabatan to valid DB role values
                         const jabatanLower2 = (teacher.jabatan || '').toLowerCase();
                         let dbRole2: string;
-                        if (['admin', 'operator', 'kepala sekolah', 'wakil kepala'].some(k => jabatanLower2.includes(k))) {
-                            dbRole2 = 'admin';
+                        if (jabatanLower2.includes('kepala sekolah')) {
+                            dbRole2 = 'ks';
                         } else if (jabatanLower2.includes('kurikulum')) {
                             dbRole2 = 'kurikulum';
                         } else if (jabatanLower2.includes('keuangan') || jabatanLower2.includes('bendahara')) {
