@@ -63,6 +63,7 @@ export const useSavings = () => {
                         studentName: student.full_name || 'Siswa',
                         type: t.type === 'deposit' ? 'Setor' : 'Tarik',
                         amount: t.amount,
+                        balanceAfter: t.balance_after || 0,
                         date: t.date || new Date().toISOString(),
                         description: t.notes || '',
                         officer: t.officer || 'Sistem'
@@ -71,7 +72,7 @@ export const useSavings = () => {
                 setSavingsTransactions(mappedTxs);
             }
         } catch (err) {
-            console.error('Error fetching savings from D1:', err);
+            // Silent fail - data will show empty state
         } finally {
             setLoading(false);
         }
@@ -80,9 +81,6 @@ export const useSavings = () => {
     useEffect(() => {
         fetchSavingsData();
     }, [fetchSavingsData]);
-
-    // Sync back to Local Storage & D1 in background
-
 
     const addSavingsTransaction = async (transaction: any) => {
         const token = localStorage.getItem('eduadmin_token');
@@ -94,11 +92,14 @@ export const useSavings = () => {
         try {
             // Find or create account first
             let accountId = transaction.accountId;
+            let currentBalance = 0;
+            
             if (!accountId) {
                 const resAcc = await fetch(`/api/savings_accounts?student_id=eq.${transaction.studentId}`, { headers });
                 const accs = resAcc.ok ? await resAcc.json() : [];
                 if (accs.length > 0) {
                     accountId = accs[0].id;
+                    currentBalance = accs[0].balance || 0;
                 } else {
                     // Create account
                     const resNew = await fetch('/api/savings_accounts', {
@@ -108,42 +109,50 @@ export const useSavings = () => {
                     });
                     if (resNew.ok) {
                         const newAcc = await resNew.json();
-                        accountId = newAcc.id || transaction.studentId; // Fallback to studentId if id not returned
+                        accountId = newAcc.id || transaction.studentId;
+                        currentBalance = 0;
                     }
                 }
+            } else {
+                // Get current balance for existing account
+                const resAcc = await fetch(`/api/savings_accounts?id=eq.${accountId}`, { headers });
+                const acc = resAcc.ok ? (await resAcc.json())[0] : null;
+                currentBalance = acc ? acc.balance || 0 : 0;
             }
+
+            // Calculate new balance
+            const newBalance = transaction.type === 'setor' 
+                ? currentBalance + transaction.amount 
+                : currentBalance - transaction.amount;
 
             const res = await fetch('/api/savings_transactions', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     account_id: accountId,
+                    student_id: transaction.studentId,
                     type: transaction.type === 'setor' ? 'deposit' : 'withdrawal',
                     amount: transaction.amount,
-                    date: transaction.date,
-                    notes: transaction.description
+                    balance_after: newBalance,
+                    date: transaction.date || new Date().toISOString(),
+                    notes: transaction.description,
+                    officer: transaction.officer || 'Sistem'
                 })
             });
 
             if (res.ok) {
                 // Update balance in savings_accounts table
-                const currentAccRes = await fetch(`/api/savings_accounts?id=eq.${accountId}`, { headers });
-                const currentAcc = currentAccRes.ok ? (await currentAccRes.json())[0] : null;
-                if (currentAcc) {
-                    const newBalance = transaction.type === 'setor' ? currentAcc.balance + transaction.amount : currentAcc.balance - transaction.amount;
-                    await fetch(`/api/savings_accounts?id=eq.${accountId}`, {
-                        method: 'PATCH',
-                        headers,
-                        body: JSON.stringify({ balance: newBalance })
-                    });
-                }
+                await fetch(`/api/savings_accounts?id=eq.${accountId}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ balance: newBalance })
+                });
 
                 fetchSavingsData();
                 return { success: true };
             }
             return { success: false, error: 'Gagal menyimpan transaksi tabungan' };
         } catch (err) {
-            console.error('Error saving savings transaction:', err);
             return { success: false, error: 'Terjadi kesalahan jaringan' };
         }
     };

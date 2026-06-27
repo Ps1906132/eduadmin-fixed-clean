@@ -6,6 +6,8 @@ import {
 import { toast } from 'react-hot-toast';
 import { useSavings } from '../../hooks/useSavings';
 import AddSaverModal from '../modals/AddSaverModal';
+import PrintSavingsBook from '../print/PrintSavingsBook';
+import PrintSavingsHistory from '../print/PrintSavingsHistory';
 
 interface TabunganViewProps {
     students: any[];
@@ -22,6 +24,10 @@ const TabunganView: React.FC<TabunganViewProps> = ({ students, user }) => {
     const [showAddSaverModal, setShowAddSaverModal] = useState(false);
     const [newSaverId, setNewSaverId] = useState('');
     const [saverClassFilter, setSaverClassFilter] = useState('');
+    const [printDateRange, setPrintDateRange] = useState({
+        from: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+        to: new Date().toISOString().split('T')[0]
+    });
 
     const handleSavingsDeposit = async () => {
         if (!selectedSavingsStudent || savingsAmount <= 0) return;
@@ -203,13 +209,15 @@ const TabunganView: React.FC<TabunganViewProps> = ({ students, user }) => {
                                         </td>
                                         <td className="p-4 text-center">
                                             <div className="flex justify-center gap-2">
-                                                <button
-                                                    onClick={() => toast('Fitur Preview/Cetak Buku untuk ' + s.nama + ' akan muncul di sini.', { icon: '🖨️' })}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors"
-                                                    title="Cetak Buku Tabungan"
-                                                >
-                                                    <Printer size={14} /> Cetak Buku
-                                                </button>
+                                                <PrintSavingsBook
+                                                    student={{
+                                                        name: s.nama,
+                                                        nis: s.nis,
+                                                        class: s.kelas,
+                                                        balance: s.saldo
+                                                    }}
+                                                    transactions={savingsTransactions.filter(t => t.studentId === s.studentId)}
+                                                />
                                                 <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-500 hover:text-slate-700 rounded-lg text-xs font-bold transition-colors">
                                                     <List size={14} /> Detail
                                                 </button>
@@ -344,8 +352,29 @@ const TabunganView: React.FC<TabunganViewProps> = ({ students, user }) => {
             {/* 4. RIWAYAT */}
             {savingsActiveTab === 'riwayat' && (
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="p-5 border-b border-slate-100">
+                    <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <h3 className="font-bold text-slate-800">Riwayat Transaksi Tabungan</h3>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={printDateRange.from}
+                                    onChange={(e) => setPrintDateRange({ ...printDateRange, from: e.target.value })}
+                                    className="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none"
+                                />
+                                <span className="text-slate-400">-</span>
+                                <input
+                                    type="date"
+                                    value={printDateRange.to}
+                                    onChange={(e) => setPrintDateRange({ ...printDateRange, to: e.target.value })}
+                                    className="px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none"
+                                />
+                            </div>
+                            <PrintSavingsHistory
+                                transactions={savingsTransactions}
+                                dateRange={printDateRange}
+                            />
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">

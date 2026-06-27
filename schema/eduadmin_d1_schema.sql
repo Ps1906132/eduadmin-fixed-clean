@@ -46,6 +46,13 @@ DROP TABLE IF EXISTS savings_transactions;
 DROP TABLE IF EXISTS savings_accounts;
 DROP TABLE IF EXISTS payment_transactions;
 DROP TABLE IF EXISTS student_bills;
+DROP TABLE IF EXISTS expense_categories;
+DROP TABLE IF EXISTS finance_settings;
+DROP TABLE IF EXISTS school_bank_accounts;
+DROP TABLE IF EXISTS cash_accounts;
+DROP TABLE IF EXISTS student_bill_installments;
+DROP TABLE IF EXISTS payment_type_classes;
+DROP TABLE IF EXISTS payment_types;
 DROP TABLE IF EXISTS broadcasts;
 DROP TABLE IF EXISTS announcements;
 DROP TABLE IF EXISTS grades;
@@ -66,6 +73,7 @@ DROP TABLE IF EXISTS ai_api_keys;
 DROP TABLE IF EXISTS ai_providers;
 DROP TABLE IF EXISTS ai_system_settings;
 DROP TABLE IF EXISTS multimedia_settings;
+DROP TABLE IF EXISTS multimedia_videos;
 DROP TABLE IF EXISTS school_settings;
 DROP TABLE IF EXISTS audit_logs;
 
@@ -681,6 +689,97 @@ CREATE TABLE savings_transactions (
     FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
+-- ─── 7.6 payment_types ────────────────────────────────────────────────────────
+-- Master jenis pembayaran (SPP, Uang Pangkal, Seragam, dll).
+-- Dibuat/dikelola Keuangan di menu "Data Dasar".
+CREATE TABLE payment_types (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,              -- "SPP Bulanan", "Uang Pangkal"
+    type        TEXT NOT NULL               -- 'BULANAN' | 'TAHUNAN' | 'SEKALI' | 'CICILAN'
+                CHECK (type IN ('BULANAN','TAHUNAN','SEKALI','CICILAN')),
+    amount      DECIMAL(15,2) NOT NULL,     -- Nominal default
+    category    TEXT DEFAULT 'Lainnya',
+    is_active   INTEGER DEFAULT 1,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─── 7.7 payment_type_classes ─────────────────────────────────────────────────
+-- Nominal SPP per tahun ajaran. Jika ada, pakai custom_amount; jika tidak, fallback ke payment_types.amount.
+CREATE TABLE payment_type_classes (
+    id               TEXT PRIMARY KEY,
+    payment_type_id  TEXT NOT NULL,          -- FK ke payment_types
+    academic_year_id TEXT NOT NULL,          -- FK ke academic_years
+    custom_amount    DECIMAL(15,2) NOT NULL, -- Nominal khusus untuk tahun ini
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (payment_type_id) REFERENCES payment_types(id),
+    FOREIGN KEY (academic_year_id) REFERENCES academic_years(id),
+    UNIQUE(payment_type_id, academic_year_id) -- 1 jenis per tahun hanya 1 baris
+);
+
+-- ─── 7.8 student_bill_installments ────────────────────────────────────────────
+-- Cicilan per tagihan. Digunakan untuk tipe CICILAN (Uang Pangkal, dll).
+-- Jumlah cicilan diatur user (bisa 5, 10, atau lainnya).
+CREATE TABLE student_bill_installments (
+    id              TEXT PRIMARY KEY,
+    bill_id         TEXT NOT NULL,           -- FK ke student_bills
+    installment_no  INTEGER NOT NULL,       -- Urutan cicilan (1, 2, 3...)
+    amount          DECIMAL(15,2) NOT NULL,  -- Nominal cicilan
+    due_date        DATE,                    -- Jatuh tempo cicilan ini
+    status          TEXT DEFAULT 'pending'
+                   CHECK (status IN ('pending','paid','overdue')),
+    paid_amount     DECIMAL(15,2) DEFAULT 0,
+    paid_date       DATE,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bill_id) REFERENCES student_bills(id)
+);
+
+-- ─── 7.9 cash_accounts ────────────────────────────────────────────────────────
+-- Akun kas/bank sekolah. Menampilkan saldo kas saat ini.
+CREATE TABLE cash_accounts (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,              -- "Kas Utama", "Bank BCA"
+    type        TEXT NOT NULL               -- 'KAS' | 'BANK'
+                CHECK (type IN ('KAS','BANK')),
+    balance     DECIMAL(15,2) DEFAULT 0,
+    number      TEXT,                       -- Nomor rekening (untuk bank)
+    is_primary  INTEGER DEFAULT 0,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─── 7.10 school_bank_accounts ────────────────────────────────────────────────
+-- Rekening bank sekolah untuk pembayaran transfer.
+-- Ditampilkan ke orang tua saat memilih metode transfer.
+CREATE TABLE school_bank_accounts (
+    id          TEXT PRIMARY KEY,
+    bank        TEXT NOT NULL,              -- "BCA", "Mandiri"
+    number      TEXT NOT NULL,              -- Nomor rekening
+    name        TEXT NOT NULL,              -- Atas nama
+    is_active   INTEGER DEFAULT 1,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─── 7.11 finance_settings ────────────────────────────────────────────────────
+-- Pengaturan keuangan: nama bendahara, tanda tangan, footer kuitansi, logo, dll.
+-- Disimpan sebagai key-value pairs.
+CREATE TABLE finance_settings (
+    id          TEXT PRIMARY KEY,
+    key         TEXT UNIQUE NOT NULL,       -- 'treasurer_name', 'receipt_footer', dll
+    value       TEXT NOT NULL,
+    updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─── 7.12 expense_categories ──────────────────────────────────────────────────
+-- Master kategori pengeluaran. Dikelola Keuangan di menu "Pengaturan".
+CREATE TABLE expense_categories (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    is_active   INTEGER DEFAULT 1,
+    sort_order  INTEGER DEFAULT 0,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- =============================================================================
 -- BAGIAN 8 — BIMBINGAN BELAJAR (LES)
@@ -1015,6 +1114,14 @@ CREATE INDEX idx_sav_student     ON savings_accounts(student_id);
 CREATE INDEX idx_savt_account    ON savings_transactions(account_id);
 CREATE INDEX idx_savt_student    ON savings_transactions(student_id);
 CREATE INDEX idx_savt_date       ON savings_transactions(date);
+CREATE INDEX idx_pt_type         ON payment_types(type);
+CREATE INDEX idx_pt_active       ON payment_types(is_active);
+CREATE INDEX idx_ptc_type        ON payment_type_classes(payment_type_id);
+CREATE INDEX idx_ptc_year        ON payment_type_classes(academic_year_id);
+CREATE INDEX idx_sbi_bill        ON student_bill_installments(bill_id);
+CREATE INDEX idx_sbi_status      ON student_bill_installments(status);
+CREATE INDEX idx_ca_type         ON cash_accounts(type);
+CREATE INDEX idx_sba_active      ON school_bank_accounts(is_active);
 
 -- Bimbel
 CREATE INDEX idx_tc_teacher      ON tutoring_classes(teacher_id);
@@ -1087,6 +1194,22 @@ INSERT INTO ai_providers (id, name, type, is_active) VALUES
 INSERT INTO multimedia_settings (id, name, autoplay, mode) VALUES
     ('mm-001', 'Channel Sekolah Utama', 0, 'manual');
 
+-- ─── Kategori Pengeluaran Default ──────────────────────────────────────────────
+INSERT INTO expense_categories (id, name, is_active, sort_order) VALUES
+    ('ec-001', 'Operasional Sekolah', 1, 1),
+    ('ec-002', 'Honor Guru/Staff', 1, 2),
+    ('ec-003', 'ATK & Fotokopi', 1, 3),
+    ('ec-004', 'Konsumsi', 1, 4),
+    ('ec-005', 'Pembangunan & Sarpras', 1, 5),
+    ('ec-006', 'Listrik & Internet', 1, 6);
+
+-- ─── Pengaturan Keuangan Default ───────────────────────────────────────────────
+INSERT INTO finance_settings (id, key, value) VALUES
+    ('fs-001', 'treasurer_name', 'Bendahara Sekolah'),
+    ('fs-002', 'treasurer_title', 'Bendahara'),
+    ('fs-003', 'receipt_footer', 'Harap simpan bukti pembayaran ini sebagai alat bukti yang sah.'),
+    ('fs-004', 'wa_template', 'Assalamualaikum Bapak/Ibu Wali Murid, kami informasikan tagihan SPP bulan ini sebesar *{nominal}*. Terima kasih.');
+
 -- ─── Akun Admin (password: admin123) ──────────────────────────────────────────
 -- Hash: bcrypt dari "admin123"
 INSERT INTO profiles (id, email, full_name, password_hash, role, is_active) VALUES
@@ -1153,7 +1276,7 @@ INSERT INTO profiles (id, email, full_name, password_hash, role, is_active) VALU
 
 
 -- =============================================================================
--- RINGKASAN TABEL (42 tabel)
+-- RINGKASAN TABEL (49 tabel)
 -- =============================================================================
 --
 --  GRUP                  TABEL
@@ -1167,8 +1290,12 @@ INSERT INTO profiles (id, email, full_name, password_hash, role, is_active) VALU
 --  Ujian CBT        (5)  exams, exam_schedules, exam_questions,
 --                        exam_sessions, exam_answers
 --  Pengumuman       (2)  announcements, broadcasts
---  Keuangan         (5)  student_bills, payment_transactions, expenses,
---                        savings_accounts, savings_transactions
+--  Keuangan         (12) student_bills, payment_transactions, expenses,
+--                        savings_accounts, savings_transactions,
+--                        payment_types, payment_type_classes,
+--                        student_bill_installments, cash_accounts,
+--                        school_bank_accounts, finance_settings,
+--                        expense_categories
 --  Bimbingan Belajar(8)  tutoring_subjects, tutoring_teachers, tutoring_classes,
 --                        tutoring_enrollments, bimbel_attendance, bimbel_progress,
 --                        **bimbel_materi, bimbel_latihan**

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Download, Upload as UploadIcon, Save } from 'lucide-react';
+import { useState } from 'react';
+import { X, Download, Upload as UploadIcon, Save, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { studentsDataGlobal, classesDataGlobal } from '../../../../data/sharedData';
 
@@ -26,6 +26,7 @@ const AddSaverModal: React.FC<AddSaverModalProps> = ({
 }) => {
     // State for uploaded Excel file
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [loading, setLoading] = useState(false);
 
     if (!isOpen) return null;
 
@@ -188,6 +189,7 @@ const AddSaverModal: React.FC<AddSaverModalProps> = ({
                                 onClick={async () => {
                                     const studentToAdd = studentsDataGlobal.find(s => s.id === Number(newSaverId));
                                     if (studentToAdd) {
+                                        setLoading(true);
                                         const token = localStorage.getItem('eduadmin_token');
                                         const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
@@ -202,6 +204,7 @@ const AddSaverModal: React.FC<AddSaverModalProps> = ({
                                             })
                                         });
 
+                                        setLoading(false);
                                         if (res.ok) {
                                             const newSaver = { ...studentToAdd, studentId: studentToAdd.id, status: 'Aktif', joinDate: new Date().toISOString().split('T')[0], saldo: 0, tabungan: 0 };
                                             setSavingsData([...savingsData, newSaver]);
@@ -212,10 +215,17 @@ const AddSaverModal: React.FC<AddSaverModalProps> = ({
                                         }
                                     }
                                 }}
-                                disabled={!newSaverId}
-                                className="w-full py-3.5 bg-[#004AAD] text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200"
+                                disabled={!newSaverId || loading}
+                                className="w-full py-3.5 bg-[#004AAD] text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
                             >
-                                Simpan Nasabah
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    'Simpan Nasabah'
+                                )}
                             </button>
                         </div>
                     </div>

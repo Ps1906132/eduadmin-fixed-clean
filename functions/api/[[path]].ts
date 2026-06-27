@@ -58,6 +58,13 @@ const ALLOWED_TABLES = [
   'expenses',
   'savings_accounts',
   'savings_transactions',
+  'payment_types',
+  'payment_type_classes',
+  'student_bill_installments',
+  'cash_accounts',
+  'school_bank_accounts',
+  'finance_settings',
+  'expense_categories',
   'announcements',
   'exams',
   'exam_schedules',
@@ -597,7 +604,9 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
   }
 
   const FINANCE_WRITE_TABLES = [
-    'student_bills', 'payment_transactions', 'expenses', 'savings_accounts', 'savings_transactions'
+    'student_bills', 'payment_transactions', 'expenses', 'savings_accounts', 'savings_transactions',
+    'payment_types', 'payment_type_classes', 'student_bill_installments',
+    'cash_accounts', 'school_bank_accounts', 'finance_settings', 'expense_categories'
   ];
 
   if (FINANCE_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
@@ -612,7 +621,9 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
 
   // Fase 2: RBAC READ — Finansial hanya untuk admin, keuangan, ortu (data sendiri), siswa (data sendiri)
   const FINANCE_READ_TABLES = [
-    'student_bills', 'payment_transactions', 'expenses', 'savings_accounts', 'savings_transactions'
+    'student_bills', 'payment_transactions', 'expenses', 'savings_accounts', 'savings_transactions',
+    'payment_types', 'payment_type_classes', 'student_bill_installments',
+    'cash_accounts', 'school_bank_accounts', 'finance_settings', 'expense_categories'
   ];
   if (FINANCE_READ_TABLES.includes(table) && request.method === 'GET') {
     if (userRole !== 'admin' && userRole !== 'keuangan' && userRole !== 'ortu' && userRole !== 'siswa') {

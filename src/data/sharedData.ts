@@ -136,6 +136,7 @@ export interface SavingsTransaction {
     studentName: string;
     type: 'Setor' | 'Tarik';
     amount: number;
+    balanceAfter?: number;
     officer: string;
 }
 

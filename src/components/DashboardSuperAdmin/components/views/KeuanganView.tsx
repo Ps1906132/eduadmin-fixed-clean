@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
     LayoutDashboard, Files as FilesIcon, FileText, CreditCard, TrendingDown,
     Wallet, Printer, Settings, Calendar, Plus, X, ArrowUpCircle, UserCheck,
-    CheckCircle, List, ArrowRight, Download, Search, Megaphone, Trash2, Edit, TrendingUp, Upload as UploadIcon
+    CheckCircle, Download, Search, Trash2, Edit, TrendingUp, Upload as UploadIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useFinance } from '../../hooks/useFinance';
@@ -13,6 +13,10 @@ import AddBankModal from '../modals/AddBankModal';
 import AddPaymentTypeModal from '../modals/AddPaymentTypeModal';
 import EditPaymentTypeModal from '../modals/EditPaymentTypeModal';
 import EditYearModal from '../modals/EditYearModal';
+import PaymentDetailModal from '../modals/PaymentDetailModal';
+import InstallmentSettingsModal from '../modals/InstallmentSettingsModal';
+import ClassAmountModal from '../modals/ClassAmountModal';
+import PrintPaymentReceipt from '../print/PrintPaymentReceipt';
 
 interface KeuanganViewProps {
     students: any[];
@@ -37,6 +41,12 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
         setCashAccounts,
         paymentTypes,
         setPaymentTypes,
+        financeSettings,
+        setFinanceSettings,
+        expenseCategories,
+        setExpenseCategories,
+        schoolBankAccounts,
+        setSchoolBankAccounts,
         studentBills,
         setStudentBills,
         expenses,
@@ -45,6 +55,13 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
         setPaymentHistory,
         addPayment,
         addExpense,
+        addPaymentType,
+        updatePaymentType,
+        addSchoolBankAccount,
+        deleteSchoolBankAccount,
+        updateFinanceSetting,
+        addExpenseCategory,
+        deleteExpenseCategory,
         refreshFinance
     } = useFinance();
 
@@ -52,7 +69,11 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
     const [showAddPaymentTypeModal, setShowAddPaymentTypeModal] = useState(false);
     const [showEditPaymentTypeModal, setShowEditPaymentTypeModal] = useState(false);
     const [showEditYearModal, setShowEditYearModal] = useState(false);
+    const [showPaymentDetailModal, setShowPaymentDetailModal] = useState(false);
+    const [showInstallmentSettingsModal, setShowInstallmentSettingsModal] = useState(false);
+    const [showClassAmountModal, setShowClassAmountModal] = useState(false);
     const [editingPaymentType, setEditingPaymentType] = useState<any>(null);
+    const [selectedBillForDetail, setSelectedBillForDetail] = useState<any>(null);
     const [newPaymentType, setNewPaymentType] = useState({ name: '', type: 'BULANAN', amount: 0, category: 'Lainnya' });
     const [classFilter, setClassFilter] = useState('');
     const [searchStudentForPayment, setSearchStudentForPayment] = useState('');
@@ -62,8 +83,8 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
 
     const [newExpense, setNewExpense] = useState({ date: '', description: '', category: 'Operasional', amount: 0 });
 
-    // --- FINANCE SETTINGS STATE ---
-    const [financeSettings, setFinanceSettings] = useState({
+    // Finance Settings from D1
+    const [localFinanceSettings, setLocalFinanceSettings] = useState({
         treasurerName: '',
         receiptFooter: 'Harap simpan bukti pembayaran ini sebagai alat bukti yang sah.',
         waTemplate: 'Assalamualaikum Bapak/Ibu Wali Murid, kami informasikan tagihan SPP bulan ini sebesar *{nominal}*. Terima kasih.'
@@ -92,9 +113,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
         document.body.removeChild(link);
         toast.success("Template Excel (CSV) berhasil didownload!");
     };
-    const [expenseCategories, setExpenseCategories] = useState(['Operasional Sekolah', 'Honor Guru/Staff', 'ATK & Fotokopi', 'Konsumsi', 'Pembangunan & Sarpras', 'Listrik & Internet']);
     const [newExpenseCategory, setNewExpenseCategory] = useState('');
-    const [schoolBankAccounts, setSchoolBankAccounts] = useState<any[]>([]);
     const [newBankAccount, setNewBankAccount] = useState({ bank: '', number: '', name: '' });
     const [showAddBankModal, setShowAddBankModal] = useState(false);
 
@@ -144,12 +163,20 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
         }
     };
 
-    const handleSavingsDeposit = () => {
-        toast.success('Simulasi Setoran Berhasil');
+    const handleViewBillDetail = (bill: any) => {
+        setSelectedBillForDetail(bill);
+        setShowPaymentDetailModal(true);
     };
 
-    const handleSavingsWithdrawal = () => {
-        toast.success('Simulasi Penarikan Berhasil');
+    const handleSaveSettings = async () => {
+        try {
+            await updateFinanceSetting('treasurer_name', localFinanceSettings.treasurerName);
+            await updateFinanceSetting('receipt_footer', localFinanceSettings.receiptFooter);
+            await updateFinanceSetting('wa_template', localFinanceSettings.waTemplate);
+            toast.success("Pengaturan disimpan!");
+        } catch (error) {
+            toast.error("Gagal menyimpan pengaturan");
+        }
     };
 
     return (
@@ -323,9 +350,11 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                 <p className="text-sm text-slate-400">Atur komponen biaya sekolah per kelas.</p>
                             </div>
                             {isKeuangan && (
-                                <button onClick={() => setShowAddPaymentTypeModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">
-                                    + Tambah Jenis
-                                </button>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setShowAddPaymentTypeModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">
+                                        + Tambah Jenis
+                                    </button>
+                                </div>
                             )}
                         </div>
  
@@ -353,15 +382,27 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                             <td className="p-3 font-mono text-slate-600">Rp {type.amount.toLocaleString('id-ID')}</td>
                                             {isKeuangan && (
                                                 <td className="p-3 text-center">
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingPaymentType(type);
-                                                            setShowEditPaymentTypeModal(true);
-                                                        }}
-                                                        className="text-slate-400 hover:text-blue-500 transition-colors"
-                                                    >
-                                                        <Edit size={16} />
-                                                    </button>
+                                                    <div className="flex justify-center gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingPaymentType(type);
+                                                                setShowClassAmountModal(true);
+                                                            }}
+                                                            className="text-slate-400 hover:text-purple-500 transition-colors"
+                                                            title="Nominal per Tahun"
+                                                        >
+                                                            <Calendar size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingPaymentType(type);
+                                                                setShowEditPaymentTypeModal(true);
+                                                            }}
+                                                            className="text-slate-400 hover:text-blue-500 transition-colors"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             )}
                                         </tr>
@@ -524,12 +565,15 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                         <td className="p-4 text-center">
                                             {bill.status !== 'Lunas' ? (
                                                 isKeuangan ? (
-                                                    <button onClick={() => handlePayBill(bill)} className="text-blue-600 hover:underline font-bold text-xs">Bayar</button>
+                                                    <div className="flex gap-2 justify-center">
+                                                        <button onClick={() => handlePayBill(bill)} className="text-blue-600 hover:underline font-bold text-xs">Bayar</button>
+                                                        <button onClick={() => handleViewBillDetail(bill)} className="text-slate-400 hover:text-purple-500 font-bold text-xs">Detail</button>
+                                                    </div>
                                                 ) : (
                                                     <button disabled className="text-slate-400 font-bold text-xs cursor-not-allowed">Belum Lunas</button>
                                                 )
                                             ) : (
-                                                <button className="text-slate-400 hover:text-blue-500 font-bold text-xs">Cetak</button>
+                                                <button onClick={() => handleViewBillDetail(bill)} className="text-slate-400 hover:text-blue-500 font-bold text-xs">Cetak</button>
                                             )}
                                         </td>
                                     </tr>
@@ -779,7 +823,13 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                             <td className="p-3 font-medium">{record.studentName}</td>
                                             <td className="p-3">{record.paymentName}</td>
                                             <td className="p-3 text-right font-bold text-emerald-600">Rp {record.amount.toLocaleString('id-ID')}</td>
-                                            <td className="p-3 text-center"><button className="text-slate-400 hover:text-blue-500"><Printer size={14} /></button></td>
+                                            <td className="p-3 text-center">
+                                                <PrintPaymentReceipt
+                                                    transaction={record}
+                                                    treasurerName={localFinanceSettings.treasurerName}
+                                                    receiptFooter={localFinanceSettings.receiptFooter}
+                                                />
+                                            </td>
                                         </tr>
                                     ))}
                                     {paymentHistory.length === 0 && (
@@ -816,10 +866,9 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                         onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
                                         className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-blue-500"
                                     >
-                                        <option>Operasional Sekolah</option>
-                                        <option>Honor Guru/Staff</option>
-                                        <option>ATK & Fotokopi</option>
-                                        <option>Konsumsi</option>
+                                        {expenseCategories.map(cat => (
+                                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="lg:col-span-1">
@@ -966,20 +1015,20 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Nama Bendahara / Staff Keuangan</label>
                                     <input
                                         type="text"
-                                        value={financeSettings.treasurerName}
-                                        onChange={(e) => setFinanceSettings({ ...financeSettings, treasurerName: e.target.value })}
+                                        value={localFinanceSettings.treasurerName}
+                                        onChange={(e) => setLocalFinanceSettings({ ...localFinanceSettings, treasurerName: e.target.value })}
                                         className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Catatan Footer Kuitansi</label>
                                     <textarea
-                                        value={financeSettings.receiptFooter}
-                                        onChange={(e) => setFinanceSettings({ ...financeSettings, receiptFooter: e.target.value })}
+                                        value={localFinanceSettings.receiptFooter}
+                                        onChange={(e) => setLocalFinanceSettings({ ...localFinanceSettings, receiptFooter: e.target.value })}
                                         className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none h-24 font-medium"
                                     ></textarea>
                                 </div>
-                                <button onClick={() => toast.success("Pengaturan kuitansi disimpan!")} className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-colors">
+                                <button onClick={handleSaveSettings} className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-colors">
                                     Simpan Perubahan
                                 </button>
                             </div>
@@ -1010,9 +1059,11 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                             <p className="text-xs text-slate-500 font-bold uppercase">{acc.name}</p>
                                         </div>
                                         <button
-                                            onClick={() => {
-                                                setSchoolBankAccounts(schoolBankAccounts.filter(a => a.id !== acc.id));
-                                                toast.success("Rekening dihapus.");
+                                            onClick={async () => {
+                                                const result = await deleteSchoolBankAccount(acc.id);
+                                                if (result.success) {
+                                                    toast.success("Rekening dihapus.");
+                                                }
                                             }}
                                             className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
@@ -1045,18 +1096,16 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                     className="flex-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && newExpenseCategory) {
-                                            setExpenseCategories([...expenseCategories, newExpenseCategory]);
+                                            addExpenseCategory(newExpenseCategory);
                                             setNewExpenseCategory('');
-                                            toast.success("Kategori ditambahkan!");
                                         }
                                     }}
                                 />
                                 <button
                                     onClick={() => {
                                         if (newExpenseCategory) {
-                                            setExpenseCategories([...expenseCategories, newExpenseCategory]);
+                                            addExpenseCategory(newExpenseCategory);
                                             setNewExpenseCategory('');
-                                            toast.success("Kategori ditambahkan!");
                                         }
                                     }}
                                     className="bg-amber-500 text-white px-4 rounded-xl font-bold hover:bg-amber-600"
@@ -1065,11 +1114,11 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                                 </button>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {expenseCategories.map((cat, idx) => (
-                                    <span key={idx} className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-bold border border-slate-200 flex items-center gap-2 group">
-                                        {cat}
+                                {expenseCategories.map((cat) => (
+                                    <span key={cat.id} className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-bold border border-slate-200 flex items-center gap-2 group">
+                                        {cat.name}
                                         <button
-                                            onClick={() => setExpenseCategories(expenseCategories.filter((_, i) => i !== idx))}
+                                            onClick={() => deleteExpenseCategory(cat.id)}
                                             className="text-slate-400 hover:text-red-500"
                                         >
                                             <X size={14} />
@@ -1090,10 +1139,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                 <AddPaymentTypeModal
                     isOpen={showAddPaymentTypeModal}
                     onClose={() => setShowAddPaymentTypeModal(false)}
-                    paymentTypes={paymentTypes}
-                    setPaymentTypes={setPaymentTypes}
-                    newPaymentType={newPaymentType}
-                    setNewPaymentType={setNewPaymentType}
+                    onAdd={addPaymentType}
                 />
             )}
 
@@ -1102,9 +1148,7 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                     isOpen={showEditPaymentTypeModal}
                     onClose={() => setShowEditPaymentTypeModal(false)}
                     editingPaymentType={editingPaymentType}
-                    setEditingPaymentType={setEditingPaymentType}
-                    paymentTypes={paymentTypes}
-                    setPaymentTypes={setPaymentTypes}
+                    onUpdate={updatePaymentType}
                 />
             )}
 
@@ -1123,8 +1167,49 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                     onClose={() => setShowAddBankModal(false)}
                     newBankAccount={newBankAccount}
                     setNewBankAccount={setNewBankAccount}
-                    schoolBankAccounts={schoolBankAccounts}
-                    setSchoolBankAccounts={setSchoolBankAccounts}
+                    onAdd={addSchoolBankAccount}
+                />
+            )}
+
+            {showPaymentDetailModal && selectedBillForDetail && (
+                <PaymentDetailModal
+                    isOpen={showPaymentDetailModal}
+                    onClose={() => setShowPaymentDetailModal(false)}
+                    student={selectedStudentForPay ? {
+                        id: String(selectedStudentForPay.id),
+                        name: selectedStudentForPay.nama,
+                        nis: selectedStudentForPay.nis,
+                        class: selectedStudentForPay.kelas
+                    } : null}
+                    bills={studentBills}
+                    installments={[]}
+                    paymentHistory={paymentHistory}
+                />
+            )}
+
+            {showInstallmentSettingsModal && selectedBillForDetail && (
+                <InstallmentSettingsModal
+                    isOpen={showInstallmentSettingsModal}
+                    onClose={() => setShowInstallmentSettingsModal(false)}
+                    billId={String(selectedBillForDetail.id)}
+                    totalAmount={selectedBillForDetail.amount}
+                    existingInstallments={[]}
+                    onSave={async () => { refreshFinance(); return { success: true }; }}
+                />
+            )}
+
+            {showClassAmountModal && editingPaymentType && (
+                <ClassAmountModal
+                    isOpen={showClassAmountModal}
+                    onClose={() => setShowClassAmountModal(false)}
+                    paymentType={{
+                        id: editingPaymentType.id,
+                        name: editingPaymentType.name,
+                        amount: editingPaymentType.amount
+                    }}
+                    academicYears={[{ id: financialYear, name: financialYear, is_active: true }]}
+                    existingAmounts={[]}
+                    onSave={async () => { refreshFinance(); return { success: true }; }}
                 />
             )}
         </div>
