@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
-import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
+import { useStudents, parseFileToRows } from './DashboardSuperAdmin/hooks/useStudents';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -111,22 +111,16 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
       const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9\s]/g, '') || 'A';
       const classId = currentClass ? String(currentClass.id) : undefined;
 
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const text = ev.target?.result as string;
-        if (!text) return;
-
-        const lines = text.split('\n').filter(l => l.trim() !== '');
-        const dataLines = lines.slice(1); // skip header
+      try {
+        const rows = await parseFileToRows(file);
+        const dataLines = rows.slice(1); // skip header
 
         if (dataLines.length === 0) {
           alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
           return;
         }
 
-        const parsedStudents = dataLines.map((line) => {
-          const cols = line.split(',').map(col => col.trim());
-
+        const parsedStudents = dataLines.map((cols) => {
           const tempatLahir = cols[2] || '';
           const tanggalLahir = cols[3] || '';
           const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
@@ -155,8 +149,9 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
         }
         alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa baru berhasil diimpor ke kelas ${selectedKelas}.`);
         if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     };
 
   const handleOpenAddModal = () => {

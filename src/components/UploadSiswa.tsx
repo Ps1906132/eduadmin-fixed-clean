@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
+import { useStudents, parseFileToRows } from './DashboardSuperAdmin/hooks/useStudents';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 import {
   FileSpreadsheet,
@@ -115,58 +115,54 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
     }
   };
 
-  // 3. Handle File Change & Parse CSV
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // 3. Handle File Change & Parse CSV/XLSX
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      if (text) {
-        const lines = text.split('\n');
-        const dataLines = lines.slice(1).filter(line => line.trim() !== '');
-
-        const parsedData = dataLines.map((line) => {
-          const cols = line.split(',').map(col => col.trim());
-
-          const tempatLahir = cols[2] || '';
-          const tanggalLahir = cols[3] || '';
-          const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
-
-          return {
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            nis: cols[0] || '',
-            nama: cols[1] || '',
-            ttl,
-            kelas: cols[4] || '',
-            tingkat: parseInt(cols[5] || '1'),
-            paralel: cols[6] || 'A',
-            ayah: cols[7] || '',
-            ibu: cols[8] || '',
-            jobAyah: cols[9] || '',
-            jobIbu: cols[10] || '',
-            noHp: cols[11] || '',
-            username: cols[12] || cols[0] || '',
-            password: cols[13] || '123456'
-          };
-        });
-
-        // Save imported students to database
-        for (const student of parsedData) {
-          await addNewStudent(student);
-        }
-
+    try {
+      const rows = await parseFileToRows(file);
+      if (rows.length <= 1) {
         setIsUploading(false);
-        alert(`Berhasil memuat dan menyimpan ${parsedData.length} data siswa baru ke database!`);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      } else {
-        setIsUploading(false);
+        return;
       }
-    };
-    reader.readAsText(file);
+
+      const parsedData = rows.slice(1).map((cols) => {
+        const tempatLahir = cols[2] || '';
+        const tanggalLahir = cols[3] || '';
+        const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+
+        return {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          nis: cols[0] || '',
+          nama: cols[1] || '',
+          ttl,
+          kelas: cols[4] || '',
+          tingkat: parseInt(cols[5] || '1'),
+          paralel: cols[6] || 'A',
+          ayah: cols[7] || '',
+          ibu: cols[8] || '',
+          jobAyah: cols[9] || '',
+          jobIbu: cols[10] || '',
+          noHp: cols[11] || '',
+          username: cols[12] || cols[0] || '',
+          password: cols[13] || '123456'
+        };
+      });
+
+      for (const student of parsedData) {
+        await addNewStudent(student);
+      }
+
+      setIsUploading(false);
+      alert(`Berhasil memuat dan menyimpan ${parsedData.length} data siswa baru ke database!`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err) {
+      setIsUploading(false);
+      alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
   // 4. Simpan Data
@@ -234,7 +230,7 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".csv,.txt"
+        accept=".csv,.txt,.xlsx,.xls"
         className="hidden"
       />
 

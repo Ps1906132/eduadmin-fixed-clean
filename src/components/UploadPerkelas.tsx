@@ -18,7 +18,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
-import { useStudents } from './DashboardSuperAdmin/hooks/useStudents';
+import { useStudents, parseFileToRows } from './DashboardSuperAdmin/hooks/useStudents';
 
 interface UploadPerkelasProps {
   onBack?: () => void;
@@ -108,13 +108,9 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
     const tingkat = currentClass ? currentClass.tingkat : 1;
     const paralel = currentClass ? currentClass.paralel : selectedKelas.replace(/[0-9]/g, '') || 'A';
 
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const text = ev.target?.result as string;
-      if (!text) { setIsSaving(false); return; }
-
-      const lines = text.split('\n').filter(l => l.trim() !== '');
-      const dataLines = lines.slice(1); // skip header
+    try {
+      const rows = await parseFileToRows(file);
+      const dataLines = rows.slice(1); // skip header
 
       if (dataLines.length === 0) {
         setIsSaving(false);
@@ -122,9 +118,7 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
         return;
       }
 
-      const parsedStudents = dataLines.map((line) => {
-        const cols = line.split(',').map(col => col.trim());
-
+      const parsedStudents = dataLines.map((cols) => {
         const tempatLahir = cols[2] || '';
         const tanggalLahir = cols[3] || '';
         const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
@@ -154,8 +148,10 @@ const UploadPerkelas: React.FC<UploadPerkelasProps> = ({ onBack }) => {
       setIsSaving(false);
       alert(`File "${file.name}" berhasil diunggah! ${parsedStudents.length} siswa berhasil diimpor ke kelas ${selectedKelas}.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      setIsSaving(false);
+      alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
   const handleOpenAddModal = () => {

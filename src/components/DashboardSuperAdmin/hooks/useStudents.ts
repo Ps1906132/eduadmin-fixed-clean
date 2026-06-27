@@ -1,7 +1,48 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import bcrypt from 'bcryptjs';
+import * as XLSX from 'xlsx';
 import { addStudent as addStudentToShared } from '../../../data/sharedData';
 import { toast } from 'react-hot-toast';
+
+/**
+ * Parse file (CSV/XLSX) into array of string arrays (rows).
+ * Handles both comma-separated CSV and Excel files.
+ */
+export const parseFileToRows = (file: File): Promise<string[][]> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            if (!data) { resolve([]); return; }
+
+            const ext = file.name.split('.').pop()?.toLowerCase();
+            if (ext === 'xlsx' || ext === 'xls') {
+                // Parse Excel
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonRows = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
+                // Convert all values to strings and filter empty rows
+                const rows = jsonRows
+                    .map(row => row.map(cell => String(cell ?? '').trim()))
+                    .filter(row => row.some(cell => cell !== ''));
+                resolve(rows);
+            } else {
+                // Parse CSV/TXT
+                const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+                const lines = text.split('\n').filter(l => l.trim() !== '');
+                const rows = lines.map(line => line.split(',').map(col => col.trim()));
+                resolve(rows);
+            }
+        };
+        reader.onerror = () => reject(new Error('Gagal membaca file'));
+        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
+    });
+};
 
 export interface Student {
     id: string | number;
@@ -169,12 +210,8 @@ export const useStudents = () => {
 
 
     const addNewStudent = async (student: Student & { classId?: string; noHp?: string; password?: string }) => {
-        // ✅ BACKUP original data for rollback
-        const backupStudents = students;
-        
-        // ✅ Optimistic update — update UI dulu
-        const updatedStudents = [...students, student];
-        setStudents(updatedStudents);
+        // ✅ Optimistic update — use functional updater to avoid stale closure
+        setStudents(prev => [...prev, student]);
         addStudentToShared(student);
 
         // Sync ke D1 via API
@@ -333,7 +370,7 @@ export const useStudents = () => {
         } catch (err) {
             toast.error('Gagal menambah siswa');
             console.error('Error adding student to D1:', err);
-            setStudents(backupStudents);
+            await fetchStudents();
             alert(`Gagal menambah siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
@@ -341,12 +378,8 @@ export const useStudents = () => {
     const updateStudent = async (id: string | number, updates: Partial<Student>) => {
         const idStr = id.toString();
 
-        // ✅ BACKUP original data for rollback
-        const backupStudents = students;
-
-        // ✅ Optimistic update — update UI dulu
-        const updatedStudents = students.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s);
-        setStudents(updatedStudents);
+        // ✅ Optimistic update — use functional updater
+        setStudents(prev => prev.map(s => s.id.toString() === idStr ? { ...s, ...updates } : s));
 
         try {
             const token = localStorage.getItem('eduadmin_token');
@@ -533,7 +566,7 @@ export const useStudents = () => {
         } catch (err) {
             toast.error('Gagal memperbarui data siswa');
             console.error('Error updating student in D1:', err);
-            setStudents(backupStudents);
+            await fetchStudents();
             alert(`Gagal update siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
     };
@@ -723,12 +756,8 @@ export const useStudents = () => {
         if (confirm(`Apakah Anda yakin ingin menghapus data ${name}?`)) {
             const targetIdStr = id.toString();
             
-            // ✅ BACKUP original data for rollback
-            const backupStudents = students;
-            
-            // ✅ Optimistic update — hapus dari UI dulu
-            const updatedStudents = students.filter(s => s.id.toString() !== targetIdStr);
-            setStudents(updatedStudents);
+            // ✅ Optimistic update — use functional updater
+            setStudents(prev => prev.filter(s => s.id.toString() !== targetIdStr));
 
             try {
                 const token = localStorage.getItem('eduadmin_token');
@@ -769,7 +798,7 @@ export const useStudents = () => {
             } catch (err) {
                 toast.error('Gagal menghapus siswa');
                 console.error('Error deleting student from D1:', err);
-                setStudents(backupStudents);
+                await fetchStudents();
                 alert(`Gagal menghapus siswa: ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
         }
@@ -792,22 +821,18 @@ export const useStudents = () => {
     const handleUploadClick = () => {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.csv, .txt';
+        input.accept = '.csv,.txt,.xlsx,.xls';
         input.onchange = async (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const text = ev.target?.result as string;
-                if (!text) return;
+            try {
+                const rows = await parseFileToRows(file);
+                if (rows.length <= 1) return;
 
-                const lines = text.split('\n').filter(l => l.trim() !== '');
-                if (lines.length <= 1) return;
-
-                const parsedData: Student[] = lines.slice(1).map((line, idx) => {
-                    const cols = line.split(',').map(col => col.trim());
-
+                // Skip header row, parse data rows
+                // CSV/XLSX columns: NIS,Nama Lengkap,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Nama Ayah,Nama Ibu,Pekerjaan Ayah,Pekerjaan Ibu,No HP (WA),Username
+                const parsedData: Student[] = rows.slice(1).map((cols, idx) => {
                     const tempatLahir = cols[2] || '';
                     const tanggalLahir = cols[3] || '';
                     const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
@@ -833,8 +858,9 @@ export const useStudents = () => {
                     setStudents(prev => [...prev, ...parsedData]);
                     alert(`Berhasil memuat ${parsedData.length} data siswa! Klik Simpan untuk mensinkronisasi ke database.`);
                 }
-            };
-            reader.readAsText(file);
+            } catch (err) {
+                alert(`Gagal membaca file: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            }
         };
         input.click();
     };
@@ -853,11 +879,35 @@ export const useStudents = () => {
             return;
         }
 
+        // Remove temp students from state first (will be re-added with real IDs)
+        setStudents(prev => prev.filter(s => !s.id.toString().startsWith('temp-')));
+
+        // Fetch classes to resolve classId from class name
+        let classMap: Record<string, string> = {};
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+            const classRes = await fetch('/api/classes', { headers });
+            if (classRes.ok) {
+                const classData = await classRes.json();
+                if (Array.isArray(classData)) {
+                    classData.forEach((c: any) => {
+                        const name = (c.name || '').replace(/\s+/g, '').toUpperCase();
+                        classMap[name] = c.id?.toString();
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('Gagal fetch kelas untuk resolve classId:', e);
+        }
+
         for (const student of newStudents) {
             try {
-                // Change temp ID to real ID based on NIS or timestamp
                 const realId = `std-${student.nis}-${Date.now()}`;
-                await addNewStudent({ ...student, id: realId });
+                // Resolve classId from kelas name
+                const normalizedKelas = (student.kelas || '').replace(/\s+/g, '').toUpperCase();
+                const classId = classMap[normalizedKelas] || undefined;
+                await addNewStudent({ ...student, id: realId, classId });
                 successCount++;
             } catch (err) {
                 toast.error(`Gagal simpan siswa ${student.nama}`);
@@ -868,7 +918,7 @@ export const useStudents = () => {
 
         setLoading(false);
         alert(`Selesai! ${successCount} siswa berhasil disimpan, ${failCount} gagal.`);
-        fetchStudents(); // Refresh data from server
+        await fetchStudents(); // Refresh data from server
     };
 
     return {
