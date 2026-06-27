@@ -50,8 +50,18 @@ export const LaporanAkademik: React.FC<{ user?: any; students: any[]; classes: a
             const token = localStorage.getItem('eduadmin_token');
             const headers = { Authorization: `Bearer ${token}` };
             const semesterNum = selectedSemester === 'Ganjil' ? '1' : '2';
+
+            // 1. Get active academic year for this semester
+            const ayRes = await fetch(`/api/academic_years?semester=eq.${semesterNum}&is_active=eq.1`, { headers, signal });
+            const academicYears = ayRes.ok ? await ayRes.json() : [];
+            const activeYearId = academicYears.length > 0 ? academicYears[0].id : null;
+
+            // 2. Fetch grades filtered by academic_year_id (not semester directly)
+            const gradesUrl = activeYearId
+                ? `/api/grades?academic_year_id=eq.${activeYearId}`
+                : `/api/grades`;
             const [gradesRes, attRes] = await Promise.all([
-                fetch(`/api/grades?semester=eq.${semesterNum}`, { headers, signal }),
+                fetch(gradesUrl, { headers, signal }),
                 fetch(`/api/attendance?select=*`, { headers, signal }),
             ]);
             if (gradesRes.ok) {
