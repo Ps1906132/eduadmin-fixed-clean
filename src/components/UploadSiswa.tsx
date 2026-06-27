@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useStudents, parseFileToRows } from './DashboardSuperAdmin/hooks/useStudents';
+import { useStudents, parseFileToRows, detectOldFormat } from './DashboardSuperAdmin/hooks/useStudents';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
 import {
   FileSpreadsheet,
@@ -129,27 +129,50 @@ const UploadSiswa: React.FC<UploadSiswaProps> = ({ onBack }) => {
         return;
       }
 
-      const parsedData = rows.slice(1).map((cols) => {
-        const tempatLahir = cols[2] || '';
-        const tanggalLahir = cols[3] || '';
-        const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+      const headerCols = rows[0];
+      const isOld = detectOldFormat(headerCols);
 
-        return {
-          id: Date.now() + Math.floor(Math.random() * 1000),
-          nis: cols[0] || '',
-          nama: cols[1] || '',
-          ttl,
-          kelas: cols[4] || '',
-          tingkat: parseInt(cols[5] || '1'),
-          paralel: cols[6] || 'A',
-          ayah: cols[7] || '',
-          ibu: cols[8] || '',
-          jobAyah: cols[9] || '',
-          jobIbu: cols[10] || '',
-          noHp: cols[11] || '',
-          username: cols[12] || cols[0] || '',
-          password: cols[13] || '123456'
-        };
+      const parsedData = rows.slice(1).map((cols, idx) => {
+        if (isOld) {
+          // OLD FORMAT (12 cols): NIS,Nama,Tempat Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+          return {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            nis: cols[0] || '',
+            nama: cols[1] || '',
+            ttl: cols[2] || '',
+            kelas: cols[3] || '',
+            tingkat: parseInt(cols[4] || '1'),
+            paralel: cols[5] || 'A',
+            ayah: cols[6] || '',
+            ibu: cols[7] || '',
+            jobAyah: cols[8] || '',
+            jobIbu: cols[9] || '',
+            noHp: cols[10] || '',
+            username: cols[11] || cols[0] || '',
+            password: '123456'
+          };
+        } else {
+          // NEW FORMAT (13+ cols): NIS,Nama,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username,Password
+          const tempatLahir = cols[2] || '';
+          const tanggalLahir = cols[3] || '';
+          const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+          return {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            nis: cols[0] || '',
+            nama: cols[1] || '',
+            ttl,
+            kelas: cols[4] || '',
+            tingkat: parseInt(cols[5] || '1'),
+            paralel: cols[6] || 'A',
+            ayah: cols[7] || '',
+            ibu: cols[8] || '',
+            jobAyah: cols[9] || '',
+            jobIbu: cols[10] || '',
+            noHp: cols[11] || '',
+            username: cols[12] || cols[0] || '',
+            password: cols[13] || '123456'
+          };
+        }
       });
 
       for (const student of parsedData) {

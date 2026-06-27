@@ -18,7 +18,6 @@ export const parseFileToRows = (file: File): Promise<string[][]> => {
 
                 const ext = file.name.split('.').pop()?.toLowerCase();
                 if (ext === 'xlsx' || ext === 'xls') {
-                    // Parse Excel
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
@@ -28,7 +27,6 @@ export const parseFileToRows = (file: File): Promise<string[][]> => {
                         .filter(row => row.some(cell => cell !== ''));
                     resolve(rows);
                 } else {
-                    // Parse CSV — use SheetJS to correctly handle quoted fields
                     const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
                     const workbook = XLSX.read(text, { type: 'string', raw: true });
                     const sheetName = workbook.SheetNames[0];
@@ -46,6 +44,64 @@ export const parseFileToRows = (file: File): Promise<string[][]> => {
         reader.onerror = () => reject(new Error('Gagal membaca file'));
         reader.readAsText(file);
     });
+};
+
+/**
+ * Parse a CSV/XLSX row into a Student object.
+ * Auto-detects format:
+ *   - 13+ cols with "Tempat Lahir" header → new format (TTL split)
+ *   - 12 cols or "Tempat Tanggal Lahir" header → old format (TTL combined)
+ */
+const parseRowToStudent = (cols: string[], idx: number, isOldFormat: boolean): Student => {
+    if (isOldFormat) {
+        // OLD FORMAT (12 cols): NIS,Nama,Tempat Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+        const ttlRaw = cols[2] || '';
+        return {
+            id: `temp-${Date.now()}-${idx}`,
+            nis: cols[0] || '',
+            nama: cols[1] || '',
+            ttl: ttlRaw,
+            kelas: cols[3] || '',
+            tingkat: parseInt(cols[4] || '1'),
+            paralel: cols[5] || 'A',
+            ayah: cols[6] || '',
+            ibu: cols[7] || '',
+            jobAyah: cols[8] || '',
+            jobIbu: cols[9] || '',
+            username: cols[11] || cols[0] || '',
+            noHp: cols[10] || ''
+        };
+    } else {
+        // NEW FORMAT (13 cols): NIS,Nama,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+        const tempatLahir = cols[2] || '';
+        const tanggalLahir = cols[3] || '';
+        const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+        return {
+            id: `temp-${Date.now()}-${idx}`,
+            nis: cols[0] || '',
+            nama: cols[1] || '',
+            ttl,
+            kelas: cols[4] || '',
+            tingkat: parseInt(cols[5] || '1'),
+            paralel: cols[6] || 'A',
+            ayah: cols[7] || '',
+            ibu: cols[8] || '',
+            jobAyah: cols[9] || '',
+            jobIbu: cols[10] || '',
+            username: cols[12] || cols[0] || '',
+            noHp: cols[11] || ''
+        };
+    }
+};
+
+/**
+ * Detect if CSV is old format (12 cols, TTL combined) or new format (13 cols, TTL split).
+ */
+export const detectOldFormat = (headerCols: string[]): boolean => {
+    const headerText = headerCols.join(',').toLowerCase();
+    if (headerText.includes('tempat tanggal lahir')) return true;
+    if (headerCols.length <= 12) return true;
+    return false;
 };
 
 export interface Student {
@@ -840,28 +896,11 @@ export const useStudents = () => {
                 const rows = await parseFileToRows(file);
                 if (rows.length <= 1) return;
 
-                // Skip header row, parse data rows
-                // CSV/XLSX columns: NIS,Nama Lengkap,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Nama Ayah,Nama Ibu,Pekerjaan Ayah,Pekerjaan Ibu,No HP (WA),Username
-                const parsedData: Student[] = rows.slice(1).map((cols, idx) => {
-                    const tempatLahir = cols[2] || '';
-                    const tanggalLahir = cols[3] || '';
-                    const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+                const headerCols = rows[0];
+                const isOldFormat = detectOldFormat(headerCols);
 
-                    return {
-                        id: `temp-${Date.now()}-${idx}`,
-                        nis: cols[0] || '',
-                        nama: cols[1] || '',
-                        ttl,
-                        kelas: cols[4] || '',
-                        tingkat: parseInt(cols[5] || '1'),
-                        paralel: cols[6] || 'A',
-                        ayah: cols[7] || '',
-                        ibu: cols[8] || '',
-                        jobAyah: cols[9] || '',
-                        jobIbu: cols[10] || '',
-                        username: cols[12] || cols[0] || '',
-                        noHp: cols[11] || ''
-                    };
+                const parsedData: Student[] = rows.slice(1).map((cols, idx) => {
+                    return parseRowToStudent(cols, idx, isOldFormat);
                 }).filter(s => s.nis && s.nama);
 
                 if (parsedData.length > 0) {

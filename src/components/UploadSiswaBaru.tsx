@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useClasses } from './DashboardSuperAdmin/hooks/useClasses';
-import { useStudents, parseFileToRows } from './DashboardSuperAdmin/hooks/useStudents';
+import { useStudents, parseFileToRows, detectOldFormat } from './DashboardSuperAdmin/hooks/useStudents';
 import {
   FileSpreadsheet,
   CloudUpload,
@@ -118,39 +118,64 @@ const UploadSiswaBaru: React.FC<UploadSiswaBaruProps> = ({ onBack }) => {
 
       try {
         const rows = await parseFileToRows(file);
-        const dataLines = rows.slice(1); // skip header
-
-        if (dataLines.length === 0) {
+        if (rows.length <= 1) {
           alert('File tidak memiliki data siswa. Pastikan format file sesuai template.');
           return;
         }
 
-        const parsedStudents = dataLines.map((cols) => {
-          const tempatLahir = cols[2] || '';
-          const tanggalLahir = cols[3] || '';
-          const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+        const headerCols = rows[0];
+        const isOld = detectOldFormat(headerCols);
 
-          // 13-column format: NIS,Nama,Tempat,Tanggal,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
-          // Kelas dari CSV (index 4), fallback ke dropdown
-          const kelasDariCSV = cols[4] || selectedKelas;
-          const tingkatDariCSV = parseInt(cols[5] || '') || tingkat;
-          const paralelDariCSV = cols[6] || paralel;
+        const parsedStudents = rows.slice(1).map((cols) => {
+          let nis: string, nama: string, ttl: string, ayah: string, ibu: string, jobAyah: string, jobIbu: string, noHp: string, username: string;
+
+          if (isOld) {
+            // OLD FORMAT (12 cols): NIS,Nama,Tempat Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+            nis = cols[0] || '';
+            nama = cols[1] || '';
+            ttl = cols[2] || '';  // TTL gabung, bisa berisi koma
+            ayah = cols[6] || '';
+            ibu = cols[7] || '';
+            jobAyah = cols[8] || '';
+            jobIbu = cols[9] || '';
+            noHp = cols[10] || '';
+            username = cols[11] || cols[0] || '';
+          } else {
+            // NEW FORMAT (11+ cols): NIS,Nama,Tempat,Tanggal,Ayah,Ibu,JobAyah,JobIbu,HP,Username,Password
+            // or (13 cols): NIS,Nama,Tempat,Tanggal,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+            const tempatLahir = cols[2] || '';
+            const tanggalLahir = cols[3] || '';
+            ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+
+            if (cols.length >= 13) {
+              // 13 col: skip Kelas(4),Tingkat(5),Paralel(6)
+              ayah = cols[7] || '';
+              ibu = cols[8] || '';
+              jobAyah = cols[9] || '';
+              jobIbu = cols[10] || '';
+              noHp = cols[11] || '';
+              username = cols[12] || cols[0] || '';
+            } else {
+              // 11 col: NIS,Nama,Tempat,Tanggal,Ayah,Ibu,JobAyah,JobIbu,HP,Username,Password
+              ayah = cols[4] || '';
+              ibu = cols[5] || '';
+              jobAyah = cols[6] || '';
+              jobIbu = cols[7] || '';
+              noHp = cols[8] || '';
+              username = cols[9] || cols[0] || '';
+            }
+            nis = cols[0] || '';
+            nama = cols[1] || '';
+          }
 
           return {
             id: Date.now() + Math.floor(Math.random() * 100000),
-            nis: cols[0] || '',
-            nama: cols[1] || '',
-            ttl,
-            kelas: kelasDariCSV,
-            tingkat: tingkatDariCSV,
-            paralel: paralelDariCSV,
-            ayah: cols[7] || '',
-            ibu: cols[8] || '',
-            jobAyah: cols[9] || '',
-            jobIbu: cols[10] || '',
-            noHp: cols[11] || '',
-            username: cols[12] || cols[0] || '',
-            classId,  // Used for class_students sync in D1
+            nis, nama, ttl,
+            kelas: selectedKelas,
+            tingkat,
+            paralel,
+            ayah, ibu, jobAyah, jobIbu, noHp, username,
+            classId,
           };
         }).filter(s => s.nis && s.nama);
 
