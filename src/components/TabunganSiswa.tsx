@@ -14,7 +14,7 @@ const formatDateLocale = (dateStr: string) => {
     try {
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return dateStr;
-        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const dayName = days[d.getDay()];
         const formatted = d.toLocaleDateString('id-ID', {
             day: 'numeric', month: 'long', year: 'numeric'

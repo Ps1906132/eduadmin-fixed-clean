@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MateriItem, LatihanItem, QuestionPG, QuestionEssay, updateMateriDataGlobal, updateLatihanDataGlobal } from '../../../data/sharedData';
+import { MateriItem, LatihanItem, updateMateriDataGlobal, updateLatihanDataGlobal } from '../../../data/sharedData';
 
 interface UseMateriReturn {
     materi: MateriItem[];
@@ -18,6 +18,7 @@ function mapMateriFromApi(a: any): MateriItem {
         id: a.id ? (isNaN(Number(a.id)) ? a.id : Number(a.id)) : Date.now(),
         title: a.title,
         classId: a.class_id,
+        subjectId: a.subject_id || '',
         subjectName: a.subject_name || '',
         driveLink: a.drive_link,
         publishDate: a.publish_date,
@@ -26,20 +27,16 @@ function mapMateriFromApi(a: any): MateriItem {
 }
 
 function mapLatihanFromApi(a: any): LatihanItem {
-    let questions: (QuestionPG | QuestionEssay)[] = [];
+    let questions: any[] = [];
     try {
-        if (typeof a.questions === 'string') {
-            questions = JSON.parse(a.questions);
-        } else if (Array.isArray(a.questions)) {
-            questions = a.questions;
-        }
-    } catch (_) {
-        questions = [];
-    }
+        if (typeof a.questions === 'string') questions = JSON.parse(a.questions);
+        else if (Array.isArray(a.questions)) questions = a.questions;
+    } catch (_) { questions = []; }
     return {
         id: a.id ? (isNaN(Number(a.id)) ? a.id : Number(a.id)) : Date.now(),
         title: a.title,
         classId: a.class_id,
+        subjectId: a.subject_id || '',
         subjectName: a.subject_name || '',
         type: (a.type || 'PG') as 'PG' | 'Essay',
         questions,
@@ -48,28 +45,34 @@ function mapLatihanFromApi(a: any): LatihanItem {
     };
 }
 
-function mapMateriToApi(item: MateriItem) {
+function mapMateriToApi(item: MateriItem, teacherId?: string) {
     return {
         id: item.id.toString(),
         title: item.title,
         class_id: item.classId,
-        subject_name: item.subjectName,
+        subject_id: item.subjectId || null,
+        subject_name: item.subjectName || '',
+        teacher_id: teacherId || null,
         drive_link: item.driveLink,
         publish_date: item.publishDate,
         status: item.status,
+        created_by: teacherId || null,
     };
 }
 
-function mapLatihanToApi(item: LatihanItem) {
+function mapLatihanToApi(item: LatihanItem, teacherId?: string) {
     return {
         id: item.id.toString(),
         title: item.title,
         class_id: item.classId,
-        subject_name: item.subjectName,
+        subject_id: item.subjectId || null,
+        subject_name: item.subjectName || '',
+        teacher_id: teacherId || null,
         type: item.type,
         questions: JSON.stringify(item.questions),
         publish_date: item.publishDate,
         status: item.status,
+        created_by: teacherId || null,
     };
 }
 
@@ -81,16 +84,18 @@ function getHeaders() {
     };
 }
 
-export const useMateri = (): UseMateriReturn => {
+export const useMateri = (teacherId?: string): UseMateriReturn => {
     const [materi, setMateri] = useState<MateriItem[]>([]);
     const [latihan, setLatihan] = useState<LatihanItem[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Fetch materi from D1
     const refreshMateri = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/materi?order=created_at&dir=desc', { headers: getHeaders() });
+            const url = teacherId
+                ? `/api/materi?teacher_id=eq.${teacherId}&order=created_at&dir=desc`
+                : '/api/materi?order=created_at&dir=desc';
+            const res = await fetch(url, { headers: getHeaders() });
             if (!res.ok) throw new Error('Gagal mengambil data materi');
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -103,13 +108,15 @@ export const useMateri = (): UseMateriReturn => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [teacherId]);
 
-    // Fetch latihan from D1
     const refreshLatihan = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/latihan_soal?order=created_at&dir=desc', { headers: getHeaders() });
+            const url = teacherId
+                ? `/api/latihan_soal?teacher_id=eq.${teacherId}&order=created_at&dir=desc`
+                : '/api/latihan_soal?order=created_at&dir=desc';
+            const res = await fetch(url, { headers: getHeaders() });
             if (!res.ok) throw new Error('Gagal mengambil data latihan');
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -122,7 +129,7 @@ export const useMateri = (): UseMateriReturn => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [teacherId]);
 
     useEffect(() => {
         refreshMateri();
@@ -139,7 +146,7 @@ export const useMateri = (): UseMateriReturn => {
             const res = await fetch('/api/materi', {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(mapMateriToApi(newItem)),
+                body: JSON.stringify(mapMateriToApi(newItem, teacherId)),
             });
             if (!res.ok) throw new Error('Gagal menyimpan materi');
             await refreshMateri();
@@ -147,7 +154,7 @@ export const useMateri = (): UseMateriReturn => {
             console.error('Error creating materi:', err);
             throw err;
         }
-    }, [refreshMateri]);
+    }, [refreshMateri, teacherId]);
 
     const deleteMateri = useCallback(async (id: number) => {
         try {
@@ -174,7 +181,7 @@ export const useMateri = (): UseMateriReturn => {
             const res = await fetch('/api/latihan_soal', {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(mapLatihanToApi(newItem)),
+                body: JSON.stringify(mapLatihanToApi(newItem, teacherId)),
             });
             if (!res.ok) throw new Error('Gagal menyimpan latihan');
             await refreshLatihan();
@@ -182,7 +189,7 @@ export const useMateri = (): UseMateriReturn => {
             console.error('Error creating latihan:', err);
             throw err;
         }
-    }, [refreshLatihan]);
+    }, [refreshLatihan, teacherId]);
 
     const deleteLatihan = useCallback(async (id: number) => {
         try {

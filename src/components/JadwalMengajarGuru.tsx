@@ -6,38 +6,88 @@ interface JadwalMengajarGuruProps {
     user?: any;
 }
 
+interface ScheduleEntry {
+    id: string;
+    day: string;
+    period: number;
+    subjectName: string;
+    className: string;
+    startTime: string;
+    endTime: string;
+    room: string;
+}
+
 const JadwalMengajarGuru: React.FC<JadwalMengajarGuruProps> = ({ onBack, user }) => {
-    const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
-    const [schedule, setSchedule] = useState<any[]>([]);
+    const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
     const [loading, setLoading] = useState(true);
-    const [dayOrder, setDayOrder] = useState<number>(1);
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const today = new Date().getDay();
+    const currentDayIndex = today === 0 ? 5 : today - 1;
+    const [dayOrder, setDayOrder] = useState<number>(currentDayIndex + 1);
 
     useEffect(() => {
         const loadSchedule = async () => {
             setLoading(true);
             try {
-                const teacherName = user?.nama || '';
                 const teacherId = user?.id;
-                if (!teacherName && !teacherId) {
+                if (!teacherId) {
                     setLoading(false);
                     return;
                 }
 
                 const token = localStorage.getItem('eduadmin_token');
+                if (!token) { setLoading(false); return; }
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const res = await fetch('/api/schedules?status=eq.published', { headers });
-                if (res.ok) {
-                    const schedules = await res.json();
-                    const activeSchedule = Array.isArray(schedules) ? schedules[0] : null;
+                // Fetch schedules + subjects + classes + periods in parallel
+                const [schRes, subjRes, clsRes, perRes] = await Promise.all([
+                    fetch('/api/schedules?is_published=eq.1', { headers }),
+                    fetch('/api/subjects', { headers }),
+                    fetch('/api/classes', { headers }),
+                    fetch('/api/schedule_periods', { headers }),
+                ]);
 
-                    if (activeSchedule?.entries) {
-                        const myEntries = activeSchedule.entries.filter((e: any) =>
-                            e.teacherName === teacherName || e.teacherId === teacherId
-                        );
-                        setSchedule(myEntries);
+                const schData = schRes.ok ? await schRes.json() : [];
+                const subjects = subjRes.ok ? await subjRes.json() : [];
+                const classes = clsRes.ok ? await clsRes.json() : [];
+                const periods = perRes.ok ? await perRes.json() : [];
+
+                // Build lookup maps
+                const subjectMap: Record<string, string> = {};
+                subjects.forEach((s: any) => { subjectMap[s.id?.toString()] = s.name || s.nama; });
+
+                const classMap: Record<string, string> = {};
+                classes.forEach((c: any) => { classMap[c.id?.toString()] = c.name || c.nama || c.id; });
+
+                // period_id stored as "1", "2", etc. — build array index by period number
+                const periodTimes: Record<number, { start: string; end: string }> = {};
+                periods.forEach((p: any) => {
+                    const num = typeof p.period_number === 'number' ? p.period_number : parseInt(String(p.id)?.replace('per-', ''));
+                    if (!isNaN(num)) {
+                        periodTimes[num] = { start: p.start_time || '07:00', end: p.end_time || '08:00' };
                     }
-                }
+                });
+
+                // Filter flat rows by teacher_id
+                const rows = Array.isArray(schData) ? schData : [];
+                const myEntries: ScheduleEntry[] = rows
+                    .filter((r: any) => r.teacher_id === teacherId)
+                    .map((r: any) => {
+                        const periodNum = parseInt(String(r.period_id)?.replace('per-', '')) || 0;
+                        const pt = periodTimes[periodNum];
+                        return {
+                            id: r.id?.toString() || '',
+                            day: r.day_of_week || '',
+                            period: periodNum,
+                            subjectName: subjectMap[r.subject_id?.toString()] || r.subject_id || '-',
+                            className: classMap[r.class_id?.toString()] || r.class_id || '-',
+                            startTime: pt?.start || '--:--',
+                            endTime: pt?.end || '--:--',
+                            room: r.room || '',
+                        };
+                    });
+
+                setSchedule(myEntries);
             } catch (e) {
                 console.error('Failed to load schedule from D1:', e);
             } finally {
@@ -48,11 +98,9 @@ const JadwalMengajarGuru: React.FC<JadwalMengajarGuruProps> = ({ onBack, user })
         loadSchedule();
     }, [user]);
 
-    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
-    const today = new Date().getDay();
-    const currentDayIndex = today === 0 ? 5 : today - 1;
-
-    const daySchedule = schedule.filter((s: any) => s.day === days[dayOrder - 1]);
+    const daySchedule = schedule
+        .filter((s) => s.day === days[dayOrder - 1])
+        .sort((a, b) => a.period - b.period);
 
     const formatTime = (time: string) => {
         if (!time) return '--:--';
@@ -102,11 +150,11 @@ const JadwalMengajarGuru: React.FC<JadwalMengajarGuruProps> = ({ onBack, user })
                             <p className="text-xs mt-1">Tidak ada mata pelajaran yang dijadwalkan pada hari ini.</p>
                         </div>
                     ) : (
-                        daySchedule.map((item: any, idx: number) => (
-                            <div key={idx} className="bg-blue-50 border border-blue-100 rounded-2xl p-4 hover:shadow-md transition-shadow">
+                        daySchedule.map((item) => (
+                            <div key={item.id} className="bg-blue-50 border border-blue-100 rounded-2xl p-4 hover:shadow-md transition-shadow">
                                 <div className="flex items-center justify-between mb-3">
-                                    <h4 className="font-bold text-slate-800 text-base">{item.subject || item.subjectName || '-'}</h4>
-                                    <span className="text-[10px] bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-bold">{item.className || item.class || '-'}</span>
+                                    <h4 className="font-bold text-slate-800 text-base">{item.subjectName}</h4>
+                                    <span className="text-[10px] bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-bold">{item.className}</span>
                                 </div>
                                 <div className="flex items-center gap-4 text-xs text-slate-600">
                                     <span className="flex items-center gap-1">

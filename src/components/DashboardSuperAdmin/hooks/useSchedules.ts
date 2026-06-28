@@ -42,7 +42,8 @@ export const useSchedules = () => {
                         classId: item.class_id,
                         day: item.day_of_week,
                         period: parseInt(item.period_id?.replace('per-', '')) || 0,
-                        subjectId: isNaN(Number(item.subject_id)) ? item.subject_id : Number(item.subject_id)
+                        subjectId: isNaN(Number(item.subject_id)) ? item.subject_id : Number(item.subject_id),
+                        teacherId: item.teacher_id || undefined
                     }));
 
                     const baseSchedule = schedulesDataGlobal[0] || { id: 1, name: 'Jadwal Pelajaran', status: 'published', items: [], dailyInfos: [] };
@@ -109,6 +110,14 @@ export const useSchedules = () => {
             const activeSchedule = newSchedules.find(s => s.status === 'published') || newSchedules[0];
             if (!activeSchedule) return;
 
+            // Fetch subjects to resolve teacher_id for each slot
+            const subjRes = await fetch('/api/subjects', { headers });
+            const subjects = subjRes.ok ? await subjRes.json() : [];
+            const subjectTeacherMap: Record<string, string> = {};
+            subjects.forEach((s: any) => {
+                if (s.teacher_id) subjectTeacherMap[s.id?.toString()] = s.teacher_id;
+            });
+
             // 1. Get current items from API to determine what to delete/update
             const res = await fetch('/api/schedules', { headers });
             const currentData = res.ok ? await res.json() : [];
@@ -124,10 +133,12 @@ export const useSchedules = () => {
             // 3. Upsert items
             for (const item of activeSchedule.items) {
                 const idStr = item.id.toString();
+                const teacherId = item.teacherId || subjectTeacherMap[item.subjectId?.toString()] || null;
                 const body = {
                     id: idStr,
                     class_id: item.classId,
                     subject_id: item.subjectId.toString(),
+                    teacher_id: teacherId,
                     day_of_week: item.day,
                     period_id: item.period.toString(),
                     academic_year_id: academicYearId,

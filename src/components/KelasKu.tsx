@@ -45,11 +45,10 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
                 const token = localStorage.getItem('eduadmin_token');
                 const headers = { Authorization: `Bearer ${token}` };
 
-                const [resClasses, resClassStudents, resStudents, resAttendance] = await Promise.all([
+                const [resClasses, resClassStudents, resStudents] = await Promise.all([
                     fetch(`/api/classes?teacher_id=eq.${user.id}&is_active=eq.1`, { headers }),
                     fetch('/api/class_students?is_active=eq.1', { headers }),
                     fetch('/api/students', { headers }),
-                    fetch('/api/attendance?select=*', { headers }),
                 ]);
 
                 let classesData: any[] = [];
@@ -69,11 +68,6 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
                 if (resStudents.ok) {
                     const data = await resStudents.json();
                     studentsData = Array.isArray(data) ? data : [];
-                }
-
-                if (resAttendance.ok) {
-                    const data = await resAttendance.json();
-                    setAttendanceData(Array.isArray(data) ? data : []);
                 }
 
                 const classIds = classesData.map((c: any) => c.id);
@@ -97,11 +91,35 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
         loadData();
     }, [user?.id]);
 
+    useEffect(() => {
+        if (!selectedClassId) {
+            setAttendanceData([]);
+            return;
+        }
+
+        const fetchAttendance = async () => {
+            try {
+                const token = localStorage.getItem('eduadmin_token');
+                const res = await fetch(`/api/attendance?class_id=eq.${selectedClassId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setAttendanceData(Array.isArray(data) ? data : []);
+                }
+            } catch (e) {
+                console.error('Failed to load attendance:', e);
+            }
+        };
+
+        fetchAttendance();
+    }, [selectedClassId]);
+
     const currentClass = classes.find((c: any) => c.id === selectedClassId);
 
     const getStudentStats = (studentId: string) => {
         const records = attendanceData.filter(
-            (a: any) => a.student_id === studentId && a.class_id === selectedClassId
+            (a: any) => a.student_id === studentId
         );
         return {
             hadir: records.filter((r: any) => r.status === 'hadir').length,
@@ -114,7 +132,7 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
 
     const getStudentDetailAttendance = (studentId: string) => {
         return attendanceData
-            .filter((a: any) => a.student_id === studentId && a.class_id === selectedClassId)
+            .filter((a: any) => a.student_id === studentId)
             .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
     };
 
@@ -138,7 +156,7 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
                         </div>
                         <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-slate-800 text-lg truncate">{selectedStudent.full_name || 'Tanpa Nama'}</h3>
-                            <p className="text-xs text-slate-500">NIS: {selectedStudent.nis || '-'} {currentClass ? `• ${currentClass.name || currentClass.nama}` : ''}</p>
+                            <p className="text-xs text-slate-500">NIS: {selectedStudent.nis || '-'} {currentClass ? `• ${currentClass.name}` : ''}</p>
                         </div>
                     </div>
                 </div>
@@ -198,11 +216,13 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
                 {classes.length > 1 && (
                     <select
                         value={selectedClassId}
-                        onChange={e => setSelectedClassId(e.target.value)}
+                        onChange={e => {
+                            setSelectedClassId(e.target.value);
+                        }}
                         className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm font-bold outline-none mb-3"
                     >
                         {classes.map((c: any) => (
-                            <option key={c.id} value={c.id}>{c.name || c.nama}</option>
+                            <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                     </select>
                 )}
@@ -221,7 +241,7 @@ const KelasKu: React.FC<KelasKuProps> = ({ onBack, user }) => {
                 {currentClass && (
                     <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-xl">
                         <BookOpen size={14} />
-                        <span className="font-medium">{currentClass.name || currentClass.nama}</span>
+                        <span className="font-medium">{currentClass.name}</span>
                         <span className="text-slate-300">•</span>
                         <span>{filteredStudents.length} siswa</span>
                     </div>

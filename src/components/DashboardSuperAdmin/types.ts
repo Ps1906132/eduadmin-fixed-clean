@@ -13,6 +13,7 @@ export interface ScheduleItem {
     day: string;
     period: number; // 0 for custom? Or 1-indexed. Let's use 1-indexed for periods.
     subjectId: number | string; // 'upacara', 'break', or subject ID
+    teacherId?: string; // profile ID of teacher assigned to this slot
     customName?: string; // For custom items
     startTime?: string;
     endTime?: string;

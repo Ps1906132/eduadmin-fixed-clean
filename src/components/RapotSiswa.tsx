@@ -9,96 +9,165 @@ interface RapotSiswaProps {
 
 interface StudentGrade {
     subject: string;
+    subjectId: string;
     daily: number;
     exam: number;
     report: number;
+    details: { name: string; grade: number; weight: number }[];
 }
 
 const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
+    const [classId, setClassId] = useState('');
+    const [className, setClassName] = useState('');
     const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
     const [subjects, setSubjects] = useState<StudentGrade[]>([]);
     const [loadingRaport, setLoadingRaport] = useState(false);
-    const [selectedSemester, setSelectedSemester] = useState('Semester 1');
-    const [subjectList, setSubjectList] = useState<string[]>([]);
-
-    const waliKelas = user?.kelas || '';
+    const [selectedSemester, setSelectedSemester] = useState('1');
+    const [subjectList, setSubjectList] = useState<{ id: string; name: string }[]>([]);
+    const [currentYearId, setCurrentYearId] = useState('');
 
     useEffect(() => {
-        if (!waliKelas) { setLoading(false); return; }
+        if (!user?.id) return;
 
-        const loadStudents = async () => {
+        const loadData = async () => {
             setLoading(true);
             try {
                 const token = localStorage.getItem('eduadmin_token');
-                const headers = { 'Authorization': `Bearer ${token}` };
+                const headers = { Authorization: `Bearer ${token}` };
 
-                const [studentsRes, subjectsRes] = await Promise.all([
-                    fetch('/api/students', { headers }),
-                    fetch('/api/subjects', { headers })
+                const [resClasses, resYears] = await Promise.all([
+                    fetch(`/api/classes?teacher_id=eq.${user.id}&is_active=eq.1`, { headers }),
+                    fetch('/api/academic_years?is_active=eq.1', { headers }),
                 ]);
 
-                if (studentsRes.ok) {
-                    const data = await studentsRes.json();
-                    const filtered = Array.isArray(data) ? data.filter((s: any) => s.kelas === waliKelas) : [];
-                    setStudents(filtered);
+                if (resYears.ok) {
+                    const years = await resYears.json();
+                    if (Array.isArray(years) && years.length > 0) {
+                        setCurrentYearId(years[0].id);
+                    }
                 }
 
-                if (subjectsRes.ok) {
-                    const subs = await subjectsRes.json();
-                    if (Array.isArray(subs)) setSubjectList(subs.map((s: any) => s.name));
+                let classData: any = null;
+                if (resClasses.ok) {
+                    const classesArr = await resClasses.json();
+                    if (Array.isArray(classesArr) && classesArr.length > 0) {
+                        classData = classesArr[0];
+                        setClassId(classData.id);
+                        setClassName(classData.name || '');
+                    }
+                }
+
+                if (!classData) {
+                    setLoading(false);
+                    return;
+                }
+
+                const [resClassStudents, resStudents, resSubjects] = await Promise.all([
+                    fetch(`/api/class_students?class_id=eq.${classData.id}&is_active=eq.1`, { headers }),
+                    fetch('/api/students', { headers }),
+                    fetch('/api/subjects', { headers }),
+                ]);
+
+                let studentIds: string[] = [];
+                if (resClassStudents.ok) {
+                    const pivotData = await resClassStudents.json();
+                    if (Array.isArray(pivotData)) {
+                        studentIds = pivotData.map((cs: any) => cs.student_id);
+                    }
+                }
+
+                if (resStudents.ok) {
+                    const allStudents = await resStudents.json();
+                    if (Array.isArray(allStudents)) {
+                        setStudents(allStudents.filter((s: any) => studentIds.includes(s.id)));
+                    }
+                }
+
+                if (resSubjects.ok) {
+                    const subs = await resSubjects.json();
+                    if (Array.isArray(subs)) {
+                        setSubjectList(subs.map((s: any) => ({ id: s.id, name: s.name })));
+                    }
                 }
             } catch (e) {
-                console.error('Failed to load students:', e);
-                toast.error('Gagal memuat data siswa');
+                console.error('Failed to load data:', e);
+                toast.error('Gagal memuat data');
             } finally {
                 setLoading(false);
             }
         };
 
-        loadStudents();
-    }, [waliKelas]);
+        loadData();
+    }, [user?.id]);
 
     useEffect(() => {
-        if (!selectedStudent) return;
+        if (!selectedStudent || !currentYearId) return;
 
         const loadRaport = async () => {
             setLoadingRaport(true);
             setSubjects([]);
             try {
                 const token = localStorage.getItem('eduadmin_token');
-                const headers = { 'Authorization': `Bearer ${token}` };
+                const headers = { Authorization: `Bearer ${token}` };
                 const loaded: StudentGrade[] = [];
 
-                const semesterNum = selectedSemester === 'Semester 1' ? '1' : '2';
+                const [resGradeTypes, resGrades] = await Promise.all([
+                    fetch(`/api/grade_types?academic_year_id=eq.${currentYearId}&semester=eq.${selectedSemester}`, { headers }),
+                    fetch(`/api/grades?student_id=eq.${selectedStudent.id}&academic_year_id=eq.${currentYearId}&semester=eq.${selectedSemester}`, { headers }),
+                ]);
+
+                const gradeTypes = resGradeTypes.ok ? await resGradeTypes.json() : [];
+                const allGrades = resGrades.ok ? await resGrades.json() : [];
+
+                const typeMap = new Map<string, { code: string; weight: number; name: string }>();
+                if (Array.isArray(gradeTypes)) {
+                    gradeTypes.forEach((gt: any) => {
+                        typeMap.set(gt.id, { code: gt.code || '', weight: gt.weight || 1, name: gt.name || '' });
+                    });
+                }
+
+                const gradesBySubject = new Map<string, any[]>();
+                if (Array.isArray(allGrades)) {
+                    allGrades.forEach((g: any) => {
+                        const existing = gradesBySubject.get(g.subject_id) || [];
+                        existing.push(g);
+                        gradesBySubject.set(g.subject_id, existing);
+                    });
+                }
 
                 for (const subj of subjectList) {
-                    const subjRes = await fetch(`/api/subjects?name=eq.${encodeURIComponent(subj)}`, { headers });
-                    const subjData = subjRes.ok ? await subjRes.json() : [];
-                    const targetSubject = Array.isArray(subjData) && subjData.length > 0 ? subjData[0] : null;
+                    const gradeData = gradesBySubject.get(subj.id) || [];
+                    let dailySum = 0, dailyWeight = 0;
+                    let examSum = 0, examWeight = 0;
+                    const details: { name: string; grade: number; weight: number }[] = [];
 
-                    let daily = 0, exam = 0, report = 0;
+                    for (const g of gradeData) {
+                        const typeInfo = g.grade_type_id ? typeMap.get(g.grade_type_id) : null;
+                        const code = typeInfo?.code || g.assessment_type || '';
+                        const weight = typeInfo?.weight || 1;
+                        const gradeVal = g.grade_value || 0;
+                        const typeName = typeInfo?.name || code;
 
-                    if (targetSubject) {
-                        const gradeRes = await fetch(`/api/grades?student_id=eq.${selectedStudent.id}&subject_id=eq.${targetSubject.id}&semester=eq.${semesterNum}`, { headers });
-                        if (gradeRes.ok) {
-                            const gradeData = await gradeRes.json();
-                            if (Array.isArray(gradeData) && gradeData.length > 0) {
-                                const tpGrades = gradeData.filter((g: any) => g.assessment_type?.startsWith('tp'));
-                                const ptsGrade = gradeData.find((g: any) => g.assessment_type === 'pts');
-                                const patGrade = gradeData.find((g: any) => g.assessment_type === 'pat');
-                                if (tpGrades.length > 0) {
-                                    daily = Math.round(tpGrades.reduce((sum: number, g: any) => sum + (g.grade_value || 0), 0) / tpGrades.length);
-                                }
-                                exam = Math.max(ptsGrade?.grade_value || 0, patGrade?.grade_value || 0);
-                                report = Math.round((daily + exam) / 2);
-                            }
+                        if (code.startsWith('uh') || code.startsWith('tugas')) {
+                            dailySum += gradeVal * weight;
+                            dailyWeight += weight;
+                            details.push({ name: typeName, grade: gradeVal, weight });
+                        } else if (code === 'uts' || code === 'uas' || code === 'pts' || code === 'pat') {
+                            examSum += gradeVal * weight;
+                            examWeight += weight;
+                            details.push({ name: typeName, grade: gradeVal, weight });
                         }
                     }
 
-                    loaded.push({ subject: subj, daily, exam, report });
+                    const daily = dailyWeight > 0 ? Math.round(dailySum / dailyWeight) : 0;
+                    const exam = examWeight > 0 ? Math.round(examSum / examWeight) : 0;
+                    const totalWeight = dailyWeight + examWeight;
+                    const report = totalWeight > 0 ? Math.round((dailySum + examSum) / totalWeight) : 0;
+
+                    loaded.push({ subject: subj.name, subjectId: subj.id, daily, exam, report, details });
                 }
 
                 setSubjects(loaded);
@@ -111,12 +180,14 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
         };
 
         loadRaport();
-    }, [selectedStudent, selectedSemester, subjectList]);
+    }, [selectedStudent, selectedSemester, subjectList, currentYearId]);
 
-    const averageReport = subjects.length > 0 ? Math.round(subjects.reduce((acc, curr) => acc + curr.report, 0) / subjects.length) : 0;
+    const averageReport = subjects.length > 0
+        ? Math.round(subjects.reduce((acc, curr) => acc + curr.report, 0) / subjects.length)
+        : 0;
 
     const filteredStudents = students.filter((s: any) =>
-        (s.full_name || s.nama || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (s.nis || '').includes(searchQuery)
     );
 
@@ -128,11 +199,11 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                         <ArrowLeft size={24} />
                     </button>
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
-                        {(selectedStudent.full_name || selectedStudent.nama || '?').charAt(0)}
+                        {selectedStudent.full_name?.charAt(0) || '?'}
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-bold text-slate-800 text-lg truncate">{selectedStudent.full_name || selectedStudent.nama}</h3>
-                        <p className="text-xs text-slate-500">NIS: {selectedStudent.nis || '-'} • Kelas {waliKelas}</p>
+                        <h3 className="font-bold text-slate-800 text-lg truncate">{selectedStudent.full_name || 'Tanpa Nama'}</h3>
+                        <p className="text-xs text-slate-500">NIS: {selectedStudent.nis || '-'} • Kelas {className}</p>
                     </div>
                 </div>
 
@@ -144,8 +215,8 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                             onChange={e => setSelectedSemester(e.target.value)}
                             className="px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-sm font-bold text-indigo-700 outline-none cursor-pointer"
                         >
-                            <option>Semester 1</option>
-                            <option>Semester 2</option>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
                         </select>
                     </div>
 
@@ -207,7 +278,7 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                 <div className="flex-1">
                     <h3 className="font-bold text-slate-800 text-lg">Nilai Rapot</h3>
                     <p className="text-xs text-slate-500">
-                        {waliKelas ? `Kelas ${waliKelas} — ${students.length} siswa` : 'Wali Kelas'}
+                        {className ? `Kelas ${className} — ${students.length} siswa` : 'Wali Kelas'}
                     </p>
                 </div>
             </div>
@@ -246,11 +317,11 @@ const RapotSiswa: React.FC<RapotSiswaProps> = ({ onBack, user }) => {
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
-                                                {(student.full_name || student.nama || '?').charAt(0)}
+                                                {student.full_name?.charAt(0) || '?'}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-600 transition-colors">
-                                                    {student.full_name || student.nama}
+                                                    {student.full_name || 'Tanpa Nama'}
                                                 </p>
                                                 <p className="text-[10px] text-slate-500 font-medium">NIS: {student.nis || '-'}</p>
                                             </div>

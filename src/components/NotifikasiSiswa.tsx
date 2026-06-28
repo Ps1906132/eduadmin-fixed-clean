@@ -23,13 +23,19 @@ const NotifikasiSiswa: React.FC<NotifikasiProps> = ({ onBack, user }) => {
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
+                        const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
+                        let allowedTargets: string[];
+                        if (roleCode === 'guru' || roleCode === 'wk' || roleCode === 'gm') {
+                            allowedTargets = ['Semua', 'Guru'];
+                        } else if (roleCode === 'ortu' || roleCode === 'gb') {
+                            allowedTargets = ['Semua', 'Orang Tua'];
+                        } else {
+                            allowedTargets = ['Semua', 'Siswa'];
+                        }
+
                         const mapped = data
                             .filter((a: any) => a.status === 'Terbit')
-                            .filter((a: any) =>
-                                a.target === 'Semua' ||
-                                a.target === 'Orang Tua' ||
-                                a.target === 'Siswa'
-                            )
+                            .filter((a: any) => allowedTargets.includes(a.target))
                             .map((a: any) => {
                                 let type = 'info';
                                 const titleNorm = (a.title || '').toLowerCase();
@@ -65,7 +71,7 @@ const NotifikasiSiswa: React.FC<NotifikasiProps> = ({ onBack, user }) => {
             }
         };
         fetchNotifications();
-    }, []);
+    }, [user]);
 
     const getTypeIcon = (type: string) => {
         switch (type) {

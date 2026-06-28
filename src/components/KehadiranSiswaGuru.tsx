@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, UserCheck, Search, CheckCircle, XCircle, AlertCircle, CheckCircle2, Save, Users } from 'lucide-react';
+import { ChevronLeft, Search, AlertCircle, Save, Users } from 'lucide-react';
 
 import { useAttendance } from './DashboardSuperAdmin/hooks/useAttendance';
 
@@ -8,13 +8,15 @@ interface KehadiranSiswaGuruProps {
     user?: any;
 }
 
+const D1_TO_UI: Record<string, string> = { hadir: 'H', sakit: 'S', izin: 'I', alpa: 'A' };
+
 const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user }) => {
     const { saveAttendanceBatch, saving } = useAttendance();
-    const isWaliKelas = user?.jabatan === 'Wali Kelas' || !!user?.kelas;
-    const [selectedClass, setSelectedClass] = useState(user?.kelas || '1A');
+    const [selectedClass, setSelectedClass] = useState('');
     const [selectedSemester, setSelectedSemester] = useState('1 (Ganjil)');
     const [classesList, setClassesList] = useState<any[]>([]);
-    const [students, setStudents] = useState<any[]>([]);
+    const [classStudentsMap, setClassStudentsMap] = useState<Record<string, string[]>>({});
+    const [studentsMap, setStudentsMap] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -24,18 +26,44 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
                 const token = localStorage.getItem('eduadmin_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const [resClasses, resStudents] = await Promise.all([
+                const [resClasses, resStudents, resClassStudents, resSchedules, resStaff] = await Promise.all([
                     fetch('/api/classes', { headers }),
-                    fetch('/api/students', { headers })
+                    fetch('/api/students', { headers }),
+                    fetch('/api/class_students?is_active=eq.1', { headers }),
+                    fetch(`/api/schedules?teacher_id=eq.${user?.id || ''}`, { headers }),
+                    fetch(`/api/staff?profile_id=eq.${user?.id || ''}`, { headers }),
                 ]);
 
-                if (resClasses.ok) {
-                    const data = await resClasses.json();
-                    setClassesList(Array.isArray(data) ? data : []);
-                }
-                if (resStudents.ok) {
-                    const data = await resStudents.json();
-                    setStudents(Array.isArray(data) ? data : []);
+                const allClasses: any[] = resClasses.ok ? (await resClasses.json()) : [];
+                const allStudents: any[] = resStudents.ok ? (await resStudents.json()) : [];
+                const allClassStudents: any[] = resClassStudents.ok ? (await resClassStudents.json()) : [];
+                const schedules: any[] = resSchedules.ok ? (await resSchedules.json()) : [];
+                const staffRows: any[] = resStaff.ok ? (await resStaff.json()) : [];
+
+                const sMap: Record<string, any> = {};
+                allStudents.forEach((s: any) => { sMap[s.id] = s; });
+                setStudentsMap(sMap);
+
+                const csMap: Record<string, string[]> = {};
+                allClassStudents.forEach((cs: any) => {
+                    if (!csMap[cs.class_id]) csMap[cs.class_id] = [];
+                    csMap[cs.class_id].push(cs.student_id);
+                });
+                setClassStudentsMap(csMap);
+
+                const scheduleClassIds = new Set(schedules.map((s: any) => s.class_id));
+                const waliClassIds = new Set(allClasses.filter((c: any) => c.teacher_id === user?.id).map((c: any) => c.id));
+                const staffClassNames = staffRows.map((s: any) => s.class_name).filter(Boolean);
+                const staffClassIds = new Set(allClasses.filter((c: any) => staffClassNames.includes(c.name)).map((c: any) => c.id));
+
+                const teacherClassIds = new Set([...scheduleClassIds, ...waliClassIds, ...staffClassIds]);
+                const filtered = allClasses.filter((c: any) => teacherClassIds.has(c.id));
+
+                setClassesList(filtered);
+
+                if (filtered.length > 0 && !selectedClass) {
+                    const defaultClass = filtered.find((c: any) => c.teacher_id === user?.id) || filtered[0];
+                    setSelectedClass(defaultClass.id);
                 }
             } catch (e) {
                 console.error('Failed to load data from D1:', e);
@@ -45,22 +73,30 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
         };
 
         loadData();
-    }, []);
+    }, [user?.id]);
 
     const [attendanceData, setAttendanceData] = useState<any[]>([]);
     const [fetchingAttendance, setFetchingAttendance] = useState(false);
 
     useEffect(() => {
+        if (!selectedClass) return;
+
         const loadAttendance = async () => {
             setFetchingAttendance(true);
             try {
                 const token = localStorage.getItem('eduadmin_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
+                const todayStr = new Date().toISOString().split('T')[0];
 
-                const res = await fetch(`/api/attendance?select=*`, { headers });
+                const res = await fetch(`/api/attendance?class_id=eq.${selectedClass}&date=eq.${todayStr}`, { headers });
                 if (res.ok) {
                     const data = await res.json();
-                    setAttendanceData(Array.isArray(data) ? data : []);
+                    const rows = Array.isArray(data) ? data : [];
+                    const converted = rows.map((d: any) => ({
+                        ...d,
+                        status: D1_TO_UI[d.status] || d.status
+                    }));
+                    setAttendanceData(converted);
                 }
             } catch (e) {
                 console.error('Failed to load attendance:', e);
@@ -70,25 +106,27 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
         };
 
         loadAttendance();
-    }, []);
+    }, [selectedClass]);
 
-    const classStudents = students.filter((s: any) => s.kelas === selectedClass || s.class_id === selectedClass);
+    const classStudentIds = classStudentsMap[selectedClass] || [];
+    const classStudents = classStudentIds.map((sid: string) => studentsMap[sid]).filter(Boolean);
+
     const [searchQuery, setSearchQuery] = useState('');
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const handleUpdateStatus = (studentId: number, newStatus: string) => {
+    const handleUpdateStatus = (studentId: string, newStatus: string) => {
         const newData = [...attendanceData];
         const index = newData.findIndex((d: any) => d.student_id === studentId && d.date === todayStr);
 
         if (index >= 0) {
             newData[index] = { ...newData[index], status: newStatus };
         } else {
-            newData.push({ student_id: studentId, date: todayStr, status: newStatus });
+            newData.push({ student_id: studentId, date: todayStr, status: newStatus, class_id: selectedClass });
         }
         setAttendanceData(newData);
     };
 
-    const getStudentStatus = (studentId: number) => {
+    const getStudentStatus = (studentId: string) => {
         const record = attendanceData.find((d: any) => d.student_id === studentId && d.date === todayStr);
         return record?.status || '';
     };
@@ -104,9 +142,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
 
     const handleSaveAll = async () => {
         const todayRecords = attendanceData.filter((d: any) => d.date === todayStr);
-        if (todayRecords.length === 0) {
-            return;
-        }
+        if (todayRecords.length === 0) return;
 
         const records = todayRecords.map((r: any) => ({
             studentId: r.student_id.toString(),
@@ -118,7 +154,7 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
 
         const result = await saveAttendanceBatch(records);
         if (result.success) {
-            // already handled by hook
+            setAttendanceData([...todayRecords]);
         }
     };
 
@@ -149,8 +185,9 @@ const KehadiranSiswaGuru: React.FC<KehadiranSiswaGuruProps> = ({ onBack, user })
                         onChange={e => setSelectedClass(e.target.value)}
                         className="flex-1 p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm font-bold outline-none"
                     >
+                        {classesList.length === 0 && <option value="">Tidak ada kelas</option>}
                         {classesList.map((c: any) => (
-                            <option key={c.id || c.nama} value={c.nama || c.name}>{c.nama || c.name}</option>
+                            <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                     </select>
                     <select

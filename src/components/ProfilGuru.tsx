@@ -6,19 +6,18 @@ interface ProfilGuruProps {
     user: any;
     onBack: () => void;
     onLogout: () => void;
-    nipOverride?: string;
-    mapelOverride?: string;
 }
 
-const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout, nipOverride, mapelOverride }) => {
+const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout }) => {
     // Local state for editing
     const [nama, setNama] = useState(user?.nama || 'Guru');
-    const [nip, setNip] = useState(user?.nip || nipOverride || '');
-    const [mapel, setMapel] = useState(user?.mapel || mapelOverride || '');
+    const [nip, setNip] = useState(user?.nip || '');
+    const [mapel, setMapel] = useState(user?.mapel || '');
 
     // File upload ref
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [avatar, setAvatar] = useState(user?.avatar || null);
+    const [savingProfile, setSavingProfile] = useState(false);
 
     // Password state
     const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -63,6 +62,36 @@ const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout, nipOver
             toast.error('Koneksi gagal. Coba lagi.');
         } finally {
             setSavingPassword(false);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        if (!user?.id) { toast.error('User ID tidak ditemukan'); return; }
+        setSavingProfile(true);
+        try {
+            const token = localStorage.getItem('eduadmin_token');
+            const res = await fetch(`/api/profiles?id=eq.${user.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    full_name: nama,
+                    nip: nip,
+                }),
+            });
+
+            if (res.ok) {
+                toast.success('Profil berhasil disimpan!');
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error(err?.message || 'Gagal menyimpan profil');
+            }
+        } catch {
+            toast.error('Koneksi gagal. Coba lagi.');
+        } finally {
+            setSavingProfile(false);
         }
     };
 
@@ -244,9 +273,13 @@ const ProfilGuru: React.FC<ProfilGuruProps> = ({ user, onBack, onLogout, nipOver
 
             {/* Sticky Bottom Actions */}
             <div className="p-4 bg-white border-t border-slate-200 flex flex-col gap-3 z-20">
-                <button className="w-full bg-[#004AAD] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
+                <button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="w-full bg-[#004AAD] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
                     <Save size={18} />
-                    Simpan Perubahan
+                    {savingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
                 </button>
 
                 <button

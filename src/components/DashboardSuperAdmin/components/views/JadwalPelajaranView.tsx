@@ -11,6 +11,7 @@ interface ScheduleItem {
     day: string;
     period: number;
     subjectId: number | string;
+    teacherId?: string;
     customName?: string;
 }
 
@@ -59,12 +60,22 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
         let subjectId: number | string = idStr;
         if (type === 'subject') subjectId = parseInt(idStr);
 
+        // Resolve teacherId from teacherAssignments
+        let teacherId: string | undefined;
+        if (type === 'subject') {
+            const assignment = teacherAssignments.find((ta: any) =>
+                ta.classNama === selectedJadwalClass && ta.subjectIds.includes(subjectId as number)
+            );
+            if (assignment) teacherId = assignment.teacherId;
+        }
+
         const newItem: ScheduleItem = {
             id: Date.now().toString(),
             classId: selectedJadwalClass,
             day,
             period,
             subjectId: subjectId,
+            teacherId,
             customName: type === 'custom' ? name : undefined
         };
 

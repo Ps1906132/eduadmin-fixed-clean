@@ -196,12 +196,12 @@ const DashboardGuru: React.FC<DashboardGuruProps> = ({ user, onLogout, schoolNam
                             <InputNilaiGuru user={user} onBack={() => setActiveView('home')} />
                         ) : activeView === 'deskripsi' ? (
                             <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in fade-in overflow-hidden">
-                                <RaporSettingsView setActiveView={() => setActiveView('home')} showOnlyDeskripsi={true} />
+                                <RaporSettingsView setActiveView={() => setActiveView('home')} showOnlyDeskripsi={true} user={user} />
                             </div>
                         ) : activeView === 'latihan' ? (
                             <MateriLatihanGuru user={user} onBack={() => setActiveView('home')} />
                         ) : activeView === 'notepad' ? (
-                            <NotepadGuru onBack={() => setActiveView('home')} />
+                            <NotepadGuru onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'quran' ? (
                             <AlQuranSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'channel' ? (
@@ -215,7 +215,7 @@ const DashboardGuru: React.FC<DashboardGuruProps> = ({ user, onLogout, schoolNam
                         ) : activeView === 'informasi' ? (
                             <InformasiWaliKelas onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'notifikasi' ? (
-                            <NotifikasiSiswa onBack={() => setActiveView('home')} />
+                            <NotifikasiSiswa onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'profile' ? (
                             <ProfilGuru user={user} onBack={() => setActiveView('home')} onLogout={onLogout} />
                         ) : null}

@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getCurrentUserRole } from '../../../lib/rbac/usePermissions';
-import { hasPermission } from '../../../lib/rbac/permissionMatrix';
+import { useState, useCallback } from 'react';
 
 export interface GradeRecord {
     id?: string;
@@ -12,6 +10,19 @@ export interface GradeRecord {
     assessmentType: string;
     remarks?: string;
 }
+
+const GRADE_WRITE_ROLES = ['admin', 'guru', 'kurikulum'];
+
+const getCurrentUserRole = (): string | null => {
+    try {
+        const raw = localStorage.getItem('eduadmin_user');
+        if (!raw) return null;
+        const user = JSON.parse(raw);
+        return (user?.roleCode || user?.role || user?.role_type || '').toLowerCase() || null;
+    } catch {
+        return null;
+    }
+};
 
 export const useGrades = () => {
     const [loading, setLoading] = useState(false);
@@ -49,7 +60,7 @@ export const useGrades = () => {
 
     const saveGradesBatch = async (records: GradeRecord[]) => {
         const role = getCurrentUserRole();
-        if (!hasPermission(role as any, 'nilai', 'UPDATE')) {
+        if (!role || !GRADE_WRITE_ROLES.includes(role)) {
             console.error('Permission denied: nilai UPDATE');
             return { success: false, error: 'Anda tidak memiliki hak akses untuk mengubah nilai' };
         }
@@ -160,7 +171,7 @@ export const useGrades = () => {
 
     const saveReportData = async (classId: string, studentId: string, data: any) => {
         const role = getCurrentUserRole();
-        if (!hasPermission(role as any, 'nilai', 'UPDATE')) {
+        if (!role || !GRADE_WRITE_ROLES.includes(role)) {
             console.error('Permission denied: nilai UPDATE');
             return { success: false, error: 'Anda tidak memiliki hak akses untuk mengubah nilai' };
         }

@@ -8,7 +8,7 @@ interface JadwalBimbelGuruProps {
 }
 
 const JadwalBimbelGuru: React.FC<JadwalBimbelGuruProps> = ({ onBack, user, classes = [] }) => {
-    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu'];
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const [selectedDay, setSelectedDay] = useState('Senin');
 
     const daySchedule = classes.filter(c => {

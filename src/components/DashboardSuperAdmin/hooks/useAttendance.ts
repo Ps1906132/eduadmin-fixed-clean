@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { hasPermission } from '../../../lib/rbac/permissionMatrix';
 import { toast } from 'react-hot-toast';
 
 const STATUS_MAP: Record<string, string> = {
@@ -9,17 +8,22 @@ const STATUS_MAP: Record<string, string> = {
     'A': 'alpa'
 };
 
-/** Get current user role from localStorage */
-const getCurrentUserRole = (): string | null => {
+/** Get current user from localStorage */
+const getCurrentUser = (): { id?: string; role?: string } | null => {
     try {
         const raw = localStorage.getItem('eduadmin_user');
         if (!raw) return null;
         const user = JSON.parse(raw);
-        return (user?.roleCode || user?.role || user?.role_type || '').toLowerCase() || null;
+        return {
+            id: user?.id,
+            role: (user?.roleCode || user?.role || user?.role_type || '').toLowerCase() || null,
+        };
     } catch {
         return null;
     }
 };
+
+const ATTENDANCE_WRITE_ROLES = ['admin', 'guru', 'gb'];
 
 interface AttendanceSaveRecord {
     studentId: string;
@@ -37,9 +41,9 @@ export const useAttendance = () => {
     ): Promise<{ success: boolean; error?: string }> => {
         if (records.length === 0) return { success: true };
 
-        // Permission check
-        const role = getCurrentUserRole();
-        if (!role || !hasPermission(role as any, 'absen', 'UPDATE')) {
+        const currentUser = getCurrentUser();
+        const role = currentUser?.role;
+        if (!role || !ATTENDANCE_WRITE_ROLES.includes(role)) {
             toast.error('Anda tidak memiliki akses untuk mengubah data absensi');
             return { success: false, error: 'Permission denied' };
         }
@@ -51,20 +55,19 @@ export const useAttendance = () => {
         const date = records[0].date;
 
         try {
-            // Hapus data lama untuk class+date ini agar tidak duplikat
             await fetch(`/api/attendance?class_id=eq.${classId}&date=eq.${date}`, {
                 method: 'DELETE',
                 headers: authHeader
             });
 
-            // Batch insert semua record sekaligus
             const insertData = records.map(rec => ({
                 id: `att-${date}-${rec.studentId}`,
                 student_id: rec.studentId,
                 class_id: classId,
                 date: rec.date,
                 status: STATUS_MAP[rec.status] || 'hadir',
-                remarks: rec.note || null
+                remarks: rec.note || null,
+                created_by: currentUser?.id || null,
             }));
 
             const res = await fetch('/api/attendance', {

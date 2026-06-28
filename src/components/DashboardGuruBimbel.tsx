@@ -196,7 +196,7 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                         ) : activeView === 'notifikasi' ? (
                             <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (
-                            <ProfilGuru user={user} onBack={() => setActiveView('home')} onLogout={onLogout} nipOverride={teacherNip} mapelOverride={teacherSubject} />
+                            <ProfilGuru user={{ ...user, nip: teacherNip || user?.nip, mapel: teacherSubject || user?.mapel }} onBack={() => setActiveView('home')} onLogout={onLogout} />
                         ) : null}
                     </div>
 

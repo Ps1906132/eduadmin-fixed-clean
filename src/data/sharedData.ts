@@ -159,6 +159,7 @@ export interface ScheduleItem {
     day: string;
     period: number;
     subjectId: number | string;
+    teacherId?: string; // profile ID of teacher assigned to this slot
     customName?: string;
 }
 
@@ -206,7 +207,9 @@ export interface ExamScheduleItem {
     classId: string; // e.g., '1A', '6B'
     day: string; // 'Senin', 'Selasa', ...
     timeSlotId: number; // Index of time slot
-    subjectName: string; // Store name directly for now as per Dashboard logic
+    subjectId?: string; // D1 subject_id (for sync)
+    subjectName: string;
+    teacherId?: string; // D1 teacher_id (for sync)
     teacherName?: string;
     color?: string; // Visual color
 }
@@ -271,6 +274,7 @@ export interface MateriItem {
     id: number;
     title: string;
     classId: string;
+    subjectId: string;
     subjectName: string;
     driveLink: string;
     publishDate: string;
@@ -294,6 +298,7 @@ export interface LatihanItem {
     id: number;
     title: string;
     classId: string;
+    subjectId: string;
     subjectName: string;
     type: 'PG' | 'Essay';
     questions: (QuestionPG | QuestionEssay)[];

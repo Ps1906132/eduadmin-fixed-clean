@@ -182,7 +182,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                         ) : activeView === 'bimbingan' ? (
                             <BimbinganBelajarSiswa onBack={() => setActiveView('home')} user={user} studentId={user?.studentId || parentStudentId} />
                         ) : activeView === 'latihan' ? (
-                            <LatihanSoalSiswa onBack={() => setActiveView('home')} userClass={user?.studentClass || '5A'} />
+                            <LatihanSoalSiswa onBack={() => setActiveView('home')} user={user} />
                         ) : activeView === 'quran' ? (
                             <AlQuranSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'channel' ? (

@@ -34,6 +34,19 @@ export const useExams = () => {
             const schedRes = await fetch('/api/exam_schedules', { headers });
             const schedData = schedRes.ok ? await schedRes.json() : [];
 
+            // Fetch subjects & profiles for name resolution
+            const [subjRes, profRes] = await Promise.all([
+                fetch('/api/subjects', { headers }),
+                fetch('/api/profiles', { headers }),
+            ]);
+            const subjects = subjRes.ok ? await subjRes.json() : [];
+            const profiles = profRes.ok ? await profRes.json() : [];
+
+            const subjectMap = new Map<string, string>();
+            subjects.forEach((s: any) => { subjectMap.set(s.id?.toString(), s.name || s.nama); });
+            const teacherMap = new Map<string, string>();
+            profiles.forEach((p: any) => { teacherMap.set(p.id?.toString(), p.full_name || p.nama); });
+
             if (examsData && Array.isArray(examsData) && examsData.length > 0) {
                 const currentYear = new Date().getFullYear();
 
@@ -48,8 +61,10 @@ export const useExams = () => {
                         classId: item.class_id,
                         day: item.exam_date || '',
                         timeSlotId: 0,
-                        subjectName: item.subject_id || '',
-                        teacherName: item.teacher_id || '-',
+                        subjectId: item.subject_id || '',
+                        subjectName: subjectMap.get(item.subject_id?.toString()) || 'Mata Pelajaran',
+                        teacherId: item.teacher_id || '',
+                        teacherName: teacherMap.get(item.teacher_id?.toString()) || '-',
                         color: 'bg-blue-100 border-blue-200 text-blue-700'
                     });
                 });
@@ -146,7 +161,7 @@ export const useExams = () => {
             const currentSchedIds = new Set(currentSched.map((s: any) => s.id.toString()));
 
             // Collect all items from all exams
-            const allItems: { id: string; examId: string; classId: string; day: string; timeSlotId: number; subjectName: string; teacherName: string }[] = [];
+            const allItems: { id: string; examId: string; classId: string; day: string; timeSlotId: number; subjectId: string; subjectName: string; teacherId: string; teacherName: string }[] = [];
             for (const exam of newExams) {
                 for (const item of exam.items) {
                     allItems.push({
@@ -155,7 +170,9 @@ export const useExams = () => {
                         classId: item.classId,
                         day: item.day,
                         timeSlotId: item.timeSlotId,
+                        subjectId: item.subjectId || '',
                         subjectName: item.subjectName,
+                        teacherId: item.teacherId || '',
                         teacherName: item.teacherName || '-'
                     });
                 }
@@ -175,8 +192,8 @@ export const useExams = () => {
                     id: item.id,
                     exam_id: item.examId,
                     class_id: item.classId,
-                    subject_id: item.subjectName,
-                    teacher_id: item.teacherName || null,
+                    subject_id: item.subjectId || item.subjectName,
+                    teacher_id: item.teacherId || null,
                     exam_date: item.day,
                     start_time: timeSlot?.start || '08:00',
                     end_time: timeSlot?.end || '10:00'
