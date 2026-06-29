@@ -61,6 +61,8 @@ interface UsePermissionsReturn {
   isKeuangan: boolean;
   /** Apakah role ini adalah kepala sekolah */
   isKS: boolean;
+  /** Apakah role ini adalah guru bimbel */
+  isGB: boolean;
 }
 
 /**
@@ -140,6 +142,7 @@ export function usePermissions(
     isKurikulum: normalizedRole === 'kurikulum',
     isKeuangan:  normalizedRole === 'keuangan',
     isKS:        normalizedRole === 'ks',
+    isGB:        normalizedRole === 'gb',
   };
 }
 
@@ -191,6 +194,15 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
     lowerRole.includes('staf tu')
   ) {
     return 'keuangan';
+  }
+
+  // GB (GURU BIMBEL): Managing Bimbel Data (Absensi, Progress, Materi)
+  if (
+    lowerRole === 'gb' ||
+    lowerRole.includes('bimbel') ||
+    lowerRole.includes('tentor')
+  ) {
+    return 'gb';
   }
   
   return null;

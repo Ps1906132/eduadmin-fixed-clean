@@ -5,15 +5,11 @@ import {
     FolderInput,
     BookOpen,
     Book,
-    Bell,
     Home,
-    User,
-    LogOut,
-    Megaphone
+    User
 } from 'lucide-react';
 
 import AlQuranSiswa from './AlQuranSiswa';
-import NotifikasiSiswa from './NotifikasiSiswa';
 import InputMateriBimbelLengkap from './InputMateriBimbelLengkap';
 import ProfilGuru from './ProfilGuru';
 import JadwalBimbelGuru from './JadwalBimbelGuru';
@@ -30,7 +26,7 @@ interface DashboardGuruBimbelProps {
 
 const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogout, schoolName = "SD Normal Islam Samarinda" }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'latihan' | 'quran' | 'informasi' | 'notifikasi' | 'profile'>('home');
+    const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'kehadiran' | 'nilai' | 'latihan' | 'quran' | 'profile'>('home');
 
     const { tutoringClasses, enrollments, addSession } = useTutoring();
 
@@ -72,7 +68,7 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
 
     // Filter kelas yang diajar oleh guru ini (cocokkan berdasarkan nama guru)
     const myTutoringClasses = tutoringClasses.filter(c =>
-        c.teacher === user?.nama
+        c.teacher?.trim().toLowerCase() === user?.nama?.trim().toLowerCase()
     );
 
     // Filter enrollments untuk kelas yang diajar guru ini
@@ -91,7 +87,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
         { id: 'nilai', label: 'Input Perkembangan', icon: <FolderInput size={24} />, color: 'bg-indigo-500' },
         { id: 'latihan', label: 'Materi dan Latihan', icon: <BookOpen size={24} />, color: 'bg-rose-500' },
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
-        { id: 'informasi', label: 'Informasi', icon: <Megaphone size={24} />, color: 'bg-orange-500' },
     ];
 
     return (
@@ -163,7 +158,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                                                 else if (item.id === 'nilai') setActiveView('nilai');
                                                 else if (item.id === 'latihan') setActiveView('latihan');
                                                 else if (item.id === 'quran') setActiveView('quran');
-                                                else if (item.id === 'informasi') setActiveView('informasi');
                                             }}
                                             className="flex flex-col items-center gap-3 group w-full"
                                         >
@@ -191,10 +185,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                                 onBack={() => setActiveView('home')}
                                 classes={myTutoringClasses}
                             />
-                        ) : activeView === 'informasi' ? (
-                            <NotifikasiSiswa onBack={() => setActiveView('home')} />
-                        ) : activeView === 'notifikasi' ? (
-                            <NotifikasiSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (
                             <ProfilGuru user={{ ...user, nip: teacherNip || user?.nip, mapel: teacherSubject || user?.mapel }} onBack={() => setActiveView('home')} onLogout={onLogout} />
                         ) : null}
@@ -225,21 +215,6 @@ const DashboardGuruBimbel: React.FC<DashboardGuruBimbelProps> = ({ user, onLogou
                         <Calendar size={22} fill={activeView === 'jadwal' ? "currentColor" : "none"} />
                         <span className="text-[10px] font-medium text-center leading-none">Jadwal</span>
                         {activeView === 'jadwal' && <div className="w-1 h-1 bg-[#004AAD] rounded-full mt-0.5"></div>}
-                    </button>
-
-                    {/* Notifikasi (Center Layout) */}
-                    <button
-                        onClick={() => setActiveView('notifikasi')}
-                        className="relative -top-6 group"
-                    >
-                        <div className={`p-4 rounded-full shadow-xl shadow-blue-900/30 group-hover:scale-105 transition-transform flex items-center justify-center ${activeView === 'notifikasi' ? 'bg-white text-[#004AAD] border-4 border-[#004AAD]' : 'bg-[#004AAD] text-white'}`}>
-                            <Bell size={24} fill="currentColor" />
-                        </div>
-                        {/* Fake notification dot */}
-                        {activeView !== 'notifikasi' && (
-                            <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full border-2 border-[#004AAD]"></span>
-                        )}
-                        <span className={`text-[10px] font-medium absolute -bottom-4 left-1/2 -translate-x-1/2 ${activeView === 'notifikasi' ? 'text-[#004AAD] font-bold' : 'text-slate-500'}`}>Notifikasi</span>
                     </button>
 
                     {/* Akun */}

@@ -63,7 +63,7 @@ const Login: FC<LoginProps> = ({ onLogin, schoolName, logo, bannerImage }) => {
                         finalRole = 'kurikulum';
                     } else if (serverRole.includes('wali kelas') || serverRole === 'wk') {
                         finalRole = 'wk';
-                    } else if (serverRole.includes('bimbel') || serverRole.includes('guru bimbel') || serverRole === 'gb') {
+                    } else if (serverRole.includes('bimbel') || serverRole.includes('guru bimbel') || serverRole.includes('tentor') || serverRole === 'gb') {
                         finalRole = 'gb';
                     } else if (serverRole.includes('tata usaha') || serverRole.includes('staff tu') || serverRole.includes('keuangan')) {
                         finalRole = 'keuangan';

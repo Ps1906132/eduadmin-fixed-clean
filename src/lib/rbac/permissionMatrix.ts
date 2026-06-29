@@ -107,6 +107,20 @@ const KS_PERMISSIONS: ModulePermission[] = [
   { module: 'laporan',        actions: READ_ONLY, notes: 'READ ONLY' },
 ];
 
+/**
+ * GB ROLE (GURU BIMBEL) — CRUD pada modul bimbingan, READ pada data referensi
+ * Sumber: PERJANJIAN_KERJA.md §2.6 — Dashboard terpisah, tabel bimbel eksklusif
+ */
+const GB_PERMISSIONS: ModulePermission[] = [
+  // Modul Bimbingan — Full CRUD (absensi, progress, materi, sesi)
+  { module: 'bimbingan',      actions: ALL_CRUD,  notes: 'Full access: attendance, progress, sessions, quiz' },
+
+  // Data referensi — VIEW ONLY
+  { module: 'pengumuman',     actions: READ_ONLY, notes: 'View announcements (NotifikasiSiswa)' },
+  { module: 'data-siswa',     actions: READ_ONLY, notes: 'View enrolled bimbel students' },
+  { module: 'multimedia',     actions: READ_ONLY, notes: 'View channel sekolah' },
+];
+
 // =============================================================================
 // PERMISSION MATRIX MAP (role → permissions[])
 // =============================================================================
@@ -116,6 +130,7 @@ export const PERMISSION_MATRIX: Record<AdminRoleType, ModulePermission[]> = {
   kurikulum: KURIKULUM_PERMISSIONS,
   keuangan:  KEUANGAN_PERMISSIONS,
   ks:        KS_PERMISSIONS,
+  gb:        GB_PERMISSIONS,
 };
 
 // =============================================================================

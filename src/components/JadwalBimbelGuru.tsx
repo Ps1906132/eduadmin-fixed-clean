@@ -41,7 +41,7 @@ const JadwalBimbelGuru: React.FC<JadwalBimbelGuruProps> = ({ onBack, user, class
                 </button>
                 <h2 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                     <Calendar className="text-blue-600" size={20} />
-                    Jadwal Mengajar {user?.nama ? user.nama.split(',')[0] : 'Saya'}
+                    Jadwal Bimbel {user?.nama ? user.nama.split(',')[0] : 'Saya'}
                 </h2>
             </div>
 
@@ -103,8 +103,12 @@ const JadwalBimbelGuru: React.FC<JadwalBimbelGuruProps> = ({ onBack, user, class
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${item.status === 'Aktif' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                                        {item.status}
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                                        item.status === 'active' || item.status === 'Aktif'
+                                            ? 'bg-green-100 text-green-600'
+                                            : 'bg-slate-100 text-slate-400'
+                                    }`}>
+                                        {item.status === 'active' ? 'Aktif' : item.status === 'finished' ? 'Selesai' : item.status === 'inactive' ? 'Tidak Aktif' : item.status}
                                     </span>
                                 </div>
                             </div>

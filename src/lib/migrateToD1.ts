@@ -53,7 +53,7 @@ export async function migrateLocalStorageToD1(forceReset = false): Promise<Migra
       let role = 'gm';
       if (rawRole.includes('kepala sekolah')) role = 'ks';
       else if (rawRole.includes('wali kelas') || rawRole.includes('guru kelas')) role = 'wk';
-      else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel')) role = 'gb';
+      else if (rawRole.includes('bimbel') || rawRole.includes('guru bimbel') || rawRole.includes('tentor')) role = 'gb';
       else if (['admin', 'kurikulum', 'keuangan', 'multimedia', 'operator'].some(r => rawRole.includes(r))) role = 'admin';
 
       const passwordPlain = teacher.password || 'password123';

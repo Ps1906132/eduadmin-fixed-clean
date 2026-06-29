@@ -669,12 +669,24 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
     }
   }
 
-  // Teacher-write tables: only admin & guru can modify
-  const TEACHER_WRITE_TABLES = ['materi', 'latihan_soal', 'bimbel_attendance', 'bimbel_progress'];
-  if (TEACHER_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
-    if (userRole !== 'admin' && userRole !== 'guru') {
-      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-teacher write to materi/latihan table' });
-      return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru atau Admin yang dapat mengubah materi dan latihan` }), {
+  // Bimbel tables: only Guru Bimbel (gb) can write — Admin reads only
+  const BIMBEL_WRITE_TABLES = ['bimbel_attendance', 'bimbel_progress'];
+  if (BIMBEL_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'gb') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-GB write to bimbel attendance/progress table' });
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru Bimbel yang dapat mengubah data absensi dan perkembangan bimbel` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Materi & latihan tables: only Guru Bimbel (gb) can write (Admin read-only)
+  const MATERI_WRITE_TABLES = ['materi', 'latihan_soal'];
+  if (MATERI_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'gb') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-GB write to materi/latihan table' });
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru Bimbel yang dapat mengubah materi dan latihan` }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });

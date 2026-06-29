@@ -16,7 +16,7 @@
 // Role lain (guru, wali kelas, dsb.) dipertahankan apa adanya (tidak diubah)
 // =============================================================================
 
-export type AdminRoleType = 'admin' | 'kurikulum' | 'keuangan' | 'ks';
+export type AdminRoleType = 'admin' | 'kurikulum' | 'keuangan' | 'ks' | 'gb';
 
 export type AllRoleType =
   | 'admin'

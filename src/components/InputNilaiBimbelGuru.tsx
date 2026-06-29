@@ -23,7 +23,7 @@ const InputNilaiBimbelGuru: React.FC<InputNilaiBimbelGuruProps> = ({ onBack, cla
     const [progressNotes, setProgressNotes] = useState('');
     const [progressRecommendation, setProgressRecommendation] = useState('');
 
-    const classEnrollments = enrollments.filter(e => e.classId === selectedClassId);
+    const classEnrollments = enrollments.filter(e => e.groupId === selectedClassId);
 
     useEffect(() => {
         if (classEnrollments.length > 0 && !selectedStudentId) {
@@ -68,56 +68,141 @@ const InputNilaiBimbelGuru: React.FC<InputNilaiBimbelGuruProps> = ({ onBack, cla
                 toast.error('Enrollment tidak ditemukan');
                 return;
             }
+            const enrollmentId = `${enrollment.groupId}-${enrollment.studentId}`;
 
             if (tipeLaporan === 'tryout') {
-                const body = {
-                    id: `bprog-${Date.now()}`,
-                    enrollment_id: enrollment.id,
-                    tutoring_class_id: selectedClassId.toString(),
-                    student_id: selectedStudentId,
-                    report_type: 'tryout',
-                    title: tryoutTitle || 'Tryout',
-                    score: tryoutScore ? parseFloat(tryoutScore) : null,
-                    score_date: tryoutDate || null
-                };
-                const res = await fetch('/api/bimbel_progress', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(body)
-                });
-                if (res.ok) {
-                    toast.success('Nilai tryout berhasil disimpan!');
-                    setTryoutTitle('');
-                    setTryoutScore('');
-                    loadProgress();
+                // Validasi nilai
+                const score = parseFloat(tryoutScore);
+                if (isNaN(score) || score < 0 || score > 100) {
+                    toast.error('Nilai harus antara 0-100');
+                    setSaving(false);
+                    return;
+                }
+                if (!tryoutTitle?.trim()) {
+                    toast.error('Judul tryout wajib diisi');
+                    setSaving(false);
+                    return;
+                }
+
+                // Cek duplikat: tryout dengan judul sama untuk siswa yang sama
+                const checkRes = await fetch(
+                    `/api/bimbel_progress?student_id=eq.${selectedStudentId}&report_type=eq.tryout&title=eq.${encodeURIComponent(tryoutTitle.trim())}`,
+                    { headers }
+                );
+                const duplicates = checkRes.ok ? await checkRes.json() : [];
+
+                if (duplicates.length > 0) {
+                    // Sudah ada → PATCH (update)
+                    const patchRes = await fetch(`/api/bimbel_progress?id=eq.${duplicates[0].id}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify({ score, score_date: tryoutDate })
+                    });
+                    if (patchRes.ok) {
+                        toast.success('Nilai tryout berhasil diperbarui!');
+                        setTryoutTitle('');
+                        setTryoutScore('');
+                        setTryoutDate(new Date().toISOString().split('T')[0]);
+                        loadProgress();
+                    } else {
+                        const err = await patchRes.text();
+                        toast.error('Gagal memperbarui: ' + err);
+                    }
                 } else {
-                    const err = await res.text();
-                    toast.error('Gagal menyimpan: ' + err);
+                    // Belum ada → POST (baru)
+                    const body = {
+                        id: `bprog-${Date.now()}`,
+                        enrollment_id: enrollmentId,
+                        tutoring_class_id: selectedClassId.toString(),
+                        student_id: selectedStudentId,
+                        report_type: 'tryout',
+                        title: tryoutTitle.trim(),
+                        score,
+                        score_date: tryoutDate || null,
+                        session_number: studentTryouts.length + 1
+                    };
+                    const res = await fetch('/api/bimbel_progress', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+                    if (res.ok) {
+                        toast.success('Nilai tryout berhasil disimpan!');
+                        setTryoutTitle('');
+                        setTryoutScore('');
+                        setTryoutDate(new Date().toISOString().split('T')[0]);
+                        loadProgress();
+                    } else {
+                        const err = await res.text();
+                        toast.error('Gagal menyimpan: ' + err);
+                    }
                 }
             } else {
-                const body = {
-                    id: `bprog-${Date.now()}`,
-                    enrollment_id: enrollment.id,
-                    tutoring_class_id: selectedClassId.toString(),
-                    student_id: selectedStudentId,
-                    report_type: 'bulanan',
-                    month: progressMonth,
-                    notes: progressNotes || null,
-                    recommendation: progressRecommendation || null
-                };
-                const res = await fetch('/api/bimbel_progress', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(body)
-                });
-                if (res.ok) {
-                    toast.success('Laporan perkembangan berhasil disimpan!');
-                    setProgressNotes('');
-                    setProgressRecommendation('');
-                    loadProgress();
+                // Validasi laporan bulanan
+                if (!progressMonth) {
+                    toast.error('Pilih bulan terlebih dahulu');
+                    setSaving(false);
+                    return;
+                }
+                if (!progressNotes?.trim()) {
+                    toast.error('Catatan perkembangan wajib diisi');
+                    setSaving(false);
+                    return;
+                }
+
+                // Cek duplikat: laporan bulanan untuk bulan yang sama
+                const checkRes = await fetch(
+                    `/api/bimbel_progress?student_id=eq.${selectedStudentId}&report_type=eq.bulanan&month=eq.${progressMonth}`,
+                    { headers }
+                );
+                const duplicates = checkRes.ok ? await checkRes.json() : [];
+
+                if (duplicates.length > 0) {
+                    // Sudah ada → PATCH
+                    const patchRes = await fetch(`/api/bimbel_progress?id=eq.${duplicates[0].id}`, {
+                        method: 'PATCH',
+                        headers,
+                        body: JSON.stringify({
+                            notes: progressNotes.trim(),
+                            recommendation: progressRecommendation?.trim() || null
+                        })
+                    });
+                    if (patchRes.ok) {
+                        toast.success('Laporan perkembangan berhasil diperbarui!');
+                        setProgressNotes('');
+                        setProgressRecommendation('');
+                        loadProgress();
+                    } else {
+                        const err = await patchRes.text();
+                        toast.error('Gagal memperbarui: ' + err);
+                    }
                 } else {
-                    const err = await res.text();
-                    toast.error('Gagal menyimpan: ' + err);
+                    // Belum ada → POST
+                    const body = {
+                        id: `bprog-${Date.now()}`,
+                        enrollment_id: enrollmentId,
+                        tutoring_class_id: selectedClassId.toString(),
+                        student_id: selectedStudentId,
+                        report_type: 'bulanan',
+                        month: progressMonth,
+                        notes: progressNotes.trim(),
+                        recommendation: progressRecommendation?.trim() || null,
+                        session_number: studentMonthly.length + 1
+                    };
+                    const res = await fetch('/api/bimbel_progress', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(body)
+                    });
+                    if (res.ok) {
+                        toast.success('Laporan perkembangan berhasil disimpan!');
+                        setProgressNotes('');
+                        setProgressRecommendation('');
+                        loadProgress();
+                    } else {
+                        const err = await res.text();
+                        toast.error('Gagal menyimpan: ' + err);
+                    }
                 }
             }
         } catch (e) {

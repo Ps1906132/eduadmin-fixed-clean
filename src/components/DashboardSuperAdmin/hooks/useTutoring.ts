@@ -270,6 +270,14 @@ export const useTutoring = () => {
         ));
     };
 
+    const removeSession = (classId: number, sessionId: number) => {
+        setTutoringClasses(prev => prev.map(cls =>
+            cls.id === classId
+                ? { ...cls, sessions: cls.sessions.filter((s: any) => s.id !== sessionId) }
+                : cls
+        ));
+    };
+
     const updateClassInfo = (classId: number, info: Partial<TutoringClass>) => {
         setTutoringClasses(prev => prev.map(cls =>
             cls.id === classId ? { ...cls, ...info } : cls
@@ -282,6 +290,7 @@ export const useTutoring = () => {
         enrollments,
         setEnrollments,
         addSession,
+        removeSession,
         updateClassInfo,
         loading,
         refreshTutoringClasses: fetchTutoringClasses

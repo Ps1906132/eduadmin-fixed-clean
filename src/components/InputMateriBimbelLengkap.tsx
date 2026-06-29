@@ -9,7 +9,7 @@ interface InputMateriBimbelLengkapProps {
 }
 
 const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onBack, classes }) => {
-    const { addSession } = useTutoring();
+    const { addSession, removeSession } = useTutoring();
     const [view, setView] = useState('list');
 
     // Form States
@@ -31,6 +31,16 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
             return;
         }
 
+        // Cek duplikat: judul sesi sudah ada di kelas ini?
+        const currentClass = classes.find(c => c.id === Number(selectedClassId));
+        const duplicateSession = currentClass?.sessions?.find(
+            (s: any) => s.title?.trim().toLowerCase() === sessionTitle.trim().toLowerCase()
+        );
+        if (duplicateSession) {
+            toast.error('Judul sesi sudah ada di kelas ini');
+            return;
+        }
+
         const newSession = {
             id: Date.now(),
             title: sessionTitle,
@@ -44,7 +54,13 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
         addSession(Number(selectedClassId), newSession);
 
         // Simpan soal quiz ke tabel exam_questions agar bisa dibaca CBTSiswa
-        const validQuestions = questions.filter((q: any) => q.question?.trim());
+        const validQuestions = questions.filter((q: any) => {
+            if (!q.question?.trim()) return false;
+            if (q.type === 'pg' || !q.type) {
+                return q.options?.some((opt: string) => opt?.trim());
+            }
+            return true;
+        });
         if (validQuestions.length > 0) {
             setSavingCbt(true);
             try {
@@ -69,6 +85,7 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
                         body.option_b = q.options?.[1] || '';
                         body.option_c = q.options?.[2] || '';
                         body.option_d = q.options?.[3] || '';
+                        body.correct_answer = ['A', 'B', 'C', 'D'][q.correctAnswer] || 'A';
                     }
                     const res = await fetch('/api/exam_questions', {
                         method: 'POST',
@@ -182,6 +199,17 @@ const InputMateriBimbelLengkap: React.FC<InputMateriBimbelLengkapProps> = ({ onB
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Hapus sesi ini?')) {
+                                                            removeSession(cls.id, session.id);
+                                                            toast.success('Sesi berhasil dihapus');
+                                                        }
+                                                    }}
+                                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
                                             </div>
                                         ))
                                     )}

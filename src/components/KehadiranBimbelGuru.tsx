@@ -22,9 +22,17 @@ const KehadiranBimbelGuru: React.FC<KehadiranBimbelGuruProps> = ({ onBack, class
     const [existingAttendance, setExistingAttendance] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const [todayStr, setTodayStr] = useState(new Date().toISOString().split('T')[0]);
 
-    const selectedClassEnrollments = enrollments.filter(e => e.classId === selectedClassId);
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const now = new Date().toISOString().split('T')[0];
+            setTodayStr(prev => prev !== now ? now : prev);
+        }, 60000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const selectedClassEnrollments = enrollments.filter(e => e.groupId === selectedClassId);
 
     const loadAttendance = useCallback(async () => {
         if (!selectedClassId) return;
@@ -73,6 +81,8 @@ const KehadiranBimbelGuru: React.FC<KehadiranBimbelGuruProps> = ({ onBack, class
             return;
         }
         setSaving(true);
+        let successCount = 0;
+        let failCount = 0;
         try {
             const token = localStorage.getItem('eduadmin_token');
             const headers = {
@@ -80,33 +90,57 @@ const KehadiranBimbelGuru: React.FC<KehadiranBimbelGuruProps> = ({ onBack, class
                 'Authorization': `Bearer ${token}`
             };
 
-            const records = selectedClassEnrollments.map(e => ({
-                id: `batt-${todayStr}-${e.studentId}`,
-                enrollment_id: e.id,
-                tutoring_class_id: selectedClassId.toString(),
-                student_id: e.studentId,
-                date: todayStr,
-                status: STATUS_MAP[attendanceMap[e.studentId]] || 'hadir',
-                notes: notesMap[e.studentId] || null
-            }));
+            for (const enrollment of selectedClassEnrollments) {
+                const studentId = enrollment.studentId;
+                const enrollmentId = `${enrollment.groupId}-${studentId}`;
+                const newStatus = STATUS_MAP[attendanceMap[studentId]] || 'hadir';
+                const newNotes = notesMap[studentId] || null;
 
-            await fetch(`/api/bimbel_attendance?tutoring_class_id=eq.${selectedClassId}&date=eq.${todayStr}`, {
-                method: 'DELETE',
-                headers
-            });
+                try {
+                    // Cek apakah sudah ada record untuk enrollment + tanggal ini
+                    const checkRes = await fetch(
+                        `/api/bimbel_attendance?enrollment_id=eq.${enrollmentId}&date=eq.${todayStr}`,
+                        { headers }
+                    );
+                    const existing = checkRes.ok ? await checkRes.json() : [];
 
-            const res = await fetch('/api/bimbel_attendance', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(records)
-            });
+                    if (existing.length > 0) {
+                        // UPDATE existing record
+                        const patchRes = await fetch(`/api/bimbel_attendance?id=eq.${existing[0].id}`, {
+                            method: 'PATCH',
+                            headers,
+                            body: JSON.stringify({ status: newStatus, notes: newNotes })
+                        });
+                        if (patchRes.ok) successCount++; else failCount++;
+                    } else {
+                        // INSERT new record
+                        const postRes = await fetch('/api/bimbel_attendance', {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                id: `batt-${todayStr}-${studentId}`,
+                                enrollment_id: enrollmentId,
+                                tutoring_class_id: selectedClassId.toString(),
+                                student_id: studentId,
+                                date: todayStr,
+                                status: newStatus,
+                                notes: newNotes,
+                                session_number: existing.length + 1
+                            })
+                        });
+                        if (postRes.ok) successCount++; else failCount++;
+                    }
+                } catch (e) {
+                    failCount++;
+                }
+            }
 
-            if (res.ok) {
-                toast.success('Absensi bimbel berhasil disimpan!');
+            if (failCount === 0) {
+                toast.success(`Absensi ${successCount} siswa berhasil disimpan!`);
                 loadAttendance();
             } else {
-                const err = await res.text();
-                toast.error('Gagal menyimpan: ' + err);
+                toast.error(`${failCount} gagal, ${successCount} berhasil`);
+                if (successCount > 0) loadAttendance();
             }
         } catch (e) {
             toast.error('Gagal menyimpan absensi');
@@ -181,22 +215,23 @@ const KehadiranBimbelGuru: React.FC<KehadiranBimbelGuruProps> = ({ onBack, class
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                            <div className="grid grid-cols-2 gap-2 mb-4">
                                                 {[
-                                                    { key: 'hadir', label: 'Hadir', icon: CheckCircle, color: 'green' },
-                                                    { key: 'izin', label: 'Izin/Sakit', icon: AlertCircle, color: 'yellow' },
-                                                    { key: 'alpa', label: 'Tanpa Ket.', icon: XCircle, color: 'red' },
-                                                ].map(({ key, label, icon: Icon, color }) => (
+                                                    { key: 'hadir', label: 'Hadir', icon: CheckCircle, active: 'border-green-500 bg-green-50 text-green-600', fill: 'fill-green-500 text-white' },
+                                                    { key: 'sakit', label: 'Sakit', icon: AlertCircle, active: 'border-orange-500 bg-orange-50 text-orange-600', fill: 'fill-orange-500 text-white' },
+                                                    { key: 'izin', label: 'Izin', icon: AlertCircle, active: 'border-yellow-500 bg-yellow-50 text-yellow-600', fill: 'fill-yellow-500 text-white' },
+                                                    { key: 'alpa', label: 'Tanpa Ket.', icon: XCircle, active: 'border-red-500 bg-red-50 text-red-600', fill: 'fill-red-500 text-white' },
+                                                ].map(({ key, label, icon: Icon, active, fill }) => (
                                                     <button
                                                         key={key}
                                                         onClick={() => handleStatusChange(studentId, key)}
                                                         className={`flex flex-col items-center justify-center gap-1 py-3 rounded-xl border-2 transition-all ${
                                                             currentStatus === key
-                                                                ? `border-${color}-500 bg-${color}-50 text-${color}-600`
+                                                                ? active
                                                                 : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
                                                         }`}
                                                     >
-                                                        <Icon size={24} className={currentStatus === key ? `fill-${color}-500 text-white` : ''} />
+                                                        <Icon size={24} className={currentStatus === key ? fill : ''} />
                                                         <span className="text-xs font-bold">{label}</span>
                                                     </button>
                                                 ))}
