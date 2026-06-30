@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, Send, Bot, User, RefreshCw, Clock, MessageSquare, Plus, Trash2, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
+import { ChevronRight, Send, Bot, User, RefreshCw, Clock, Plus, Trash2, Sparkles, ArrowLeft } from 'lucide-react';
 import { sendToGemini, generateChatTitle, type GeminiMessage } from '../utils/geminiService';
 
 interface BelajarAISiswaProps {

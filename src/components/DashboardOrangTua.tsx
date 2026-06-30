@@ -4,8 +4,7 @@ import {
     BookOpen,
     FileText,
     UserCheck,
-    CreditCard,
-    PiggyBank,
+    Landmark,
     GraduationCap,
     PenTool,
     Book,
@@ -16,6 +15,7 @@ import {
     User,
     LogOut,
     ChevronRight,
+    ChevronDown,
     Search,
     Wallet
 } from 'lucide-react';
@@ -45,6 +45,13 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
     const [currentTime, setCurrentTime] = useState(new Date());
     const [activeView, setActiveView] = useState<'home' | 'jadwal' | 'ujian' | 'hasil' | 'absen' | 'bayar' | 'tabungan' | 'bimbingan' | 'latihan' | 'quran' | 'channel' | 'ai' | 'profile' | 'notifikasi'>('home');
     const [parentStudentId, setParentStudentId] = useState<number | null>(null);
+    const [selectedChildIndex, setSelectedChildIndex] = useState(0);
+
+    const children: any[] = user?.children || [];
+    const currentChild = children[selectedChildIndex] || null;
+
+    // Build a "merged" user object with selected child's data at top level
+    const mergedUser = currentChild ? { ...user, ...currentChild } : user;
 
     // Fetch studentId jika user parent tidak punya studentId
     useEffect(() => {
@@ -80,8 +87,8 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
         { id: 'ujian', label: 'Jadwal Ujian', icon: <FileText size={24} />, color: 'bg-indigo-500' },
         { id: 'hasil', label: 'Hasil Belajar', icon: <GraduationCap size={24} />, color: 'bg-emerald-500' },
         { id: 'absen', label: 'Kehadiran', icon: <UserCheck size={24} />, color: 'bg-teal-500' },
-        { id: 'bayar', label: 'Pembayaran', icon: <CreditCard size={24} />, color: 'bg-orange-500' },
-        { id: 'tabungan', label: 'Tabungan', icon: <PiggyBank size={24} />, color: 'bg-pink-500' },
+        { id: 'bayar', label: 'Pembayaran', icon: <Wallet size={24} />, color: 'bg-orange-500' },
+        { id: 'tabungan', label: 'Tabungan', icon: <Landmark size={24} />, color: 'bg-pink-500' },
         { id: 'bimbingan', label: 'Bimbingan Belajar', icon: <BookOpen size={24} />, color: 'bg-violet-500' },
         { id: 'latihan', label: 'Materi dan Latihan', icon: <PenTool size={24} />, color: 'bg-rose-500' },
         { id: 'quran', label: 'Al Quran', icon: <Book size={24} />, color: 'bg-green-600' },
@@ -104,22 +111,36 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                     <div className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 flex items-center justify-center overflow-hidden shrink-0">
-                                {user?.avatar ? (
-                                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                                {mergedUser?.avatar ? (
+                                    <img src={mergedUser.avatar} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
                                     <User size={20} className="text-white" />
                                 )}
                             </div>
                             <div>
                                 <p className="text-blue-100 text-[10px] font-medium leading-none mb-0.5">Assalamualaikum,</p>
-                                <h2 className="text-base font-bold leading-tight">{user?.nama || 'Orang Tua Siswa'}</h2>
+                                <h2 className="text-base font-bold leading-tight">{mergedUser?.nama || 'Orang Tua Siswa'}</h2>
                             </div>
                         </div>
-                        {/* Compact Date/Time in Header Top instead of bottom bar if possible, or keep compact bottom bar */}
                         <div className="text-right">
-                            <p className="text-[10px] text-blue-200 opacity-90">{user?.studentName || 'Ananda Tercinta'}</p>
+                            {children.length > 1 ? (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => {
+                                            const next = (selectedChildIndex + 1) % children.length;
+                                            setSelectedChildIndex(next);
+                                        }}
+                                        className="text-[10px] text-blue-200 opacity-90 flex items-center gap-1 hover:text-white transition-colors"
+                                    >
+                                        {mergedUser?.studentName || 'Ananda Tercinta'}
+                                        <ChevronDown size={10} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-blue-200 opacity-90">{mergedUser?.studentName || 'Ananda Tercinta'}</p>
+                            )}
                             <div className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
-                                {user?.studentClass ? `Kelas ${user.studentClass}` : '-'}
+                                {mergedUser?.studentClass ? `Kelas ${mergedUser.studentClass.replace(/^Kelas\s+/i, '')}` : '-'}
                             </div>
                         </div>
                     </div>
@@ -129,7 +150,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                 <div className="bg-blue-800/30 backdrop-blur-md px-5 py-2 flex justify-between items-center text-[10px] font-medium border-t border-white/5">
                     <div className="flex items-center gap-2">
                         <span className="text-blue-200">Wali Kelas:</span>
-                        <span className="text-white font-semibold">{user?.studentWali || '-'}</span>
+                        <span className="text-white font-semibold">{mergedUser?.studentWali || '-'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-white">{currentTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
@@ -168,21 +189,21 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                                 </div>
                             </div>
                         ) : activeView === 'jadwal' ? (
-                            <JadwalPelajaran onBack={() => setActiveView('home')} user={user} />
+                            <JadwalPelajaran onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : activeView === 'ujian' ? (
-                            <JadwalUjian onBack={() => setActiveView('home')} user={user} />
+                            <JadwalUjian onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : activeView === 'hasil' ? (
-                            <HasilBelajar onBack={() => setActiveView('home')} user={user} />
+                            <HasilBelajar onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : activeView === 'absen' ? (
-                            <KehadiranSiswa onBack={() => setActiveView('home')} user={user} />
+                            <KehadiranSiswa onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : activeView === 'bayar' ? (
-                            <PembayaranSiswa onBack={() => setActiveView('home')} user={user} />
+                            <PembayaranSiswa onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : activeView === 'tabungan' ? (
-                            <TabunganSiswa onBack={() => setActiveView('home')} user={user} />
+                            <TabunganSiswa onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : activeView === 'bimbingan' ? (
-                            <BimbinganBelajarSiswa onBack={() => setActiveView('home')} user={user} studentId={user?.studentId || parentStudentId} />
+                            <BimbinganBelajarSiswa onBack={() => setActiveView('home')} user={mergedUser} studentId={mergedUser?.studentId || parentStudentId} />
                         ) : activeView === 'latihan' ? (
-                            <LatihanSoalSiswa onBack={() => setActiveView('home')} user={user} />
+                            <LatihanSoalSiswa onBack={() => setActiveView('home')} user={mergedUser} userClass={mergedUser?.studentClass} />
                         ) : activeView === 'quran' ? (
                             <AlQuranSiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'channel' ? (
@@ -190,9 +211,9 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                         ) : activeView === 'ai' ? (
                             <BelajarAISiswa onBack={() => setActiveView('home')} />
                         ) : activeView === 'profile' ? (
-                            <ProfilAkun user={user} onLogout={onLogout} onBack={() => setActiveView('home')} />
+                            <ProfilAkun user={mergedUser} onLogout={onLogout} onBack={() => setActiveView('home')} />
                         ) : activeView === 'notifikasi' ? (
-                            <NotifikasiSiswa onBack={() => setActiveView('home')} />
+                            <NotifikasiSiswa onBack={() => setActiveView('home')} user={mergedUser} />
                         ) : null}
                     </div>
 
@@ -208,7 +229,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                                     {announcements
                                         .filter(a => a.status === 'Terbit')
                                         .filter(a => a.target === 'Semua' || a.target === 'Orang Tua')
-                                        .filter(a => a.targetClass === 'Semua Kelas' || a.targetClass === user.studentClass)
+                                        .filter(a => a.targetClass === 'Semua Kelas' || a.targetClass === mergedUser.studentClass)
                                         .map((info) => (
                                             <div key={info.id} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer relative overflow-hidden">
                                                 <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-8 -mt-8 opacity-50 group-hover:scale-150 transition-transform duration-500"></div>
@@ -260,7 +281,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                         onClick={() => setActiveView('tabungan')}
                         className={`flex flex-col items-center gap-1 transition-colors ${activeView === 'tabungan' ? 'text-[#004AAD]' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        <Wallet size={22} fill={activeView === 'tabungan' ? "currentColor" : "none"} />
+                        <Landmark size={22} fill={activeView === 'tabungan' ? "currentColor" : "none"} />
                         <span className="text-[10px] font-medium">Tabungan</span>
                         {activeView === 'tabungan' && <div className="w-1 h-1 bg-[#004AAD] rounded-full mt-0.5"></div>}
                     </button>

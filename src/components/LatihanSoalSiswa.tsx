@@ -7,6 +7,7 @@ import {
     HelpCircle,
     Layout
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface LatihanSoalSiswaProps {
     onBack: () => void;
@@ -14,28 +15,33 @@ interface LatihanSoalSiswaProps {
     userClass?: string;
 }
 
+const normalizeClassName = (val: string): string =>
+    val.replace(/^Kelas\s+/i, '').trim();
+
 const LatihanSoalSiswa: FC<LatihanSoalSiswaProps> = ({ onBack, user, userClass }) => {
     const [activeTab, setActiveTab] = useState<'materi' | 'latihan'>('materi');
     const [selectedLatihan, setSelectedLatihan] = useState<any | null>(null);
     const [materiList, setMateriList] = useState<any[]>([]);
     const [latihanList, setLatihanList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [resolvedClass, setResolvedClass] = useState(userClass || '');
+    const [resolvedClass, setResolvedClass] = useState(
+        userClass ? normalizeClassName(userClass) : ''
+    );
 
     useEffect(() => {
         const resolveClass = async () => {
             if (userClass) {
-                setResolvedClass(userClass);
+                setResolvedClass(normalizeClassName(userClass));
                 return;
             }
-            if (!user?.id && !user?.student_id) return;
+            const sid = user?.studentId || user?.id;
+            if (!sid) return;
 
             try {
                 const token = localStorage.getItem('eduadmin_token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const studentId = user?.student_id || user?.id;
-                const csRes = await fetch(`/api/class_students?student_id=eq.${studentId}&is_active=eq.1`, { headers });
+                const csRes = await fetch(`/api/class_students?student_id=eq.${sid}&is_active=eq.1`, { headers });
                 if (csRes.ok) {
                     const csData = await csRes.json();
                     if (Array.isArray(csData) && csData.length > 0) {
@@ -44,13 +50,14 @@ const LatihanSoalSiswa: FC<LatihanSoalSiswaProps> = ({ onBack, user, userClass }
                         if (classRes.ok) {
                             const classData = await classRes.json();
                             if (Array.isArray(classData) && classData.length > 0) {
-                                setResolvedClass(classData[0].id);
+                                setResolvedClass(classData[0].nama || String(classData[0].id));
                             }
                         }
                     }
                 }
             } catch (e) {
                 console.error('Failed to resolve class:', e);
+                toast.error('Gagal memuat data kelas');
             }
         };
         resolveClass();
@@ -110,6 +117,7 @@ const LatihanSoalSiswa: FC<LatihanSoalSiswaProps> = ({ onBack, user, userClass }
                 }
             } catch (err) {
                 console.error('Gagal memuat materi/latihan:', err);
+                toast.error('Gagal memuat data materi dan latihan');
             } finally {
                 setLoading(false);
             }
@@ -117,8 +125,8 @@ const LatihanSoalSiswa: FC<LatihanSoalSiswaProps> = ({ onBack, user, userClass }
         fetchData();
     }, []);
 
-    const filteredMateri = materiList.filter(m => m.classId === resolvedClass);
-    const filteredLatihan = latihanList.filter(l => l.classId === resolvedClass);
+    const filteredMateri = materiList.filter(m => String(m.classId) === resolvedClass);
+    const filteredLatihan = latihanList.filter(l => String(l.classId) === resolvedClass);
 
     return (
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col h-full">

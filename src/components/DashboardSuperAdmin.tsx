@@ -834,12 +834,13 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                             const newClassName = customName || `${tingkat}${paralel}`;
                                             const oldWaliTeacher = teachers.find(t => t.wali === oldClassName);
 
-                                            // Update class data
+                                            // Update class data including teacher_id
                                             setClasses(prev => prev.map(c => c.id.toString() === editItem.id.toString() ? {
                                                 ...c,
                                                 nama: newClassName,
                                                 tingkat: parseInt(tingkat),
-                                                paralel
+                                                paralel,
+                                                teacher_id: waliTeacherId || undefined
                                             } : c));
 
                                             // If wali teacher changed, update teacher's wali field
@@ -860,7 +861,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
 
                                             toast.success("Kelas berhasil diperbarui");
                                         } else {
-                                            void handleAddClass(tingkat, paralel, customName).then(() => {
+                                            void handleAddClass(tingkat, paralel, customName, waliTeacherId).then(() => {
                                                 toast.success("Kelas berhasil ditambahkan");
                                             });
                                         }

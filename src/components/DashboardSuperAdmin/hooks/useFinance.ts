@@ -288,24 +288,51 @@ export const useFinance = () => {
             'Authorization': `Bearer ${token}` 
         };
 
+        const billId = payment.billId;
+        if (!billId) {
+            console.error('addPayment: billId wajib diisi');
+            return { success: false, error: 'billId tidak ditemukan' };
+        }
+
         try {
+            // 1. POST ke payment_transactions
             const res = await fetch('/api/payment_transactions', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
+                    id: `trx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                    bill_id: billId,
                     student_id: payment.studentId,
                     amount: payment.amount,
-                    type: payment.type,
+                    payment_method: payment.method || 'Tunai',
+                    transaction_date: payment.date,
                     payment_date: payment.date,
+                    type: payment.type,
                     status: 'success',
-                    notes: payment.method
+                    recorded_by: payment.recordedBy || null,
+                    notes: payment.notes || ''
                 })
             });
-            if (res.ok) {
-                fetchFinanceData();
-                return { success: true };
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                return { success: false, error: errBody.error || 'Gagal menyimpan transaksi' };
             }
-            return { success: false, error: 'Gagal menyimpan transaksi' };
+
+            // 2. PATCH student_bills → status = 'paid'
+            const patchRes = await fetch(`/api/student_bills?id=eq.${billId}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({
+                    status: 'paid',
+                    updated_at: new Date().toISOString()
+                })
+            });
+            if (!patchRes.ok) {
+                console.warn('addPayment: transaksi tersimpan tapi gagal update status bill');
+            }
+
+            fetchFinanceData();
+            return { success: true };
         } catch (err) {
             return { success: false, error: 'Terjadi kesalahan jaringan' };
         }

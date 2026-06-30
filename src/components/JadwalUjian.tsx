@@ -28,6 +28,12 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
     const [examTitle, setExamTitle] = useState('');
     const [dailyNote, setDailyNote] = useState('');
     const [myClassIds, setMyClassIds] = useState<Set<string>>(new Set());
+    const [publishedExams, setPublishedExams] = useState<any[]>([]);
+    const [activeExamIdx, setActiveExamIdx] = useState(0);
+    const [allSchedData, setAllSchedData] = useState<any[]>([]);
+    const [classMap, setClassMap] = useState<Record<string, string>>({});
+    const [subjectMap, setSubjectMap] = useState<Record<string, string>>({});
+    const [dailyNotesMap, setDailyNotesMap] = useState<Record<string, string>>({});
     const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
@@ -40,6 +46,32 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
         } catch (_) {
             return dateStr;
         }
+    };
+
+    const buildItemsForExam = (exam: any, schedData: any[], classMapRef: Record<string, string>, subjectMapRef: Record<string, string>) => {
+        return schedData
+            .filter((s: any) => s.exam_id === exam.id)
+            .map((s: any) => {
+                const cid = s.class_id?.toString() || '';
+                return {
+                    id: s.id?.toString() || '',
+                    examId: s.exam_id?.toString() || '',
+                    examType: exam.type || '',
+                    classId: cid,
+                    className: classMapRef[cid] || cid,
+                    day: getDayName(s.exam_date),
+                    date: s.exam_date || '',
+                    startTime: s.start_time || '08:00',
+                    endTime: s.end_time || '10:00',
+                    subjectName: subjectMapRef[s.subject_id?.toString()] || s.subject_id || '-',
+                    room: s.room || '',
+                    notes: s.notes || '',
+                };
+            });
+    };
+
+    const switchExam = (idx: number) => {
+        setActiveExamIdx(idx);
     };
 
     useEffect(() => {
@@ -65,11 +97,24 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
                 const classes = clsRes.ok ? await clsRes.json() : [];
                 const subjects = subjRes.ok ? await subjRes.json() : [];
 
-                const classMap: Record<string, string> = {};
-                classes.forEach((c: any) => { classMap[c.id?.toString()] = c.name || c.id; });
+                const classMapLocal: Record<string, string> = {};
+                classes.forEach((c: any) => { classMapLocal[c.id?.toString()] = c.name || c.id; });
 
-                const subjectMap: Record<string, string> = {};
-                subjects.forEach((s: any) => { subjectMap[s.id?.toString()] = s.name; });
+                const subjectMapLocal: Record<string, string> = {};
+                subjects.forEach((s: any) => { subjectMapLocal[s.id?.toString()] = s.name; });
+
+                setClassMap(classMapLocal);
+                setSubjectMap(subjectMapLocal);
+                setAllSchedData(schedData);
+
+                // Build daily notes map from exam.daily_notes
+                const notesMap: Record<string, string> = {};
+                exams.forEach((e: any) => {
+                    try {
+                        if (e.daily_notes) notesMap[e.id] = JSON.parse(e.daily_notes);
+                    } catch (_) {}
+                });
+                setDailyNotesMap(notesMap);
 
                 const teacherClassIds = new Set<string>();
                 classes.forEach((c: any) => {
@@ -88,32 +133,17 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
                 const activeExam = exams.find((e: any) => e.status === 'published') || exams[0];
                 if (!activeExam) { setLoading(false); return; }
 
+                setPublishedExams(exams.filter((e: any) => e.status === 'published'));
+
+                const items = buildItemsForExam(activeExam, schedData, classMapLocal, subjectMapLocal);
+                setExamItems(items);
                 setExamTitle(`${activeExam.type || 'Ujian'} — ${activeExam.semester === 1 ? 'Ganjil' : 'Genap'}`);
 
-                const items: ExamItem[] = schedData
-                    .filter((s: any) => s.exam_id === activeExam.id)
-                    .map((s: any) => {
-                        const cid = s.class_id?.toString() || '';
-                        return {
-                            id: s.id?.toString() || '',
-                            examId: s.exam_id?.toString() || '',
-                            examType: activeExam.type || '',
-                            classId: cid,
-                            className: classMap[cid] || cid,
-                            day: getDayName(s.exam_date),
-                            date: s.exam_date || '',
-                            startTime: s.start_time || '08:00',
-                            endTime: s.end_time || '10:00',
-                            subjectName: subjectMap[s.subject_id?.toString()] || s.subject_id || '-',
-                            room: s.room || '',
-                            notes: s.notes || '',
-                        };
-                    });
-
-                setExamItems(items);
-
-                if (items.length > 0 && items[0].notes) {
-                    setDailyNote(items[0].notes);
+                // Set initial daily note from dailyNotesMap
+                const examNotes: any = notesMap[activeExam.id];
+                if (examNotes !== null && examNotes !== undefined && typeof examNotes === 'object') {
+                    const firstDay = items.length > 0 ? items[0].day : '';
+                    setDailyNote(examNotes[firstDay] || '');
                 }
             } catch (err) {
                 console.error("Gagal memuat jadwal ujian:", err);
@@ -124,6 +154,50 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
 
         fetchExams();
     }, [user]);
+
+    // Rebuild items when switching exams
+    useEffect(() => {
+        if (publishedExams.length === 0 || allSchedData.length === 0) return;
+        const exam = publishedExams[activeExamIdx];
+        if (!exam) return;
+
+        setExamTitle(`${exam.type || 'Ujian'} — ${exam.semester === 1 ? 'Ganjil' : 'Genap'}`);
+
+        const items: ExamItem[] = allSchedData
+            .filter((s: any) => s.exam_id === exam.id)
+            .map((s: any) => {
+                const cid = s.class_id?.toString() || '';
+                return {
+                    id: s.id?.toString() || '',
+                    examId: s.exam_id?.toString() || '',
+                    examType: exam.type || '',
+                    classId: cid,
+                    className: classMap[cid] || cid,
+                    day: getDayName(s.exam_date),
+                    date: s.exam_date || '',
+                    startTime: s.start_time || '08:00',
+                    endTime: s.end_time || '10:00',
+                    subjectName: subjectMap[s.subject_id?.toString()] || s.subject_id || '-',
+                    room: s.room || '',
+                    notes: s.notes || '',
+                };
+            });
+
+        setExamItems(items);
+
+        // Load daily notes from exam (JSON per day)
+        const rawNotes = dailyNotesMap[exam.id];
+        if (rawNotes) {
+            try {
+                const parsed = typeof rawNotes === 'string' ? JSON.parse(rawNotes) : rawNotes;
+                setDailyNote(parsed[selectedDay] || '');
+            } catch (_) {
+                setDailyNote('');
+            }
+        } else {
+            setDailyNote('');
+        }
+    }, [activeExamIdx, publishedExams, allSchedData, classMap, subjectMap, dailyNotesMap, selectedDay]);
 
     const filteredItems = examItems.filter((item) => {
         if (item.day !== selectedDay) return false;
@@ -151,6 +225,24 @@ const JadwalUjian: React.FC<JadwalUjianProps> = ({ onBack, user }) => {
                     </div>
                 ) : (
                     <>
+                        {publishedExams.length > 1 && (
+                            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-4">
+                                {publishedExams.map((exam, idx) => (
+                                    <button
+                                        key={exam.id}
+                                        onClick={() => switchExam(idx)}
+                                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                                            idx === activeExamIdx
+                                                ? 'bg-indigo-500 text-white border-indigo-500 shadow-md'
+                                                : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+                                        }`}
+                                    >
+                                        {exam.type} — {exam.semester === 1 ? 'Ganjil' : 'Genap'}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-4">
                             {days.map((day) => (
                                 <button

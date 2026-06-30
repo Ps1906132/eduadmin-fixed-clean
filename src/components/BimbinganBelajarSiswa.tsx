@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Clock, MapPin, User, BookOpen, ChevronRight, PlayCircle, FileText, Video, Download, Link, CheckCircle, XCircle, AlertCircle, TrendingUp, Award } from 'lucide-react';
+import { ChevronLeft, Clock, MapPin, User, BookOpen, ChevronRight, PlayCircle, FileText, Video, CheckCircle, TrendingUp } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import CBTSiswa from './CBTSiswa';
 import { useTutoring } from './DashboardSuperAdmin/hooks/useTutoring';
 import { tutoringEnrollmentsGlobal } from './../data/sharedData';
@@ -11,16 +12,17 @@ interface BimbinganBelajarSiswaProps {
 }
 
 const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, user, studentId: propStudentId }) => {
-    const { tutoringClasses } = useTutoring();
+    const { tutoringClasses, loading: classesLoading } = useTutoring();
     const [view, setView] = useState<'list' | 'detail' | 'session'>('list');
     const [selectedClass, setSelectedClass] = useState<any>(null);
     const [selectedSession, setSelectedSession] = useState<any>(null);
     const [showCBT, setShowCBT] = useState(false);
+    const [detailLoading, setDetailLoading] = useState(false);
     const [attendanceStats, setAttendanceStats] = useState<{ hadir: number; sakit: number; izin: number; alpa: number }>({ hadir: 0, sakit: 0, izin: 0, alpa: 0 });
     const [latestProgress, setLatestProgress] = useState<any[]>([]);
 
     // Filter kelas berdasarkan enrollment siswa
-    const studentId = propStudentId || user?.studentId || user?.id;
+    const studentId = propStudentId || user?.studentId;
     const myEnrolledGroupIds = studentId
         ? new Set(tutoringEnrollmentsGlobal.filter(e => e.studentId === Number(studentId)).map(e => e.groupId))
         : new Set<number>();
@@ -30,6 +32,7 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
 
     const fetchBimbelData = async (clsId: number) => {
         if (!studentId) return;
+        setDetailLoading(true);
         try {
             const token = localStorage.getItem('eduadmin_token');
             const headers = { 'Authorization': `Bearer ${token}` };
@@ -47,14 +50,21 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
                     if (r.status in stats) stats[r.status as keyof typeof stats]++;
                 });
                 setAttendanceStats(stats);
+            } else {
+                toast.error('Gagal memuat data kehadiran');
             }
 
             if (progRes.ok) {
                 const progData = await progRes.json();
                 setLatestProgress(Array.isArray(progData) ? progData.slice(-3).reverse() : []);
+            } else {
+                toast.error('Gagal memuat data perkembangan');
             }
         } catch (e) {
             console.error('Failed to fetch bimbel data:', e);
+            toast.error('Gagal memuat data bimbingan');
+        } finally {
+            setDetailLoading(false);
         }
     };
 
@@ -102,42 +112,54 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
                             <h3>Kelas Saya</h3>
                         </div>
 
-                        <div className="space-y-4">
-                            {classes.map((cls) => (
-                                <div
-                                    key={cls.id}
-                                    onClick={() => handleClassClick(cls)}
-                                    className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
-                                >
-                                    <span className="absolute top-5 right-5 px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                                        {cls.status}
-                                    </span>
+                        {classesLoading ? (
+                            <div className="flex items-center justify-center h-48">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div>
+                            </div>
+                        ) : classes.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400">
+                                <BookOpen size={48} className="mx-auto mb-3 opacity-50" />
+                                <p className="text-sm font-medium">Belum ada kelas bimbingan</p>
+                                <p className="text-xs mt-1">Kamu belum terdaftar di kelas bimbingan belajar</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {classes.map((cls) => (
+                                    <div
+                                        key={cls.id}
+                                        onClick={() => handleClassClick(cls)}
+                                        className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+                                    >
+                                        <span className="absolute top-5 right-5 px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                            {cls.status}
+                                        </span>
 
-                                    <h4 className="font-bold text-slate-800 text-lg pr-16 mb-3 group-hover:text-[#004AAD] transition-colors">
-                                        {cls.title}
-                                    </h4>
+                                        <h4 className="font-bold text-slate-800 text-lg pr-16 mb-3 group-hover:text-[#004AAD] transition-colors">
+                                            {cls.title}
+                                        </h4>
 
-                                    <div className="space-y-2 text-sm text-slate-500">
-                                        <div className="flex items-center gap-2">
-                                            <User size={16} className="text-slate-400" />
-                                            <span>{cls.teacher}</span>
+                                        <div className="space-y-2 text-sm text-slate-500">
+                                            <div className="flex items-center gap-2">
+                                                <User size={16} className="text-slate-400" />
+                                                <span>{cls.teacher}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Clock size={16} className="text-slate-400" />
+                                                <span>{cls.schedule}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <MapPin size={16} className="text-slate-400" />
+                                                <span>{cls.room}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Clock size={16} className="text-slate-400" />
-                                            <span>{cls.schedule}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <MapPin size={16} className="text-slate-400" />
-                                            <span>{cls.room}</span>
+
+                                        <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-semibold text-[#004AAD]">
+                                            <span className="flex items-center gap-1"><Clock size={14} /> Sesi Berikutnya: {cls.sessions && cls.sessions.length > 0 ? cls.sessions[0].date : 'Belum ada jadwal'}</span>
                                         </div>
                                     </div>
-
-                                    <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-xs font-semibold text-[#004AAD]">
-                                        <span className="flex items-center gap-1"><Clock size={14} /> Sesi Berikutnya: {cls.sessions && cls.sessions.length > 0 ? cls.sessions[0].date : 'Belum ada jadwal'}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -161,19 +183,25 @@ const BimbinganBelajarSiswa: React.FC<BimbinganBelajarSiswaProps> = ({ onBack, u
                                     <CheckCircle size={18} className="text-green-500" />
                                     Kehadiran
                                 </h4>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {[
-                                        { label: 'Hadir', count: attendanceStats.hadir, color: 'green' },
-                                        { label: 'Sakit', count: attendanceStats.sakit, color: 'yellow' },
-                                        { label: 'Izin', count: attendanceStats.izin, color: 'blue' },
-                                        { label: 'Alpa', count: attendanceStats.alpa, color: 'red' },
-                                    ].map(({ label, count, color }) => (
-                                        <div key={label} className={`bg-${color}-50 p-3 rounded-xl text-center border border-${color}-100`}>
-                                            <span className={`text-xl font-bold text-${color}-600 block`}>{count}</span>
-                                            <span className={`text-[10px] font-bold text-${color}-500`}>{label}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                                {detailLoading ? (
+                                    <div className="flex items-center justify-center h-24">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-500"></div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { label: 'Hadir', count: attendanceStats.hadir, bg: 'bg-green-50', text: 'text-green-600', labelText: 'text-green-500', border: 'border-green-100' },
+                                            { label: 'Sakit', count: attendanceStats.sakit, bg: 'bg-yellow-50', text: 'text-yellow-600', labelText: 'text-yellow-500', border: 'border-yellow-100' },
+                                            { label: 'Izin', count: attendanceStats.izin, bg: 'bg-blue-50', text: 'text-blue-600', labelText: 'text-blue-500', border: 'border-blue-100' },
+                                            { label: 'Alpa', count: attendanceStats.alpa, bg: 'bg-red-50', text: 'text-red-600', labelText: 'text-red-500', border: 'border-red-100' },
+                                        ].map(({ label, count, bg, text, labelText, border }) => (
+                                            <div key={label} className={`${bg} p-3 rounded-xl text-center border ${border}`}>
+                                                <span className={`text-xl font-bold ${text} block`}>{count}</span>
+                                                <span className={`text-[10px] font-bold ${labelText}`}>{label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
 

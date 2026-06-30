@@ -96,13 +96,14 @@ export const useClasses = () => {
                 
                 // We only handle UPDATES here, as ADD and DELETE have their own methods
                 // NOTE: teacher_id (wali kelas) is managed by useTeachers.ts syncChanges — single source of truth
-                if (current && (current.nama !== cls.nama || current.tingkat !== cls.tingkat)) {
+                if (current && (current.nama !== cls.nama || current.tingkat !== cls.tingkat || current.teacher_id !== cls.teacher_id)) {
                     await fetch(`/api/classes?id=eq.${idStr}`, {
                         method: 'PATCH',
                         headers,
                         body: JSON.stringify({
                             name: cls.nama,
-                            grade_level: cls.tingkat
+                            grade_level: cls.tingkat,
+                            teacher_id: cls.teacher_id || null
                         })
                     });
                 }
@@ -121,7 +122,7 @@ export const useClasses = () => {
         });
     }, []);
 
-    const handleAddClass = async (tingkat: string, paralel: string, customName?: string) => {
+    const handleAddClass = async (tingkat: string, paralel: string, customName?: string, teacherId?: string) => {
         const nama = customName || `${tingkat}${paralel}`;
         if (tingkat && paralel) {
             const tempId = Date.now();
@@ -186,6 +187,7 @@ export const useClasses = () => {
                         name: nama,
                         grade_level: parseInt(tingkat),
                         academic_year_id: academicYearId,
+                        teacher_id: teacherId || null,
                         is_active: 1
                     })
                 });

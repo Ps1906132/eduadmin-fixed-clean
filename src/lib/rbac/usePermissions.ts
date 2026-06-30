@@ -63,6 +63,8 @@ interface UsePermissionsReturn {
   isKS: boolean;
   /** Apakah role ini adalah guru bimbel */
   isGB: boolean;
+  /** Apakah role ini adalah guru mapel */
+  isGuru: boolean;
 }
 
 /**
@@ -143,6 +145,7 @@ export function usePermissions(
     isKeuangan:  normalizedRole === 'keuangan',
     isKS:        normalizedRole === 'ks',
     isGB:        normalizedRole === 'gb',
+    isGuru:      normalizedRole === 'guru',
   };
 }
 
@@ -203,6 +206,15 @@ function _normalizeRole(role: string | undefined): AdminRoleType | null {
     lowerRole.includes('tentor')
   ) {
     return 'gb';
+  }
+
+  // GURU: Managing Nilai (input nilai mata pelajaran yang diampu)
+  if (
+    lowerRole === 'guru' ||
+    lowerRole.includes('guru mapel') ||
+    lowerRole.includes('walikelas')
+  ) {
+    return 'guru';
   }
   
   return null;

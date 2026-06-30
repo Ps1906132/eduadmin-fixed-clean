@@ -15,7 +15,6 @@ import Rapot from '@/components/Rapot';
 import Keuangan from '@/components/Keuangan';
 import Tabungan from '@/components/Tabungan';
 import NaikKelas from '@/components/NaikKelas';
-import BimbinganBelajar from '@/components/BimbinganBelajar';
 import Pengumuman from '@/components/Pengumuman';
 import Laporan from '@/components/Laporan';
 import Pengaturan from '@/components/Pengaturan';

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Calendar, Plus, Trash2, RotateCcw, Save, Megaphone, BookOpen, Settings, Star, X, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { DAYS, Period, MasterSchedule } from '../../types';
+import { DAYS, MasterSchedule } from '../../types';
 import { useSchedules } from '../../hooks/useSchedules';
-import { schedulePeriodsGlobal } from '../../../../data/sharedData';
+import { useSchedulePeriods } from '../../hooks/useSchedulePeriods';
 
 interface ScheduleItem {
     id: string;
@@ -31,6 +31,7 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
     setConfirmModal
 }) => {
     const { schedules, setSchedules } = useSchedules();
+    const { periods: schedulePeriods, addPeriod, deletePeriod } = useSchedulePeriods();
     const [activeScheduleId, setActiveScheduleId] = useState<number>(() => {
         const published = schedules.find((s: any) => s.status === 'published');
         return published?.id || (schedules[0]?.id || 1);
@@ -38,7 +39,6 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
     const [selectedJadwalClass, setSelectedJadwalClass] = useState<string>('1A');
     const [selectedJadwalLevel, setSelectedJadwalLevel] = useState<number>(1);
     const [draggedItem, setDraggedItem] = useState<{ type: string; id: number | string; name: string } | null>(null);
-    const [schedulePeriods, setSchedulePeriods] = useState<Period[]>(schedulePeriodsGlobal);
     const [showTimeModal, setShowTimeModal] = useState(false);
     const [newPeriodData, setNewPeriodData] = useState({ start: '', end: '' });
     const [showSemesterModal, setShowSemesterModal] = useState(false);
@@ -161,27 +161,22 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
         });
     };
 
-    const confirmAddTime = (e: React.FormEvent) => {
+    const confirmAddTime = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newPeriodData.start || !newPeriodData.end) {
             toast.error("Jam mulai dan selesai wajib diisi!");
             return;
         }
 
-        const newId = schedulePeriods.length > 0
-            ? Math.max(...schedulePeriods.map(p => p.id)) + 1
+        const nextPeriodNumber = schedulePeriods.length > 0
+            ? Math.max(...schedulePeriods.map(p => p.period_number)) + 1
             : 1;
 
-        const newPeriod: Period = {
-            id: newId,
-            start: newPeriodData.start,
-            end: newPeriodData.end
-        };
-
-        setSchedulePeriods([...schedulePeriods, newPeriod].sort((a, b) => a.start.localeCompare(b.start)));
-        setShowTimeModal(false);
-        setNewPeriodData({ start: '', end: '' });
-        toast.success("Jam pelajaran berhasil ditambahkan!");
+        const result = await addPeriod(nextPeriodNumber, newPeriodData.start, newPeriodData.end);
+        if (result.success) {
+            setShowTimeModal(false);
+            setNewPeriodData({ start: '', end: '' });
+        }
     };
 
     const handleDailyInfoChange = (day: string, field: 'seragam' | 'catatan', value: string) => {
@@ -412,12 +407,12 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
                                 {schedulePeriods.map((period: any) => (
                                     <tr key={period.id} className="border-b border-slate-200 last:border-0">
                                         <td className="p-2 border-r border-slate-200 bg-white text-xs font-medium text-slate-500 text-center group relative">
-                                            <div className="bg-slate-100 rounded px-2 py-1 inline-block mb-1 font-bold text-slate-600">JP {period.id}</div>
-                                            <div className="font-mono text-[10px]">{period.start} - {period.end}</div>
+                                            <div className="bg-slate-100 rounded px-2 py-1 inline-block mb-1 font-bold text-slate-600">JP {period.period_number}</div>
+                                            <div className="font-mono text-[10px]">{period.start_time} - {period.end_time}</div>
                                             <button
                                                 onClick={() => {
                                                     if (confirm('Hapus slot waktu ini?')) {
-                                                        setSchedulePeriods(schedulePeriods.filter((p: any) => p.id !== period.id));
+                                                        deletePeriod(period.id);
                                                     }
                                                 }}
                                                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 text-red-400 rounded transition-all"
@@ -428,14 +423,14 @@ const JadwalPelajaranView: React.FC<JadwalPelajaranViewProps> = ({
                                         </td>
                                         {DAYS.map(day => {
                                             const currentSchedule = schedules.find((s: any) => s.id === activeScheduleId);
-                                            const item = currentSchedule?.items.find((i: any) => i.classId === selectedJadwalClass && i.day === day && i.period === period.id);
+                                            const item = currentSchedule?.items.find((i: any) => i.classId === selectedJadwalClass && i.day === day && i.period === period.period_number);
                                             const conflict = item ? getConflictingItem(item) : null;
 
                                             return (
                                                 <td
                                                     key={`${day}-${period.id}`}
                                                     onDragOver={(e) => e.preventDefault()}
-                                                    onDrop={(e) => handleScheduleDrop(e, day, period.id)}
+                                                    onDrop={(e) => handleScheduleDrop(e, day, period.period_number)}
                                                     className={`p-1 border-r border-slate-200 min-w-[140px] h-28 relative transition-all duration-300 align-top ${item
                                                         ? (conflict ? 'bg-red-50' : 'bg-white')
                                                         : 'bg-slate-50/50 hover:bg-blue-50/30'

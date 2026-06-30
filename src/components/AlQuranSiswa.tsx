@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Search, PlayCircle, PauseCircle, ArrowLeft, BookOpen, AlertCircle } from 'lucide-react';
+import { ChevronRight, Search, PlayCircle, PauseCircle, ArrowLeft, AlertCircle } from 'lucide-react';
 
 interface AlQuranSiswaProps {
     onBack: () => void;

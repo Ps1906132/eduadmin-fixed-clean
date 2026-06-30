@@ -12,6 +12,8 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
     const [internalView, setInternalView] = useState<'menu' | 'rapot' | 'detail'>('menu');
     const [detailCategory, setDetailCategory] = useState<'Nilai Ulangan' | 'Nilai Ujian'>('Nilai Ulangan');
     const [chartData, setChartData] = useState<any[]>([]);
+    const [gradeTypes, setGradeTypes] = useState<any[]>([]);
+    const [selectedGradeType, setSelectedGradeType] = useState<string>('all');
 
     useEffect(() => {
         const levels = ['1', '2', '3', '4', '5', '6'];
@@ -51,6 +53,14 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
             if (!token) return null;
 
             try {
+                const gradeTypesRes = await fetch('/api/grade_types', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (gradeTypesRes.ok) {
+                    const gtData = await gradeTypesRes.json();
+                    setGradeTypes(Array.isArray(gtData) ? gtData : []);
+                }
+
                 const res = await fetch(`/api/grades?student_id=eq.${studentId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -60,7 +70,8 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
 
                 return data.map((g: any) => ({
                     classId: g.class_id || '',
-                    score: Number(g.grade_value) || 0
+                    score: Number(g.grade_value) || 0,
+                    gradeTypeId: g.grade_type_id || g.assessment_type || ''
                 }));
             } catch {
                 return null;
@@ -68,37 +79,18 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
         };
 
         const loadChartData = async () => {
-            const studentName = user?.studentName || user?.nama;
-            const currentClass = user?.studentClass || '1A';
-            const parallel = currentClass.replace(/\d+/, '');
+            const d1Records = await fetchFromD1();
             let data: any[] | null = null;
 
-            // Priority 1: D1
-            const d1Records = await fetchFromD1();
             if (d1Records && d1Records.length > 0) {
-                data = buildChart(d1Records);
+                const filtered = selectedGradeType === 'all'
+                    ? d1Records
+                    : d1Records.filter(r => r.gradeTypeId === selectedGradeType);
+                data = buildChart(filtered);
             }
 
-            // Priority 2: Fallback localStorage
             if (!data || data.length === 0) {
-                const localRecords: { classId: string; score: number }[] = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key?.startsWith('grades_v2_')) {
-                        const parts = key.replace('grades_v2_', '').split('_');
-                        const className = parts[0];
-                        try {
-                            const arr = JSON.parse(localStorage.getItem(key) || '[]');
-                            const student = arr.find((s: any) => s.studentName === studentName);
-                            if (student && student.finalScore) {
-                                localRecords.push({ classId: className, score: student.finalScore });
-                            }
-                        } catch { }
-                    }
-                }
-                if (localRecords.length > 0) {
-                    data = buildChart(localRecords);
-                }
+                data = buildChart([]);
             }
 
             if (!data || data.length === 0) {
@@ -109,7 +101,7 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
         };
 
         loadChartData();
-    }, [user]);
+    }, [user, selectedGradeType]);
 
     if (internalView === 'rapot') {
         return <RapotSiswa onBack={() => setInternalView('menu')} user={user} />;
@@ -184,7 +176,19 @@ const HasilBelajar: React.FC<HasilBelajarProps> = ({ onBack, user }) => {
 
                 {/* Chart Section */}
                 <div className="mb-4 pt-4">
-                    <h4 className="font-bold text-slate-800 text-lg mb-6">Grafik capaian belajar</h4>
+                    <div className="flex items-center justify-between mb-6">
+                        <h4 className="font-bold text-slate-800 text-lg">Grafik capaian belajar</h4>
+                        <select
+                            value={selectedGradeType}
+                            onChange={e => setSelectedGradeType(e.target.value)}
+                            className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#004AAD]"
+                        >
+                            <option value="all">Semua Nilai</option>
+                            {gradeTypes.map((gt: any) => (
+                                <option key={gt.id} value={gt.id}>{gt.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
                     <div className="relative h-64 w-full pr-4 pb-2">
                         {/* Chart Container with Axes */}

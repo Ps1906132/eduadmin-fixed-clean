@@ -6,6 +6,8 @@ export interface GradeRecord {
     subjectId: string;
     classId: string;
     academicYearId: string;
+    semester?: number;
+    gradeTypeId?: string;
     gradeValue: number;
     assessmentType: string;
     remarks?: string;
@@ -67,47 +69,51 @@ export const useGrades = () => {
 
         setLoading(true);
         const token = localStorage.getItem('eduadmin_token');
-        const headers = { 
+        const headers = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
+            'Authorization': `Bearer ${token}`
         };
 
         try {
-            for (const record of records) {
-                // Upsert logic: check if exists first or use a dedicated upsert endpoint if available
-                // For simplicity here, we'll assume we can POST to an endpoint that handles upsert
-                // or we do it manually. D1 bridge handles standard REST.
-                
-                const body = {
-                    student_id: record.studentId,
-                    subject_id: record.subjectId,
-                    class_id: record.classId,
-                    academic_year_id: record.academicYearId,
-                    grade_value: record.gradeValue,
-                    assessment_type: record.assessmentType,
-                    remarks: record.remarks || ''
-                };
+            const BATCH_SIZE = 10;
+            for (let i = 0; i < records.length; i += BATCH_SIZE) {
+                const batch = records.slice(i, i + BATCH_SIZE);
+                await Promise.all(batch.map(async (record) => {
+                    const body: any = {
+                        student_id: record.studentId,
+                        subject_id: record.subjectId,
+                        class_id: record.classId,
+                        academic_year_id: record.academicYearId,
+                        grade_value: record.gradeValue,
+                        assessment_type: record.assessmentType,
+                        remarks: record.remarks || ''
+                    };
+                    if (record.gradeTypeId) body.grade_type_id = record.gradeTypeId;
+                    if (record.semester) body.semester = record.semester;
 
-                // Try to find existing first to get ID for PATCH
-                const checkRes = await fetch(`/api/grades?student_id=eq.${record.studentId}&subject_id=eq.${record.subjectId}&assessment_type=eq.${record.assessmentType}`, { headers });
-                const existing = checkRes.ok ? await checkRes.json() : [];
+                    const checkQuery = record.gradeTypeId
+                        ? `student_id=eq.${record.studentId}&subject_id=eq.${record.subjectId}&grade_type_id=eq.${record.gradeTypeId}`
+                        : `student_id=eq.${record.studentId}&subject_id=eq.${record.subjectId}&assessment_type=eq.${record.assessmentType}`;
+                    const checkRes = await fetch(`/api/grades?${checkQuery}`, { headers });
+                    const existing = checkRes.ok ? await checkRes.json() : [];
 
-                if (existing.length > 0) {
-                    await fetch(`/api/grades?id=eq.${existing[0].id}`, {
-                        method: 'PATCH',
-                        headers,
-                        body: JSON.stringify(body)
-                    });
-                } else {
-                    await fetch('/api/grades', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            ...body,
-                            id: `grd-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-                        })
-                    });
-                }
+                    if (existing.length > 0) {
+                        await fetch(`/api/grades?id=eq.${existing[0].id}`, {
+                            method: 'PATCH',
+                            headers,
+                            body: JSON.stringify(body)
+                        });
+                    } else {
+                        await fetch('/api/grades', {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                ...body,
+                                id: `grd-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+                            })
+                        });
+                    }
+                }));
             }
             return { success: true };
         } catch (err: any) {

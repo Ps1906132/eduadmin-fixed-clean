@@ -26,7 +26,7 @@ export const useSchedules = () => {
             if (!token) return;
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const res = await fetch('/api/schedules', { headers });
+            const res = await fetch('/api/schedules?is_active=eq.1', { headers });
             if (!res.ok) throw new Error('Gagal mengambil data jadwal');
 
             const data = await res.json();
@@ -140,9 +140,9 @@ export const useSchedules = () => {
                     subject_id: item.subjectId.toString(),
                     teacher_id: teacherId,
                     day_of_week: item.day,
-                    period_id: item.period.toString(),
+                    period_id: `per-${item.period}`,
                     academic_year_id: academicYearId,
-                    is_active: 1
+                    is_active: activeSchedule.status === 'published' ? 1 : 0
                 };
 
                 if (currentIds.has(idStr)) {

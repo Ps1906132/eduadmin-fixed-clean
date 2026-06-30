@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, User, MessageCircle } from 'lucide-react';
+import { ChevronLeft, MessageCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface ChannelSekolahSiswaProps {
     onBack: () => void;
@@ -81,6 +82,7 @@ const ChannelSekolahSiswa: React.FC<ChannelSekolahSiswaProps> = ({ onBack }) => 
                 }
             } catch (err) {
                 console.error('Gagal memuat data channel:', err);
+                toast.error('Gagal memuat data channel');
             } finally {
                 setLoading(false);
             }

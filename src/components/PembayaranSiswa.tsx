@@ -1,69 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, CreditCard, History, Receipt, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { mapBillStatus, isUnpaid, isPaid } from '../lib/rbac/statusMapping';
 
 interface PembayaranSiswaProps {
     onBack: () => void;
     user?: any;
 }
 
+function formatDateSafe(dateStr: string | null | undefined): { date: string; month: string; year: string } {
+    if (!dateStr) return { date: '-', month: '', year: '' };
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return { date: dateStr, month: '', year: '' };
+        return {
+            date: dateStr,
+            month: d.toLocaleString('id-ID', { month: 'long' }),
+            year: d.getFullYear().toString(),
+        };
+    } catch {
+        return { date: dateStr || '-', month: '', year: '' };
+    }
+}
+
 const PembayaranSiswa: React.FC<PembayaranSiswaProps> = ({ onBack, user }) => {
     const [historyData, setHistoryData] = useState<any[]>([]);
     const [unpaidBills, setUnpaidBills] = useState<any[]>([]);
+    const [paidBills, setPaidBills] = useState<any[]>([]);
+    const [totalLimit, setTotalLimit] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadFinanceData = async () => {
             setLoading(true);
             try {
-                const studentId = user?.studentId || user?.id || user?.nis;
+                const studentId = user?.studentId;
                 if (!studentId) {
+                    toast.error('Data siswa tidak ditemukan');
                     setLoading(false);
                     return;
                 }
 
                 const token = localStorage.getItem('eduadmin_token');
+                if (!token) {
+                    toast.error('Sesi login habis, silakan login ulang');
+                    setLoading(false);
+                    return;
+                }
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const [resBills, resPayments] = await Promise.all([
+                const [resBills, resPayments, resPaymentTypes] = await Promise.all([
                     fetch(`/api/student_bills?student_id=eq.${studentId}&select=*`, { headers }),
-                    fetch(`/api/payment_transactions?student_id=eq.${studentId}&select=*`, { headers })
+                    fetch(`/api/payment_transactions?student_id=eq.${studentId}&select=*`, { headers }),
+                    fetch('/api/payment_types', { headers })
                 ]);
+
+                if (resPaymentTypes.ok) {
+                    const types = await resPaymentTypes.json();
+                    if (Array.isArray(types)) {
+                        const sppType = types.find((pt: any) =>
+                            pt.name?.toLowerCase().includes('spp')
+                        );
+                        if (sppType?.amount) setTotalLimit(sppType.amount);
+                    }
+                }
 
                 if (resBills.ok) {
                     const bills = await resBills.json();
                     if (Array.isArray(bills)) {
                         setUnpaidBills(
-                            bills.filter((b: any) => b.status !== 'Lunas').map((b: any) => ({
+                            bills.filter((b: any) => isUnpaid(b.status)).map((b: any) => ({
                                 id: b.id,
                                 title: b.payment_name,
                                 amount: b.amount,
                                 deadline: b.due_date || '',
-                                status: 'Belum Lunas'
+                                status: mapBillStatus(b.status)
                             }))
                         );
+                        setPaidBills(
+                            bills.filter((b: any) => isPaid(b.status))
+                        );
                     }
+                } else {
+                    toast.error('Gagal memuat data tagihan');
                 }
 
                 if (resPayments.ok) {
                     const payments = await resPayments.json();
                     if (Array.isArray(payments)) {
-                        payments.sort((a: any, b: any) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
+                        payments.sort((a: any, b: any) => {
+                            const da = a.transaction_date || a.payment_date || '';
+                            const db = b.transaction_date || b.payment_date || '';
+                            return new Date(db).getTime() - new Date(da).getTime();
+                        });
                         setHistoryData(
-                            payments.map((p: any) => ({
-                                amount: p.amount,
-                                date: p.payment_date,
-                                type: p.payment_method || 'Tunai',
-                                method: p.payment_method || 'Tunai',
-                                status: 'Lunas',
-                                month: new Date(p.payment_date).toLocaleString('id-ID', { month: 'long' }),
-                                year: new Date(p.payment_date).getFullYear().toString(),
-                                studentName: p.student_name || user?.studentName || user?.nama || ''
-                            }))
+                            payments.map((p: any) => {
+                                const fmt = formatDateSafe(p.transaction_date || p.payment_date);
+                                return {
+                                    amount: p.amount,
+                                    date: fmt.date,
+                                    type: p.type || p.payment_method || 'Pembayaran',
+                                    method: p.payment_method || 'Tunai',
+                                    status: 'Lunas',
+                                    month: fmt.month,
+                                    year: fmt.year,
+                                    studentName: p.student_name || user?.studentName || user?.nama || ''
+                                };
+                            })
                         );
                     }
+                } else {
+                    toast.error('Gagal memuat riwayat pembayaran');
                 }
             } catch (e) {
                 console.error('Failed to load payment data from D1:', e);
+                toast.error('Gagal memuat data pembayaran');
             } finally {
                 setLoading(false);
             }
@@ -73,8 +124,8 @@ const PembayaranSiswa: React.FC<PembayaranSiswaProps> = ({ onBack, user }) => {
     }, [user]);
 
     const summary = {
-        totalLimit: 5000000,
-        totalPaid: historyData.reduce((acc, curr) => acc + (curr.amount || 0), 0),
+        totalLimit,
+        totalPaid: paidBills.reduce((acc, curr) => acc + (curr.amount || 0), 0),
         outstanding: unpaidBills.reduce((acc, curr) => acc + (curr.amount || 0), 0)
     };
 
@@ -89,7 +140,7 @@ const PembayaranSiswa: React.FC<PembayaranSiswaProps> = ({ onBack, user }) => {
                     <ChevronRight className="rotate-180" size={24} />
                 </button>
                 <div className="flex-1">
-                    <h3 className="font-bold text-slate-800 text-lg">Informasi Pembayaran (Live Sync)</h3>
+                    <h3 className="font-bold text-slate-800 text-lg">Informasi Pembayaran</h3>
                 </div>
             </div>
 
@@ -106,7 +157,9 @@ const PembayaranSiswa: React.FC<PembayaranSiswaProps> = ({ onBack, user }) => {
 
                     <div className="relative z-10">
                         <p className="text-blue-100 text-xs font-medium mb-1">Total Limit Pembayaran (Tahun Ajaran)</p>
-                        <h2 className="text-3xl font-bold mb-6">{formatCurrency(summary.totalLimit)}</h2>
+                        <h2 className="text-3xl font-bold mb-6">
+                            {totalLimit > 0 ? formatCurrency(totalLimit) : 'Belum diatur'}
+                        </h2>
 
                         <div className="flex gap-4">
                             <div className="flex-1 bg-white/10 rounded-xl p-3 backdrop-blur-sm">
@@ -143,7 +196,7 @@ const PembayaranSiswa: React.FC<PembayaranSiswaProps> = ({ onBack, user }) => {
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-[#004AAD]">{formatCurrency(bill.amount)}</p>
-                                        <span className="text-[10px] text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full font-bold">Unpaid</span>
+                                        <span className="text-[10px] text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full font-bold">{bill.status}</span>
                                     </div>
                                 </div>
                             ))

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Camera, LogOut, Save, MapPin, Calendar, Edit2, UserCheck, Lock, Eye, EyeOff, ChevronLeft } from 'lucide-react';
+import { User, Camera, LogOut, Save, MapPin, Calendar, Edit2, UserCheck, Lock, Eye, EyeOff, ChevronLeft, BookOpen } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface ProfilAkunProps {
@@ -9,12 +9,13 @@ interface ProfilAkunProps {
 }
 
 const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
-    const [namaAyah, setNamaAyah] = useState(user?.parentName || '');
+    const [namaAyah, setNamaAyah] = useState(user?.nama || user?.parentName || '');
     const [namaIbu, setNamaIbu] = useState(user?.motherName || '');
     const [namaAnak, setNamaAnak] = useState(user?.studentName || '');
     const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || '');
     const [tanggalLahir, setTanggalLahir] = useState(user?.birthDate || '');
     const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatar || null);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
 
     // Password state
@@ -66,6 +67,7 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setAvatarFile(file);
             const url = URL.createObjectURL(file);
             setPreviewUrl(url);
         }
@@ -78,8 +80,24 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
             if (!token) { toast.error('Sesi habis, silakan login ulang'); return; }
             const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
+            // Upload avatar if changed
+            if (avatarFile) {
+                const base64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(avatarFile);
+                });
+                const avatarRes = await fetch(`/api/profiles?id=eq.${user?.id}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ avatar_url: base64 })
+                });
+                if (!avatarRes.ok) throw new Error('Gagal upload avatar');
+            }
+
             // Update parent name in profiles table
-            if (namaAyah && namaAyah !== user?.parentName) {
+            if (namaAyah && namaAyah !== user?.nama) {
                 const profileRes = await fetch(`/api/profiles?id=eq.${user?.id}`, {
                     method: 'PATCH',
                     headers,
@@ -106,6 +124,17 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
             }
 
             toast.success('Profil berhasil disimpan!');
+
+            // Update localStorage user object
+            try {
+                const stored = localStorage.getItem('eduadmin_user');
+                if (stored) {
+                    const userData = JSON.parse(stored);
+                    if (avatarFile && previewUrl) userData.avatar = previewUrl;
+                    if (namaAyah) userData.nama = namaAyah;
+                    localStorage.setItem('eduadmin_user', JSON.stringify(userData));
+                }
+            } catch (_) {}
         } catch (err) {
             toast.error('Gagal menyimpan profil');
             console.error(err);
@@ -184,12 +213,39 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                     <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
                         <div className="space-y-4">
                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">ID Profil</label>
+                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                    <Lock size={16} className="text-slate-400" />
+                                    <input type="text" value={user?.id || '-'} readOnly
+                                        className="bg-transparent w-full outline-none font-mono text-slate-500 text-sm" />
+                                </div>
+                            </div>
+
+                            <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Nama Siswa</label>
                                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                     <User size={18} className="text-slate-400" />
-                                    <input type="text" value={namaAnak} onChange={(e) => setNamaAnak(e.target.value)}
-                                        className="bg-transparent w-full outline-none font-bold text-slate-700" readOnly />
-                                    <Edit2 size={14} className="text-slate-300" />
+                                    <input type="text" value={namaAnak} readOnly
+                                        className="bg-transparent w-full outline-none font-bold text-slate-700" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Kelas</label>
+                                    <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <BookOpen size={16} className="text-slate-400" />
+                                        <input type="text" value={user?.studentClass ? `Kelas ${user.studentClass.replace(/^Kelas\s+/i, '')}` : '-'} readOnly
+                                            className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Wali Kelas</label>
+                                    <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <UserCheck size={16} className="text-slate-400" />
+                                        <input type="text" value={user?.studentWali || '-'} readOnly
+                                            className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm" />
+                                    </div>
                                 </div>
                             </div>
 

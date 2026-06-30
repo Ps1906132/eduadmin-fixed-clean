@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Clock, ChevronLeft, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface NotifikasiProps {
     onBack: () => void;
@@ -66,6 +67,7 @@ const NotifikasiSiswa: React.FC<NotifikasiProps> = ({ onBack, user }) => {
                 }
             } catch (err) {
                 console.error('Gagal memuat notifikasi:', err);
+                toast.error('Gagal memuat notifikasi');
             } finally {
                 setLoading(false);
             }

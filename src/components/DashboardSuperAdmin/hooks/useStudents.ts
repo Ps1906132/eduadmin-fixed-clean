@@ -289,28 +289,8 @@ export const useStudents = () => {
             const birth_place = ttlParts[0] || null;
             const birth_date = indonesianDateToISO(ttlParts[1]);
 
-            // 1. Create Profile first for authentication
-            let profileId = `prof-std-${student.nis}`;
-            const password = student.password || student.nis;
-            const passwordHash = bcrypt.hashSync(password, 10);
-
-            const profRes = await fetch('/api/profiles', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    id: profileId,
-                    email: student.nis,
-                    full_name: student.nama,
-                    password_hash: passwordHash,
-                    role: 'ortu',
-                    is_active: 1
-                })
-            }).catch(() => null);
-
-            if (!profRes || !profRes.ok) {
-                console.warn('Profile creation failed, student will be created without profile link');
-                profileId = null as any;
-            }
+            // 1. Student profile tidak dibuat — login menggunakan parent profile (prof-ortu-{NIS})
+            let profileId = null;
 
             // 2. Insert student record (only valid columns matching D1 schema)
             const res = await fetch('/api/students', {
@@ -465,36 +445,9 @@ export const useStudents = () => {
                 dbUpdates.birth_date = indonesianDateToISO(ttlParts[1]);
             }
 
-            // Ensure profile exists on update as well
+            // Student profile tidak dibuat — login menggunakan parent profile
             if (updates.nis || updates.nama) {
-                try {
-                    const studentData = students.find(s => s.id.toString() === idStr);
-                    const nis = updates.nis || studentData?.nis;
-                    const nama = updates.nama || studentData?.nama;
-                    
-                    if (nis) {
-                        let profileId = `prof-std-${nis}`;
-                        const password = nis; // Default to NIS
-                        const passwordHash = bcrypt.hashSync(password, 10);
-                        
-                        await fetch('/api/profiles', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                            body: JSON.stringify({
-                                id: profileId,
-                                email: nis,
-                                full_name: nama || 'Student',
-                                password_hash: passwordHash,
-                                role: 'ortu',
-                                is_active: 1
-                            })
-                        }).catch(() => null); // Ignore if exists
-                        
-                        dbUpdates.profile_id = profileId;
-                    }
-                } catch (profErr) {
-                    console.warn('Failed to ensure profile on update:', profErr);
-                }
+                dbUpdates.profile_id = null;
             }
 
             const res = await fetch(`/api/students?id=eq.${idStr}`, {
@@ -852,6 +805,16 @@ export const useStudents = () => {
                     }
                 } catch (cleanupErr) {
                     console.warn('Gagal membersihkan data orang tua:', cleanupErr);
+                }
+
+                // Clean up class_students
+                try {
+                    await fetch(`/api/class_students?student_id=eq.${targetIdStr}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                } catch (csErr) {
+                    console.warn('Gagal membersihkan class_students:', csErr);
                 }
 
                 const res = await fetch(`/api/students?id=eq.${targetIdStr}`, {

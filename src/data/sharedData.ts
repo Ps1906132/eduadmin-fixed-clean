@@ -178,22 +178,6 @@ export interface MasterSchedule {
     dailyInfos?: DailyScheduleInfo[];
 }
 
-export interface Period {
-    id: number;
-    start: string;
-    end: string;
-}
-
-export let schedulePeriodsGlobal: Period[] = [
-    { id: 0, start: '07:00', end: '07:30' },
-    { id: 1, start: '07:30', end: '08:30' },
-    { id: 2, start: '08:30', end: '09:30' },
-    { id: 3, start: '09:30', end: '10:00' },
-    { id: 4, start: '10:00', end: '11:00' },
-    { id: 5, start: '11:00', end: '12:00' },
-    { id: 6, start: '12:30', end: '13:30' },
-];
-
 export let schedulesDataGlobal: MasterSchedule[] = [];
 
 export const updateSchedulesDataGlobal = (newData: MasterSchedule[]) => {

@@ -227,6 +227,7 @@ CREATE TABLE subjects (
     code             TEXT    UNIQUE NOT NULL,    -- kode singkat, contoh: MTK, IPA
     subject_group_id TEXT    NOT NULL,
     teacher_id       TEXT,                       -- guru pengampu (dari profiles, role=guru)
+    kkm              DECIMAL(5, 2) DEFAULT 75,   -- Kriteria Ketuntasan Minimum per mapel
     description      TEXT,
     credits          INTEGER,
     is_active        INTEGER NOT NULL DEFAULT 1,
@@ -469,7 +470,9 @@ CREATE TABLE exams (
     academic_year_id TEXT    NOT NULL,
     semester         INTEGER,
     status           TEXT    NOT NULL DEFAULT 'draft'
-                             CHECK (status IN ('draft', 'published', 'ongoing', 'finished')),
+                         CHECK (status IN ('draft', 'published', 'ongoing', 'finished')),
+    daily_notes      TEXT    DEFAULT '{}',   -- JSON: {"Senin": "Catatan...", ...}
+    daily_uniforms   TEXT    DEFAULT '{}',   -- JSON: {"Senin": "Putih Biru", ...}
     created_by       TEXT,
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP,

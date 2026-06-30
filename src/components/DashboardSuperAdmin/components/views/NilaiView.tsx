@@ -67,6 +67,11 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, stu
         ? subjectsProp.map((s: any) => s.name).filter(Boolean)
         : [];
 
+    const getSubjectKkm = (subjectName: string): number => {
+        const sub = subjectsProp.find((s: any) => s.name === subjectName);
+        return Number(sub?.kkm) || 75;
+    };
+
     // Set default subject when data loads
     useEffect(() => {
         if (subjectNames.length > 0 && !selectedSubject) {
@@ -140,7 +145,8 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, stu
                     });
 
                     // Recalculate all rows
-                    const mappedGrades = Array.from(gradeMap.values()).map(row => calculateRow(row));
+                    const kkm = getSubjectKkm(selectedSubject);
+                    const mappedGrades = Array.from(gradeMap.values()).map(row => calculateRow(row, kkm));
                     setGrades(mappedGrades);
                 } else {
                     // No data in D1 — initialize empty rows
@@ -185,7 +191,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, stu
     }, []);
 
     // --- CALCULATION LOGIC ---
-    const calculateRow = (row: GradeRow): GradeRow => {
+    const calculateRow = (row: GradeRow, kkm: number = 75): GradeRow => {
         // 1. Hitung Rata-rata Sumatif (TP yang diisi saja)
         // Dynamically gather all 'tpX' values based on current tpCount
         const tps: number[] = [];
@@ -214,7 +220,7 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, stu
         let pred = 'D';
         if (final >= 90) pred = 'A';
         else if (final >= 80) pred = 'B';
-        else if (final >= 75) pred = 'C'; // KKM 75
+        else if (final >= kkm) pred = 'C';
         else if (final > 0) pred = 'D'; // Belum tuntas
         else pred = '-';
 
@@ -250,11 +256,11 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, stu
 
     // --- HANDLERS ---
     const handleInputChange = (id: number, field: keyof GradeRow, value: any) => {
+        const kkm = getSubjectKkm(selectedSubject);
         setGrades(prev => prev.map(row => {
             if (row.studentId === id) {
                 const updatedRow = { ...row, [field]: Number(value) };
-                // Recalculate logic
-                return calculateRow(updatedRow);
+                return calculateRow(updatedRow, kkm);
             }
             return row;
         }));
@@ -657,12 +663,12 @@ const NilaiView: React.FC<NilaiViewProps> = ({ setActiveView, user, classes, stu
                                             {/* FINAL SCORE */}
                                             <td className="p-2 text-center bg-emerald-50/20 border-l border-emerald-50">
                                                 <div className="flex flex-col items-center justify-center">
-                                                    <span className={`font-extrabold text-lg ${grade.finalScore >= 75 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                                    <span className={`font-extrabold text-lg ${grade.finalScore >= getSubjectKkm(selectedSubject) ? 'text-emerald-600' : 'text-rose-500'}`}>
                                                         {grade.finalScore}
                                                     </span>
                                                     {grade.finalScore > 0 && (
                                                         <span className="text-[10px] uppercase font-bold text-slate-400">
-                                                            {grade.finalScore >= 75 ? 'Tuntas' : 'Remedial'}
+                                                            {grade.finalScore >= getSubjectKkm(selectedSubject) ? 'Tuntas' : 'Remedial'}
                                                         </span>
                                                     )}
                                                 </div>

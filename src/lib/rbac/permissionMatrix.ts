@@ -37,10 +37,9 @@ const ADMIN_PERMISSIONS: ModulePermission[] = [
   { module: 'manajemen-ai',  actions: ALL_CRUD,  notes: 'AI integration settings' },
   { module: 'pengaturan',    actions: ALL_CRUD,  notes: 'System configuration' },
 
-  // Modul Kurikulum — READ ONLY untuk Admin
+  // Modul Kurikulum — Tidak diakses Admin
   { module: 'jadwal',        actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
   { module: 'absen',         actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
-  { module: 'jadwal-ujian',  actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
   { module: 'nilai',         actions: READ_ONLY, notes: 'READ ONLY (admin tidak ada menu ini di sidebar)' },
   { module: 'rapot',         actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
   { module: 'naik-kelas',    actions: READ_ONLY, notes: 'READ ONLY untuk Kurikulum' },
@@ -101,7 +100,7 @@ const KS_PERMISSIONS: ModulePermission[] = [
   { module: 'mata-pelajaran', actions: READ_ONLY, notes: 'READ ONLY' },
 
   // Modul Akademik — READ ONLY
-  { module: 'nilai',          actions: READ_ONLY, notes: 'READ ONLY' },
+  { module: 'nilai',          actions: ALL_CRUD, notes: 'Full grades management — input & review nilai' },
   { module: 'pengumuman',     actions: READ_ONLY, notes: 'READ ONLY (bisa CREATE)' },
   { module: 'multimedia',     actions: READ_ONLY, notes: 'READ ONLY' },
   { module: 'laporan',        actions: READ_ONLY, notes: 'READ ONLY' },
@@ -121,6 +120,17 @@ const GB_PERMISSIONS: ModulePermission[] = [
   { module: 'multimedia',     actions: READ_ONLY, notes: 'View channel sekolah' },
 ];
 
+/**
+ * GURU ROLE — CRUD pada modul nilai, READ pada data referensi
+ * Sumber: PERJANJIAN_KERJA.md — Guru input nilai mata pelajaran yang diampu
+ */
+const GURU_PERMISSIONS: ModulePermission[] = [
+  { module: 'nilai', actions: ALL_CRUD, notes: 'Full grades management — input & review nilai mata pelajaran yang diampu' },
+  { module: 'data-siswa', actions: READ_ONLY, notes: 'View student list for grade input' },
+  { module: 'mata-pelajaran', actions: READ_ONLY, notes: 'View subjects assigned' },
+  { module: 'jadwal', actions: READ_ONLY, notes: 'View schedule for reference' },
+];
+
 // =============================================================================
 // PERMISSION MATRIX MAP (role → permissions[])
 // =============================================================================
@@ -131,6 +141,7 @@ export const PERMISSION_MATRIX: Record<AdminRoleType, ModulePermission[]> = {
   keuangan:  KEUANGAN_PERMISSIONS,
   ks:        KS_PERMISSIONS,
   gb:        GB_PERMISSIONS,
+  guru:      GURU_PERMISSIONS,
 };
 
 // =============================================================================

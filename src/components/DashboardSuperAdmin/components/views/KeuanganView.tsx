@@ -93,6 +93,15 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
     // State for uploaded Bill Excel file
     const [uploadedBillFile, setUploadedBillFile] = useState<File | null>(null);
 
+    // State for "Tambah Pembayaran Lainnya"
+    const [showOtherPaymentForm, setShowOtherPaymentForm] = useState(false);
+    const [otherPaymentName, setOtherPaymentName] = useState('');
+    const [otherPaymentAmount, setOtherPaymentAmount] = useState(0);
+    const [otherPaymentTypeId, setOtherPaymentTypeId] = useState('');
+    const [otherPaymentPeriod, setOtherPaymentPeriod] = useState('');
+    const [otherPaymentLevel, setOtherPaymentLevel] = useState('all');
+    const [otherPaymentGenerating, setOtherPaymentGenerating] = useState(false);
+
     const handleDownloadBillTemplate = () => {
         // Simple CSV generation for Bill Template
         const headers = ['NO', 'NIS', 'NAMA SISWA', 'KELAS', 'JENIS TAGIHAN', 'NOMINAL', 'BULAN/TAHUN'];
@@ -151,6 +160,76 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
         if (successCount > 0) {
             toast.success(`Tagihan berhasil digenerate untuk ${successCount} siswa!`);
             refreshFinance();
+        }
+    };
+
+    const handleGenerateOtherBills = async () => {
+        if (!otherPaymentName || otherPaymentAmount <= 0) {
+            toast.error('Mohon isi nama pembayaran dan nominal!');
+            return;
+        }
+
+        const targetStudents = otherPaymentLevel === 'all'
+            ? students
+            : students.filter((s: any) => Number(s.tingkat) === Number(otherPaymentLevel));
+
+        if (targetStudents.length === 0) {
+            toast.error('Tidak ada siswa ditemukan untuk level yang dipilih!');
+            return;
+        }
+
+        setOtherPaymentGenerating(true);
+        const token = localStorage.getItem('eduadmin_token');
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+        let successCount = 0;
+
+        for (const s of targetStudents) {
+            try {
+                const res = await fetch('/api/student_bills', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        student_id: s.id,
+                        payment_name: otherPaymentName.trim(),
+                        amount: otherPaymentAmount,
+                        period: otherPaymentPeriod || null,
+                        status: 'pending',
+                        type: 'INSIDENTAL'
+                    })
+                });
+                if (res.ok) successCount++;
+            } catch (err) {
+                console.error('Gagal generate bill:', err);
+            }
+        }
+
+        setOtherPaymentGenerating(false);
+
+        if (successCount > 0) {
+            toast.success(`Tagihan "${otherPaymentName}" berhasil dibuat untuk ${successCount} siswa!`);
+            setShowOtherPaymentForm(false);
+            setOtherPaymentName('');
+            setOtherPaymentAmount(0);
+            setOtherPaymentTypeId('');
+            setOtherPaymentPeriod('');
+            setOtherPaymentLevel('all');
+            refreshFinance();
+        } else {
+            toast.error('Gagal membuat tagihan. Coba lagi.');
+        }
+    };
+
+    const handlePaymentTypeSelect = (typeId: string) => {
+        setOtherPaymentTypeId(typeId);
+        if (typeId) {
+            const selected = paymentTypes.find((pt: any) => pt.id === typeId);
+            if (selected) {
+                setOtherPaymentName(selected.name);
+                setOtherPaymentAmount(selected.amount);
+            }
+        } else {
+            setOtherPaymentName('');
+            setOtherPaymentAmount(0);
         }
     };
 
@@ -439,6 +518,112 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
                             )}
                         </div>
                     </div>
+
+                    {/* Tambah Pembayaran Lainnya */}
+                    {isKeuangan && (
+                        <div className="bg-white p-6 rounded-3xl border border-purple-200 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800">Tambah Pembayaran Lainnya</h4>
+                                    <p className="text-sm text-slate-500">Buat tagihan untuk pembayaran non-SPP (seragam, kegiatan, dll).</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowOtherPaymentForm(!showOtherPaymentForm)}
+                                    className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${showOtherPaymentForm ? 'bg-slate-100 text-slate-600' : 'bg-purple-600 text-white shadow-lg shadow-purple-200 hover:bg-purple-700'}`}
+                                >
+                                    {showOtherPaymentForm ? 'Tutup' : '+ Tambah Baru'}
+                                </button>
+                            </div>
+
+                            {showOtherPaymentForm && (
+                                <div className="border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Nama Pembayaran</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Contoh: Seragam, Kegiatan, Daftar Ulang"
+                                                value={otherPaymentName}
+                                                onChange={(e) => setOtherPaymentName(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-purple-500 focus:bg-white transition-all font-medium"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Jenis Pembayaran (opsional)</label>
+                                            <select
+                                                value={otherPaymentTypeId}
+                                                onChange={(e) => handlePaymentTypeSelect(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-purple-500 focus:bg-white transition-all"
+                                            >
+                                                <option value="">-- Custom / Ketik Manual --</option>
+                                                {paymentTypes.map((pt: any) => (
+                                                    <option key={pt.id} value={pt.id}>{pt.name} (Rp {pt.amount.toLocaleString('id-ID')})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Nominal (Rp)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0"
+                                                value={otherPaymentAmount || ''}
+                                                onChange={(e) => setOtherPaymentAmount(parseInt(e.target.value) || 0)}
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-purple-500 focus:bg-white transition-all font-mono font-bold"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1.5">Periode/Bulan</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Contoh: Maret 2026"
+                                                value={otherPaymentPeriod}
+                                                onChange={(e) => setOtherPaymentPeriod(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:border-purple-500 focus:bg-white transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-4 p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                                        <span className="text-sm font-bold text-slate-700">Pilih Kelas:</span>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="paymentLevel"
+                                                checked={otherPaymentLevel === 'all'}
+                                                onChange={() => setOtherPaymentLevel('all')}
+                                                className="w-4 h-4 accent-purple-600"
+                                            />
+                                            <span className="text-sm font-medium text-slate-700">Semua Level</span>
+                                        </label>
+                                        {[...new Set(classes.map((c: any) => c.tingkat).filter(Boolean))].sort((a: number, b: number) => a - b).map((level) => (
+                                            <label key={level} className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="paymentLevel"
+                                                    checked={otherPaymentLevel === String(level)}
+                                                    onChange={() => setOtherPaymentLevel(String(level))}
+                                                    className="w-4 h-4 accent-purple-600"
+                                                />
+                                                <span className="text-sm font-medium text-slate-700">Level {level}</span>
+                                            </label>
+                                        ))}
+                                        <div className="flex-1 text-right">
+                                            <span className="text-xs text-slate-500 mr-3">
+                                                Target: <strong>{otherPaymentLevel === 'all' ? students.length : students.filter((s: any) => Number(s.tingkat) === Number(otherPaymentLevel)).length}</strong> siswa
+                                            </span>
+                                            <button
+                                                onClick={handleGenerateOtherBills}
+                                                disabled={otherPaymentGenerating}
+                                                className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
+                                            >
+                                                {otherPaymentGenerating ? 'Memproses...' : 'Buat Tagihan'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Import Section */}
                     {isKeuangan && (
@@ -766,11 +951,13 @@ const KeuanganView: React.FC<KeuanganViewProps> = ({ students: rawStudents, clas
 
                                                     for (const bill of paidBills) {
                                                         const result = await addPayment({
+                                                            billId: bill.id,
                                                             studentId: selectedStudentForPay.id,
                                                             amount: bill.amount,
                                                             type: bill.paymentName,
                                                             date: new Date().toISOString().split('T')[0],
-                                                            method: paymentMethod
+                                                            method: paymentMethod,
+                                                            recordedBy: user?.id
                                                         });
                                                         if (result.success) successCount++;
                                                     }

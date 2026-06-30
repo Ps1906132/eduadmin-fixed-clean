@@ -3,6 +3,20 @@ import { MasterExamSchedule, ExamScheduleItem, examsDataGlobal, updateExamsDataG
 import { hasPermission } from '../../../lib/rbac/permissionMatrix';
 import { toast } from 'react-hot-toast';
 
+const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/** Convert date string or day name to day name for admin grid */
+const toDayName = (val: string): string => {
+    if (!val) return '';
+    if (DAY_NAMES.includes(val)) return val; // already a day name
+    try {
+        const d = new Date(val + 'T00:00:00');
+        return DAY_NAMES[d.getDay()] || val;
+    } catch {
+        return val;
+    }
+};
+
 /** Get current user role from localStorage */
 const getCurrentUserRole = (): string | null => {
     try {
@@ -59,7 +73,7 @@ export const useExams = () => {
                         id: item.id.toString(),
                         examId: parseInt(examId) || 1,
                         classId: item.class_id,
-                        day: item.exam_date || '',
+                        day: toDayName(item.exam_date || ''),
                         timeSlotId: 0,
                         subjectId: item.subject_id || '',
                         subjectName: subjectMap.get(item.subject_id?.toString()) || 'Mata Pelajaran',
@@ -82,21 +96,27 @@ export const useExams = () => {
                 });
 
                 // Map exam rows to MasterExamSchedule
-                const finalExams: MasterExamSchedule[] = examsData.map((exam: any) => ({
-                    id: parseInt(exam.id) || exam.id,
-                    type: exam.type || 'UTS',
-                    semester: exam.semester === 1 ? 'Ganjil' : exam.semester === 2 ? 'Genap' : 'Ganjil',
-                    year: exam.academic_year_id || `${currentYear}/${currentYear + 1}`,
-                    status: exam.status || 'draft',
-                    items: itemsByExam[exam.id] || [],
-                    timeSlots: timeSlots.length > 0 ? timeSlots : [
-                        { id: 0, start: '07:30', end: '09:00' },
-                        { id: 1, start: '09:00', end: '09:30' },
-                        { id: 2, start: '09:30', end: '11:00' },
-                    ],
-                    dailyNotes: {},
-                    dailyUniforms: {}
-                }));
+                const finalExams: MasterExamSchedule[] = examsData.map((exam: any) => {
+                    let dailyNotes = {};
+                    let dailyUniforms = {};
+                    try { if (exam.daily_notes) dailyNotes = JSON.parse(exam.daily_notes); } catch (_) {}
+                    try { if (exam.daily_uniforms) dailyUniforms = JSON.parse(exam.daily_uniforms); } catch (_) {}
+                    return {
+                        id: parseInt(exam.id) || exam.id,
+                        type: exam.type || 'UTS',
+                        semester: exam.semester === 1 ? 'Ganjil' : exam.semester === 2 ? 'Genap' : 'Ganjil',
+                        year: exam.academic_year_id || `${currentYear}/${currentYear + 1}`,
+                        status: exam.status || 'draft',
+                        items: itemsByExam[exam.id] || [],
+                        timeSlots: timeSlots.length > 0 ? timeSlots : [
+                            { id: 0, start: '07:30', end: '09:00' },
+                            { id: 1, start: '09:00', end: '09:30' },
+                            { id: 2, start: '09:30', end: '11:00' },
+                        ],
+                        dailyNotes,
+                        dailyUniforms
+                    };
+                });
 
                 setExamSchedules(finalExams);
                 updateExamsDataGlobal(finalExams);
@@ -128,6 +148,25 @@ export const useExams = () => {
         };
 
         try {
+            // Fetch active academic_year_id (UUID) from D1
+            let academicYearId = '';
+            const ayRes = await fetch('/api/academic_years?is_active=eq.1', { headers });
+            if (ayRes.ok) {
+                const ayData = await ayRes.json();
+                if (Array.isArray(ayData) && ayData.length > 0) {
+                    academicYearId = ayData[0].id;
+                }
+            }
+            if (!academicYearId) {
+                const ayRes2 = await fetch('/api/academic_years?order=start_date.desc&limit=1', { headers });
+                if (ayRes2.ok) {
+                    const ayData = await ayRes2.json();
+                    if (Array.isArray(ayData) && ayData.length > 0) {
+                        academicYearId = ayData[0].id;
+                    }
+                }
+            }
+
             // Sync master exams to /api/exams
             const examsRes = await fetch('/api/exams', { headers });
             const currentExams = examsRes.ok ? await examsRes.json() : [];
@@ -139,9 +178,11 @@ export const useExams = () => {
                     id: examIdStr,
                     name: `${exam.type} ${exam.semester} ${exam.year}`,
                     type: exam.type,
-                    academic_year_id: exam.year,
+                    academic_year_id: academicYearId || exam.year,
                     semester: exam.semester === 'Ganjil' ? 1 : 2,
-                    status: exam.status
+                    status: exam.status,
+                    daily_notes: JSON.stringify(exam.dailyNotes || {}),
+                    daily_uniforms: JSON.stringify(exam.dailyUniforms || {})
                 };
 
                 if (currentExamIds.has(examIdStr)) {
@@ -187,12 +228,18 @@ export const useExams = () => {
 
             // Upsert items
             for (const item of allItems) {
+                // Skip items without valid subject_id (FK constraint)
+                if (!item.subjectId || isNaN(Number(item.subjectId))) {
+                    console.warn(`Skipping exam schedule item ${item.id}: invalid subject_id`, item.subjectId);
+                    continue;
+                }
+
                 const timeSlot = newExams.find(e => e.id.toString() === item.examId)?.timeSlots.find(ts => ts.id === item.timeSlotId);
                 const body = {
                     id: item.id,
                     exam_id: item.examId,
                     class_id: item.classId,
-                    subject_id: item.subjectId || item.subjectName,
+                    subject_id: item.subjectId,
                     teacher_id: item.teacherId || null,
                     exam_date: item.day,
                     start_time: timeSlot?.start || '08:00',
