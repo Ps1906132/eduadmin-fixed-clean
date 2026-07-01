@@ -230,6 +230,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
     let motherName: string | null = null;
     let birthPlace: string | null = null;
     let birthDate: string | null = null;
+    let children: any[] = [];
 
     const studentQuery = user.role === 'ortu'
       ? `
@@ -241,7 +242,6 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
           LEFT JOIN classes c ON cs.class_id = c.id
           LEFT JOIN profiles p ON c.teacher_id = p.id
           WHERE ps.parent_id = ?
-          LIMIT 1
         `
       : user.role === 'siswa'
         ? `
@@ -260,22 +260,39 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       try {
         const { results: sResults } = await env.DB.prepare(studentQuery).bind(user.id).all();
         if (sResults && sResults.length > 0) {
-          const sr = sResults[0] as any;
-          studentId = sr.student_id || null;
-          studentName = sr.s_name || null;
-          studentClass = sr.c_name || null;
-          studentWali = sr.wali_name || null;
-          parentName = sr.parent_name || null;
-          motherName = sr.mother_name || null;
-          birthPlace = sr.birth_place || null;
-          if (sr.birth_date) {
-            try {
-              const d = new Date(sr.birth_date + 'T00:00:00');
-              birthDate = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-            } catch (_) {
-              birthDate = sr.birth_date;
+          // Build children array
+          children = sResults.map((sr: any) => {
+            let bDate = null;
+            if (sr.birth_date) {
+              try {
+                const d = new Date(sr.birth_date + 'T00:00:00');
+                bDate = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+              } catch (_) {
+                bDate = sr.birth_date;
+              }
             }
-          }
+            return {
+              studentId: sr.student_id || null,
+              studentName: sr.s_name || null,
+              studentClass: sr.c_name ? sr.c_name.replace(/^Kelas\s+/i, '').trim() : null,
+              studentWali: sr.wali_name || null,
+              parentName: sr.parent_name || null,
+              motherName: sr.mother_name || null,
+              birthPlace: sr.birth_place || null,
+              birthDate: bDate
+            };
+          });
+
+          // Backward compat: set first child as top-level fields
+          const first = children[0];
+          studentId = first.studentId;
+          studentName = first.studentName;
+          studentClass = first.studentClass;
+          studentWali = first.studentWali;
+          parentName = first.parentName;
+          motherName = first.motherName;
+          birthPlace = first.birthPlace;
+          birthDate = first.birthDate;
         }
       } catch (e) {
         console.error('Failed to look up student context:', e);
@@ -292,7 +309,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         db_role: user.role,
         avatar: user.avatar_url || null,
         nip: user.nip || null,
-        ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate } : {})
+        ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate, children } : {})
       }
     }), {
       headers: { 'Content-Type': 'application/json' }
@@ -658,6 +675,45 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
     }
   }
 
+  // --- EXAM SCHEDULE RBAC: only kurikulum can read+write, admin blocked ---
+  const EXAM_TABLES = ['exams', 'exam_schedules'];
+  if (EXAM_TABLES.includes(table)) {
+    // Write: only kurikulum
+    if (['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+      if (userRole !== 'kurikulum') {
+        writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-kurikulum write to exam table' });
+        return new Response(JSON.stringify({ error: 'Forbidden: Hanya Kurikulum yang dapat mengubah jadwal ujian' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    // Read: admin diblokir, ortu/siswa hanya boleh lihat published
+    if (request.method === 'GET') {
+      if (userRole === 'admin') {
+        writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Admin read to exam table' });
+        return new Response(JSON.stringify({ error: 'Forbidden: Admin tidak dapat melihat jadwal ujian' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      // Ortu/siswa: exams hanya published, exam_schedules hanya via relasi
+      if ((userRole === 'ortu' || userRole === 'siswa') && table === 'exams' && request.url.includes('status=eq.published')) {
+        // Allowed — only published exams
+      } else if ((userRole === 'ortu' || userRole === 'siswa') && table === 'exam_schedules') {
+        // Allowed — filtered by frontend
+      } else if (userRole === 'ortu' || userRole === 'siswa') {
+        // Block non-published access
+        if (table === 'exams' && !request.url.includes('status=eq.published')) {
+          return new Response(JSON.stringify({ error: 'Forbidden: Hanya jadwal ujian yang dipublikasikan yang dapat dilihat' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+  }
+
   const STUDENT_WRITE_TABLES = ['students', 'parent_students', 'class_students'];
   if (STUDENT_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
     if (userRole !== 'admin') {
@@ -687,6 +743,29 @@ export const onRequest: PagesFunction<{ DB: D1Database; JWT_SECRET?: string; RAT
     if (userRole !== 'gb') {
       writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-GB write to materi/latihan table' });
       return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru Bimbel yang dapat mengubah materi dan latihan` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Grades tables: only Guru (guru) and Kurikulum (kurikulum) can write — Admin reads only
+  const GRADES_WRITE_TABLES = ['grades', 'grade_types'];
+  if (GRADES_WRITE_TABLES.includes(table) && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'guru' && userRole !== 'kurikulum') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-guru/kurikulum write to grades table' });
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru dan Kurikulum yang dapat mengubah data nilai` }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // Attendance table: only Guru (guru) and Admin (admin) can write — Kurikulum view-only
+  if (table === 'attendance' && ['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (userRole !== 'guru' && userRole !== 'admin') {
+      writeAuditLog(env, { ...auditCtx, action: 'UNAUTHORIZED', module: table, table_name: table, status: 'denied', error_message: 'Non-guru/admin write to attendance table' });
+      return new Response(JSON.stringify({ error: `Forbidden: Hanya Guru dan Admin yang dapat mengubah data absensi` }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });

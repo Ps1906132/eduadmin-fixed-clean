@@ -49,11 +49,33 @@ export const parseFileToRows = (file: File): Promise<string[][]> => {
 /**
  * Parse a CSV/XLSX row into a Student object.
  * Auto-detects format:
+ *   - 14+ cols with "NISN" header → newest format (NISN + TTL split)
  *   - 13+ cols with "Tempat Lahir" header → new format (TTL split)
  *   - 12 cols or "Tempat Tanggal Lahir" header → old format (TTL combined)
  */
-const parseRowToStudent = (cols: string[], idx: number, isOldFormat: boolean): Student => {
-    if (isOldFormat) {
+const parseRowToStudent = (cols: string[], idx: number, isOldFormat: boolean, hasNisn: boolean): Student => {
+    if (hasNisn) {
+        // NEWEST FORMAT (14 cols): NIS,NISN,Nama,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+        const tempatLahir = cols[3] || '';
+        const tanggalLahir = cols[4] || '';
+        const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+        return {
+            id: `temp-${Date.now()}-${idx}`,
+            nis: cols[0] || '',
+            nisn: cols[1] || '',
+            nama: cols[2] || '',
+            ttl,
+            kelas: cols[5] || '',
+            tingkat: parseInt(cols[6] || '1'),
+            paralel: cols[7] || 'A',
+            ayah: cols[8] || '',
+            ibu: cols[9] || '',
+            jobAyah: cols[10] || '',
+            jobIbu: cols[11] || '',
+            username: cols[13] || cols[0] || '',
+            noHp: cols[12] || ''
+        };
+    } else if (isOldFormat) {
         // OLD FORMAT (12 cols): NIS,Nama,Tempat Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
         const ttlRaw = cols[2] || '';
         return {
@@ -96,17 +118,24 @@ const parseRowToStudent = (cols: string[], idx: number, isOldFormat: boolean): S
 
 /**
  * Detect if CSV is old format (12 cols, TTL combined) or new format (13 cols, TTL split).
+ * Returns { isOldFormat, hasNisn } to support 3 formats:
+ *   - 14+ cols with "NISN" header → newest format
+ *   - 13+ cols with "Tempat Lahir" header → new format
+ *   - 12 cols or "Tempat Tanggal Lahir" header → old format
  */
-export const detectOldFormat = (headerCols: string[]): boolean => {
+export const detectOldFormat = (headerCols: string[]): { isOldFormat: boolean; hasNisn: boolean } => {
     const headerText = headerCols.join(',').toLowerCase();
-    if (headerText.includes('tempat tanggal lahir')) return true;
-    if (headerCols.length <= 12) return true;
-    return false;
+    const hasNisn = headerCols.some(h => h.toLowerCase().includes('nisn'));
+    if (hasNisn) return { isOldFormat: false, hasNisn: true };
+    if (headerText.includes('tempat tanggal lahir')) return { isOldFormat: true, hasNisn: false };
+    if (headerCols.length <= 12) return { isOldFormat: true, hasNisn: false };
+    return { isOldFormat: false, hasNisn: false };
 };
 
 export interface Student {
     id: string | number;
     nis: string;
+    nisn?: string;
     nama: string;
     ttl: string;
     kelas: string;
@@ -300,6 +329,7 @@ export const useStudents = () => {
                     id: student.id.toString(),
                     profile_id: profileId,
                     nis: student.nis,
+                    nisn: student.nisn || null,
                     full_name: student.nama,
                     birth_place,
                     birth_date,
@@ -432,6 +462,7 @@ export const useStudents = () => {
             const dbUpdates: any = {};
             if (updates.nama !== undefined) dbUpdates.full_name = updates.nama;
             if (updates.nis !== undefined) dbUpdates.nis = updates.nis;
+            if (updates.nisn !== undefined) dbUpdates.nisn = updates.nisn || null;
             if (updates.ayah !== undefined) dbUpdates.parent_name = updates.ayah;
             if (updates.ibu !== undefined) dbUpdates.mother_name = updates.ibu;
             if (updates.jobAyah !== undefined) dbUpdates.parent_job = updates.jobAyah;
@@ -834,9 +865,9 @@ export const useStudents = () => {
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["NIS", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
+        const headers = ["NIS", "NISN", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
         const csvContent = headers.join(",") + "\n" + 
-            "2025001,Asep Irama,Bandung,10 Maret 2012,Kelas 1A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
+            "2025001,0081234567,Asep Irama,Bandung,10 Maret 2012,Kelas 1A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -860,10 +891,10 @@ export const useStudents = () => {
                 if (rows.length <= 1) return;
 
                 const headerCols = rows[0];
-                const isOldFormat = detectOldFormat(headerCols);
+                const { isOldFormat, hasNisn } = detectOldFormat(headerCols);
 
                 const parsedData: Student[] = rows.slice(1).map((cols, idx) => {
-                    return parseRowToStudent(cols, idx, isOldFormat);
+                    return parseRowToStudent(cols, idx, isOldFormat, hasNisn);
                 }).filter(s => s.nis && s.nama);
 
                 if (parsedData.length > 0) {

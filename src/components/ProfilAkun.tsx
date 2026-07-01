@@ -14,6 +14,8 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
     const [namaAnak, setNamaAnak] = useState(user?.studentName || '');
     const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || '');
     const [tanggalLahir, setTanggalLahir] = useState(user?.birthDate || '');
+    const [alamat, setAlamat] = useState(user?.address || '');
+    const [noHp, setNoHp] = useState(user?.phone || user?.noHp || '');
     const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatar || null);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
@@ -112,6 +114,8 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                 const updateData: any = {};
                 if (namaAyah) updateData.parent_name = namaAyah;
                 if (namaIbu) updateData.mother_name = namaIbu;
+                if (alamat) updateData.address = alamat;
+                if (noHp) updateData.phone = noHp;
 
                 if (Object.keys(updateData).length > 0) {
                     const studentRes = await fetch(`/api/students?id=eq.${studentId}`, {
@@ -265,6 +269,26 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                         <input type="text" value={tanggalLahir} readOnly
                                             className="bg-transparent w-full outline-none font-medium text-slate-700 text-sm" />
                                     </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Alamat</label>
+                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-blue-500 transition-colors">
+                                    <MapPin size={16} className="text-slate-400 shrink-0" />
+                                    <input type="text" value={alamat} onChange={(e) => setAlamat(e.target.value)}
+                                        className="bg-transparent w-full outline-none font-medium text-slate-700" placeholder="Alamat lengkap siswa" />
+                                    <Edit2 size={14} className="text-slate-300 shrink-0" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">No HP (WA)</label>
+                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-blue-500 transition-colors">
+                                    <span className="text-slate-400 shrink-0">📱</span>
+                                    <input type="text" value={noHp} onChange={(e) => setNoHp(e.target.value)}
+                                        className="bg-transparent w-full outline-none font-medium text-slate-700" placeholder="Nomor HP / WhatsApp" />
+                                    <Edit2 size={14} className="text-slate-300 shrink-0" />
                                 </div>
                             </div>
                         </div>

@@ -99,6 +99,7 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                         <tr>
                             <th rowSpan={2} className="p-4 border-r border-slate-200 text-center w-12">No</th>
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Nomor Induk Siswa</th>
+                            <th rowSpan={2} className="p-4 border-r border-slate-200">NISN</th>
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Nama Lengkap Siswa</th>
                             {!isKeuangan && <th rowSpan={2} className="p-4 border-r border-slate-200">Tempat & Tanggal Lahir</th>}
                             <th rowSpan={2} className="p-4 border-r border-slate-200">Nama Kelas</th>
@@ -123,6 +124,7 @@ const UploadKelasSatuView: React.FC<UploadKelasSatuViewProps> = ({
                             <tr key={i} className="hover:bg-slate-50 transition-colors group">
                                 <td className="p-4 text-center text-slate-500 font-medium">{i + 1}</td>
                                 <td className="p-4 font-mono text-slate-600">{siswa.nis}</td>
+                                <td className="p-4 font-mono text-slate-600">{siswa.nisn || '-'}</td>
                                 <td className="p-4 font-bold text-slate-800">{siswa.nama}</td>
                                 {!isKeuangan && <td className="p-4 text-slate-600">{siswa.ttl}</td>}
                                 <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">{siswa.kelas}</span></td>

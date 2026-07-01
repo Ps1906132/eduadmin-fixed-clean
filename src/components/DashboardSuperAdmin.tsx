@@ -928,15 +928,19 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                             <input disabled={modalMode === 'view'} value={selectedStudent?.nis || ''} onChange={e => setSelectedStudent({ ...selectedStudent, nis: e.target.value })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Nomor Induk" />
                                         </div>
                                         <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">NISN</label>
+                                            <input disabled={modalMode === 'view'} value={selectedStudent?.nisn || ''} onChange={e => setSelectedStudent({ ...selectedStudent, nisn: e.target.value })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Nomor Induk Siswa Nasional" />
+                                        </div>
+                                        <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Nama Lengkap</label>
                                             <input disabled={modalMode === 'view'} value={selectedStudent?.nama || ''} onChange={e => setSelectedStudent({ ...selectedStudent, nama: e.target.value })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Nama Lengkap Siswa" />
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Tempat Lahir</label>
-                                            <input disabled={modalMode === 'view'} value={selectedStudent?.ttl?.split(', ')[0] || ''} onChange={e => {
+                                            <input disabled={modalMode === 'view'} value={selectedStudent?.birthPlace || selectedStudent?.ttl?.split(', ')[0] || ''} onChange={e => {
                                                 const datePart = selectedStudent?.ttl?.split(', ')[1] || '';
-                                                setSelectedStudent({ ...selectedStudent, ttl: `${e.target.value}, ${datePart}` });
+                                                setSelectedStudent({ ...selectedStudent, birthPlace: e.target.value, ttl: `${e.target.value}, ${datePart}` });
                                             }} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Kota Kelahiran" />
                                         </div>
                                         <div>
@@ -949,9 +953,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                     const dateStr = selectedStudent?.ttl?.split(', ')[1];
                                                     if (!dateStr) return '';
                                                     const trimmed = dateStr.trim();
-                                                    // Handle ISO format YYYY-MM-DD (dari data lama)
                                                     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-                                                    // Handle format Indonesia: DD Bulan YYYY
                                                     const months: Record<string, string> = {
                                                         'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
                                                         'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
@@ -969,8 +971,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                     const date = new Date(e.target.value + 'T00:00:00');
                                                     const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
                                                     const formatted = date.toLocaleDateString('id-ID', options);
-                                                    const place = selectedStudent?.ttl?.split(', ')[0] || '';
-                                                    setSelectedStudent({ ...selectedStudent, ttl: `${place}, ${formatted}` });
+                                                    const place = selectedStudent?.birthPlace || selectedStudent?.ttl?.split(', ')[0] || '';
+                                                    setSelectedStudent({ ...selectedStudent, birthPlace: place, ttl: `${place}, ${formatted}` });
                                                 }} />
                                         </div>
 
