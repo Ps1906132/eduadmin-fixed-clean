@@ -976,6 +976,19 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                                                 }} />
                                         </div>
 
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Jenis Kelamin</label>
+                                            <select disabled={modalMode === 'view'} value={selectedStudent?.gender || ''} onChange={e => setSelectedStudent({ ...selectedStudent, gender: e.target.value })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none disabled:opacity-60">
+                                                <option value="">- Pilih -</option>
+                                                <option value="L">Laki-laki (L)</option>
+                                                <option value="P">Perempuan (P)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">Alamat</label>
+                                            <input disabled={modalMode === 'view'} value={selectedStudent?.address || ''} onChange={e => setSelectedStudent({ ...selectedStudent, address: e.target.value })} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white outline-none focus:border-blue-500 transition-colors disabled:opacity-60" placeholder="Alamat lengkap siswa" />
+                                        </div>
+
                                         {/* Data Akademik */}
                                         <div className="col-span-1 md:col-span-2 mt-2">
                                             <h4 className="font-bold text-slate-600 mb-2 border-b pb-1">Data Akademik</h4>

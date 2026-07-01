@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Camera, LogOut, Save, MapPin, Calendar, Edit2, UserCheck, Lock, Eye, EyeOff, ChevronLeft, BookOpen } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -9,9 +9,14 @@ interface ProfilAkunProps {
 }
 
 const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
-    // Map fields from mergedUser: parentName = nama ayah dari students table
-    // user?.nama = parent profile name, user?.parentName = students.parent_name
-    const [namaAyah, setNamaAyah] = useState(user?.parentName || user?.nama || '');
+    // Map fields from mergedUser:
+    // user?.parentName = students.parent_name (nama ayah dari D1)
+    // user?.motherName = students.mother_name (nama ibu dari D1)
+    // user?.studentName = students.full_name (nama siswa dari D1)
+    // user?.studentClass = classes.name (kelas dari D1)
+    // user?.studentWali = profiles.full_name (wali kelas dari D1)
+    // user?.nama = parent profile full_name ("Orang Tua {nama siswa}") — BUKAN nama ayah
+    const [namaAyah, setNamaAyah] = useState(user?.parentName || '');
     const [namaIbu, setNamaIbu] = useState(user?.motherName || '');
     const [namaAnak, setNamaAnak] = useState(user?.studentName || '');
     const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || '');
@@ -21,6 +26,18 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
     const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatar || null);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
+
+    // Sync state saat mergedUser berubah (misal: switch anak)
+    useEffect(() => {
+        setNamaAyah(user?.parentName || '');
+        setNamaIbu(user?.motherName || '');
+        setNamaAnak(user?.studentName || '');
+        setTempatLahir(user?.birthPlace || '');
+        setTanggalLahir(user?.birthDate || '');
+        setAlamat(user?.studentAddress || user?.address || '');
+        setNoHp(user?.studentPhone || user?.phone || user?.noHp || '');
+        setPreviewUrl(user?.avatar || null);
+    }, [user?.studentId, user?.parentName, user?.motherName, user?.studentName]);
 
     // Password state
     const [showPasswordForm, setShowPasswordForm] = useState(false);

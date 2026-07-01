@@ -177,6 +177,7 @@ export interface Student {
     jobIbu: string;
     username: string;
     noHp?: string;
+    address?: string;
     // Optional fields for compatibility
     gender?: string;
     sppStatus?: string;
@@ -368,6 +369,7 @@ export const useStudents = () => {
                     parent_job: student.jobAyah || null,
                     mother_job: student.jobIbu || null,
                     phone: (student as any).noHp || null,
+                    address: (student as any).address || null,
                     gender: student.gender || null,
                     username: student.username || null,
                     status: 'active',
@@ -442,37 +444,37 @@ export const useStudents = () => {
             const parentProfileId = `prof-ortu-${student.nis}`;
             const parentUsername = `ortu_${student.nis}`;
 
-            const parentProfRes = await fetch('/api/profiles', {
+            // Parent profile full_name = "Orang Tua {nama siswa}"
+            // Nama ayah/orang tua sebenarnya disimpan di students.parent_name
+            const parentProfileName = `Orang Tua ${student.nama}`;
+
+            // Try to create parent profile (may already exist — that's OK)
+            await fetch('/api/profiles', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
                     id: parentProfileId,
                     email: parentUsername,
-                    full_name: student.ayah || student.ibu || `Orang Tua ${student.nama}`,
+                    full_name: parentProfileName,
                     password_hash: parentPasswordHash,
                     role: 'ortu',
                     is_active: 1
                 })
             }).catch(() => null);
 
-            if (parentProfRes && parentProfRes.ok) {
-                // Link parent to student via parent_students
-                const psRes = await fetch('/api/parent_students', {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        id: `ps-${student.id}-${parentProfileId}`,
-                        parent_id: parentProfileId,
-                        student_id: student.id.toString()
-                    })
-                }).catch(() => null);
+            // Always create parent_students link (regardless of profile creation result)
+            const psRes = await fetch('/api/parent_students', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    id: `ps-${student.id}-${parentProfileId}`,
+                    parent_id: parentProfileId,
+                    student_id: student.id.toString()
+                })
+            }).catch(() => null);
 
-                if (!psRes || !psRes.ok) {
-                    console.warn('Gagal menautkan orang tua ke siswa');
-                    toast.error('Akun orang tua dibuat tetapi gagal ditautkan ke siswa');
-                }
-            } else {
-                console.warn('Parent profile creation failed, parent login may not work');
+            if (!psRes || !psRes.ok) {
+                console.warn('Gagal menautkan orang tua ke siswa');
             }
         } catch (err) {
             toast.error('Gagal menambah siswa');
@@ -500,6 +502,8 @@ export const useStudents = () => {
             if (updates.jobIbu !== undefined) dbUpdates.mother_job = updates.jobIbu;
             if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
             if (updates.noHp !== undefined) dbUpdates.phone = updates.noHp;
+            if (updates.username !== undefined) dbUpdates.username = updates.username;
+            if (updates.address !== undefined) dbUpdates.address = updates.address;
             
             if (updates.ttl !== undefined) {
                 const ttlParts = updates.ttl.split(', ');
@@ -614,7 +618,8 @@ export const useStudents = () => {
             if (nis) {
                 const parentProfileId = `prof-ortu-${nis}`;
                 const parentUsername = `ortu_${nis}`;
-                const parentName = updates.ayah || studentData?.ayah || updates.ibu || studentData?.ibu || `Orang Tua ${studentData?.nama || ''}`;
+                // Parent profile full_name = "Orang Tua {nama siswa}"
+                const parentProfileName = `Orang Tua ${updates.nama || studentData?.nama || ''}`;
 
                 const parentProfRes = await fetch('/api/profiles', {
                     method: 'POST',
@@ -622,7 +627,7 @@ export const useStudents = () => {
                     body: JSON.stringify({
                         id: parentProfileId,
                         email: parentUsername,
-                        full_name: parentName,
+                        full_name: parentProfileName,
                         role: 'ortu',
                         is_active: 1
                     })
