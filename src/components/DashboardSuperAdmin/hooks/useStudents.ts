@@ -49,32 +49,62 @@ export const parseFileToRows = (file: File): Promise<string[][]> => {
 /**
  * Parse a CSV/XLSX row into a Student object.
  * Auto-detects format:
- *   - 14+ cols with "NISN" header → newest format (NISN + TTL split)
+ *   - 15+ cols with "NISN" header → newest format (NISN + TTL split + gender)
+ *   - 14+ cols with "NISN" header → older NISN format (no gender)
  *   - 13+ cols with "Tempat Lahir" header → new format (TTL split)
  *   - 12 cols or "Tempat Tanggal Lahir" header → old format (TTL combined)
  */
 const parseRowToStudent = (cols: string[], idx: number, isOldFormat: boolean, hasNisn: boolean): Student => {
     if (hasNisn) {
-        // NEWEST FORMAT (14 cols): NIS,NISN,Nama,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
-        const tempatLahir = cols[3] || '';
-        const tanggalLahir = cols[4] || '';
-        const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
-        return {
-            id: `temp-${Date.now()}-${idx}`,
-            nis: cols[0] || '',
-            nisn: cols[1] || '',
-            nama: cols[2] || '',
-            ttl,
-            kelas: cols[5] || '',
-            tingkat: parseInt(cols[6] || '1'),
-            paralel: cols[7] || 'A',
-            ayah: cols[8] || '',
-            ibu: cols[9] || '',
-            jobAyah: cols[10] || '',
-            jobIbu: cols[11] || '',
-            username: cols[13] || cols[0] || '',
-            noHp: cols[12] || ''
-        };
+        const colCount = cols.length;
+        if (colCount >= 15) {
+            // NEWEST FORMAT (15 cols): NIS,NISN,Nama,Tempat Lahir,Tanggal Lahir,Jenis Kelamin,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+            const tempatLahir = cols[3] || '';
+            const tanggalLahir = cols[4] || '';
+            const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+            const genderRaw = (cols[5] || '').trim().toUpperCase();
+            const gender = genderRaw === 'L' || genderRaw === 'LAKI-LAKI' || genderRaw === 'LK' ? 'L'
+                : genderRaw === 'P' || genderRaw === 'PEREMPUAN' || genderRaw === 'PR' ? 'P'
+                : genderRaw || '';
+            return {
+                id: `temp-${Date.now()}-${idx}`,
+                nis: cols[0] || '',
+                nisn: cols[1] || '',
+                nama: cols[2] || '',
+                ttl,
+                gender,
+                kelas: cols[6] || '',
+                tingkat: parseInt(cols[7] || '1'),
+                paralel: cols[8] || 'A',
+                ayah: cols[9] || '',
+                ibu: cols[10] || '',
+                jobAyah: cols[11] || '',
+                jobIbu: cols[12] || '',
+                username: cols[14] || cols[0] || '',
+                noHp: cols[13] || ''
+            };
+        } else {
+            // OLDER NISN FORMAT (14 cols): NIS,NISN,Nama,Tempat Lahir,Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
+            const tempatLahir = cols[3] || '';
+            const tanggalLahir = cols[4] || '';
+            const ttl = tempatLahir && tanggalLahir ? `${tempatLahir}, ${tanggalLahir}` : tempatLahir || tanggalLahir || '';
+            return {
+                id: `temp-${Date.now()}-${idx}`,
+                nis: cols[0] || '',
+                nisn: cols[1] || '',
+                nama: cols[2] || '',
+                ttl,
+                kelas: cols[5] || '',
+                tingkat: parseInt(cols[6] || '1'),
+                paralel: cols[7] || 'A',
+                ayah: cols[8] || '',
+                ibu: cols[9] || '',
+                jobAyah: cols[10] || '',
+                jobIbu: cols[11] || '',
+                username: cols[13] || cols[0] || '',
+                noHp: cols[12] || ''
+            };
+        }
     } else if (isOldFormat) {
         // OLD FORMAT (12 cols): NIS,Nama,Tempat Tanggal Lahir,Kelas,Tingkat,Paralel,Ayah,Ibu,JobAyah,JobIbu,HP,Username
         const ttlRaw = cols[2] || '';
@@ -339,6 +369,7 @@ export const useStudents = () => {
                     mother_job: student.jobIbu || null,
                     phone: (student as any).noHp || null,
                     gender: student.gender || null,
+                    username: student.username || null,
                     status: 'active',
                     enrollment_date: new Date().toISOString().split('T')[0]
                 })
@@ -865,9 +896,9 @@ export const useStudents = () => {
     };
 
     const handleDownloadTemplate = () => {
-        const headers = ["NIS", "NISN", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
+        const headers = ["NIS", "NISN", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Jenis Kelamin (L/P)", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
         const csvContent = headers.join(",") + "\n" + 
-            "2025001,0081234567,Asep Irama,Bandung,10 Maret 2012,Kelas 1A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
+            "2025001,0081234567,Asep Irama,Bandung,10 Maret 2012,L,Kelas 1A,1,A,Sule,Susi,Wiraswasta,IRT,08123456789,asep001";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");

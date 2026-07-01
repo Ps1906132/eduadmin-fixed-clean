@@ -119,7 +119,7 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                             </div>
                             <div>
                                 <p className="text-blue-100 text-[10px] font-medium leading-none mb-0.5">Assalamualaikum,</p>
-                                <h2 className="text-base font-bold leading-tight">{mergedUser?.nama || 'Orang Tua Siswa'}</h2>
+                                <h2 className="text-base font-bold leading-tight">{mergedUser?.parentName || mergedUser?.nama || 'Orang Tua Siswa'}</h2>
                             </div>
                         </div>
                         <div className="text-right">

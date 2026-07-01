@@ -230,11 +230,17 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
     let motherName: string | null = null;
     let birthPlace: string | null = null;
     let birthDate: string | null = null;
+    let studentAddress: string | null = null;
+    let studentPhone: string | null = null;
+    let studentNis: string | null = null;
+    let studentNisn: string | null = null;
+    let studentGender: string | null = null;
     let children: any[] = [];
 
     const studentQuery = user.role === 'ortu'
       ? `
           SELECT s.id as student_id, s.full_name as s_name, s.parent_name, s.mother_name, s.birth_place, s.birth_date,
+                 s.gender, s.address, s.phone, s.nis, s.nisn,
                  c.name as c_name, p.full_name as wali_name
           FROM parent_students ps
           JOIN students s ON ps.student_id = s.id
@@ -246,6 +252,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       : user.role === 'siswa'
         ? `
             SELECT s.id as student_id, s.full_name as s_name, s.parent_name, s.mother_name, s.birth_place, s.birth_date,
+                   s.gender, s.address, s.phone, s.nis, s.nisn,
                    c.name as c_name, p.full_name as wali_name
             FROM students s
             LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
@@ -279,7 +286,12 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
               parentName: sr.parent_name || null,
               motherName: sr.mother_name || null,
               birthPlace: sr.birth_place || null,
-              birthDate: bDate
+              birthDate: bDate,
+              gender: sr.gender || null,
+              address: sr.address || null,
+              phone: sr.phone || null,
+              nis: sr.nis || null,
+              nisn: sr.nisn || null
             };
           });
 
@@ -293,6 +305,11 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
           motherName = first.motherName;
           birthPlace = first.birthPlace;
           birthDate = first.birthDate;
+          studentGender = first.gender;
+          studentAddress = first.address;
+          studentPhone = first.phone;
+          studentNis = first.nis;
+          studentNisn = first.nisn;
         }
       } catch (e) {
         console.error('Failed to look up student context:', e);
@@ -309,7 +326,7 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         db_role: user.role,
         avatar: user.avatar_url || null,
         nip: user.nip || null,
-        ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate, children } : {})
+        ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate, studentGender, studentAddress, studentPhone, studentNis, studentNisn, children } : {})
       }
     }), {
       headers: { 'Content-Type': 'application/json' }

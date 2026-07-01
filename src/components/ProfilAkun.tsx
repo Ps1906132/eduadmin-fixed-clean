@@ -9,13 +9,15 @@ interface ProfilAkunProps {
 }
 
 const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
-    const [namaAyah, setNamaAyah] = useState(user?.nama || user?.parentName || '');
+    // Map fields from mergedUser: parentName = nama ayah dari students table
+    // user?.nama = parent profile name, user?.parentName = students.parent_name
+    const [namaAyah, setNamaAyah] = useState(user?.parentName || user?.nama || '');
     const [namaIbu, setNamaIbu] = useState(user?.motherName || '');
     const [namaAnak, setNamaAnak] = useState(user?.studentName || '');
     const [tempatLahir, setTempatLahir] = useState(user?.birthPlace || '');
     const [tanggalLahir, setTanggalLahir] = useState(user?.birthDate || '');
-    const [alamat, setAlamat] = useState(user?.address || '');
-    const [noHp, setNoHp] = useState(user?.phone || user?.noHp || '');
+    const [alamat, setAlamat] = useState(user?.studentAddress || user?.address || '');
+    const [noHp, setNoHp] = useState(user?.studentPhone || user?.phone || user?.noHp || '');
     const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatar || null);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
@@ -220,7 +222,7 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">ID Profil</label>
                                 <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                     <Lock size={16} className="text-slate-400" />
-                                    <input type="text" value={user?.id || '-'} readOnly
+                                    <input type="text" value={user?.studentNis || user?.studentId || user?.id || '-'} readOnly
                                         className="bg-transparent w-full outline-none font-mono text-slate-500 text-sm" />
                                 </div>
                             </div>
@@ -231,6 +233,15 @@ const ProfilAkun: React.FC<ProfilAkunProps> = ({ user, onLogout, onBack }) => {
                                     <User size={18} className="text-slate-400" />
                                     <input type="text" value={namaAnak} readOnly
                                         className="bg-transparent w-full outline-none font-bold text-slate-700" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Jenis Kelamin</label>
+                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                    <User size={18} className="text-slate-400" />
+                                    <input type="text" value={user?.studentGender === 'L' ? 'Laki-laki' : user?.studentGender === 'P' ? 'Perempuan' : '-'} readOnly
+                                        className="bg-transparent w-full outline-none font-medium text-slate-700" />
                                 </div>
                             </div>
 
