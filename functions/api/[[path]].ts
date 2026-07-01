@@ -315,6 +315,87 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
         console.error('Failed to look up student context:', e);
       }
     }
+
+    // AUTO-BACKFILL: If ortu login has no children, try matching by NIS from email pattern
+    if (children.length === 0 && user.role === 'ortu') {
+      try {
+        // parent email format: ortu_{nis}@eduadmin.com
+        const emailStr = user.email || '';
+        const nisMatch = emailStr.match(/^ortu_(.+)@/);
+        const parentNis = nisMatch ? nisMatch[1] : null;
+
+        if (parentNis) {
+          const fallbackResults = await env.DB.prepare(`
+            SELECT s.id as student_id, s.full_name as s_name, s.parent_name, s.mother_name,
+                   s.birth_place, s.birth_date, s.gender, s.address, s.phone, s.nis, s.nisn,
+                   c.name as c_name, p.full_name as wali_name
+            FROM students s
+            LEFT JOIN class_students cs ON cs.student_id = s.id AND cs.is_active = 1
+            LEFT JOIN classes c ON cs.class_id = c.id
+            LEFT JOIN profiles p ON c.teacher_id = p.id
+            WHERE s.nis = ?
+          `).bind(parentNis).all();
+
+          if (fallbackResults.results && fallbackResults.results.length > 0) {
+            // Auto-create parent_students link for future logins
+            const sr = fallbackResults.results[0] as any;
+            try {
+              await env.DB.prepare(`
+                INSERT OR IGNORE INTO parent_students (id, parent_id, student_id)
+                VALUES (?, ?, ?)
+              `).bind(
+                `ps-${sr.student_id}-${user.id}`,
+                user.id,
+                sr.student_id
+              ).run();
+            } catch (_) { /* link may already exist */ }
+
+            // Build children from fallback results
+            children = fallbackResults.results.map((sr: any) => {
+              let bDate = null;
+              if (sr.birth_date) {
+                try {
+                  const d = new Date(sr.birth_date + 'T00:00:00');
+                  bDate = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+                } catch (_) { bDate = sr.birth_date; }
+              }
+              return {
+                studentId: sr.student_id || null,
+                studentName: sr.s_name || null,
+                studentClass: sr.c_name ? sr.c_name.replace(/^Kelas\s+/i, '').trim() : null,
+                studentWali: sr.wali_name || null,
+                parentName: sr.parent_name || null,
+                motherName: sr.mother_name || null,
+                birthPlace: sr.birth_place || null,
+                birthDate: bDate,
+                gender: sr.gender || null,
+                address: sr.address || null,
+                phone: sr.phone || null,
+                nis: sr.nis || null,
+                nisn: sr.nisn || null
+              };
+            });
+
+            const first = children[0];
+            studentId = first.studentId;
+            studentName = first.studentName;
+            studentClass = first.studentClass;
+            studentWali = first.studentWali;
+            parentName = first.parentName;
+            motherName = first.motherName;
+            birthPlace = first.birthPlace;
+            birthDate = first.birthDate;
+            studentGender = first.gender;
+            studentAddress = first.address;
+            studentPhone = first.phone;
+            studentNis = first.nis;
+            studentNisn = first.nisn;
+          }
+        }
+      } catch (e) {
+        console.error('Auto-backfill parent_students failed:', e);
+      }
+    }
     
     return new Response(JSON.stringify({
       token,
