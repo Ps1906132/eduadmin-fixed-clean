@@ -119,10 +119,17 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                             </div>
                             <div>
                                 <p className="text-blue-100 text-[10px] font-medium leading-none mb-0.5">Assalamualaikum,</p>
-                                <h2 className="text-base font-bold leading-tight">{mergedUser?.parentName || mergedUser?.nama || 'Orang Tua Siswa'}</h2>
+                                <h2 className="text-base font-bold leading-tight">{mergedUser?.nama || 'Orang Tua Siswa'}</h2>
+                                {(mergedUser?.parentName || mergedUser?.motherName) && (
+                                    <p className="text-[9px] text-blue-200 leading-tight mt-0.5">
+                                        {mergedUser.parentName ? `Ayah: ${mergedUser.parentName}` : ''}
+                                        {mergedUser.parentName && mergedUser.motherName ? ' | ' : ''}
+                                        {mergedUser.motherName ? `Ibu: ${mergedUser.motherName}` : ''}
+                                    </p>
+                                )}
                             </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right min-w-0">
                             {children.length > 1 ? (
                                 <div className="relative">
                                     <button
@@ -136,23 +143,33 @@ const DashboardOrangTua: React.FC<DashboardOrangTuaProps> = ({ user, onLogout, s
                                         <ChevronDown size={10} />
                                     </button>
                                 </div>
-                            ) : (
-                                <p className="text-[10px] text-blue-200 opacity-90">{mergedUser?.studentName || 'Ananda Tercinta'}</p>
-                            )}
-                            <div className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
-                                {mergedUser?.studentClass ? `Kelas ${mergedUser.studentClass.replace(/^Kelas\s+/i, '')}` : '-'}
-                            </div>
+                            ) : mergedUser?.studentName ? (
+                                <p className="text-[10px] text-blue-200 opacity-90">{mergedUser.studentName}</p>
+                            ) : null}
+                            {mergedUser?.studentClass ? (
+                                <div className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
+                                    Kelas {mergedUser.studentClass.replace(/^Kelas\s+/i, '')}
+                                </div>
+                            ) : children.length > 0 ? (
+                                <div className="text-[9px] text-yellow-200 mt-0.5">Kelas belum diatur</div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
 
                 {/* Info Bar Compact */}
                 <div className="bg-blue-800/30 backdrop-blur-md px-5 py-2 flex justify-between items-center text-[10px] font-medium border-t border-white/5">
-                    <div className="flex items-center gap-2">
-                        <span className="text-blue-200">Wali Kelas:</span>
-                        <span className="text-white font-semibold">{mergedUser?.studentWali || '-'}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-blue-200 shrink-0">Wali Kelas:</span>
+                        {mergedUser?.studentWali ? (
+                            <span className="text-white font-semibold truncate">{mergedUser.studentWali}</span>
+                        ) : children.length > 0 ? (
+                            <span className="text-yellow-200 italic">Belum diatur</span>
+                        ) : (
+                            <span className="text-slate-400">-</span>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         <span className="text-white">{currentTime.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
                         <span className="text-blue-200">•</span>
                         <span className="text-blue-200 font-mono">{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>

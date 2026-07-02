@@ -401,13 +401,14 @@ async function handleLogin(request: Request, env: { DB: D1Database; JWT_SECRET?:
       token,
       user: {
         id: user.id,
-        nama: user.full_name,
-        email: user.email,
-        role: user.position || user.role,
-        db_role: user.role,
-        avatar: user.avatar_url || null,
-        nip: user.nip || null,
-        ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate, studentGender, studentAddress, studentPhone, studentNis, studentNisn, children } : {})
+      nama: user.full_name,
+      parentProfileName: user.full_name,
+      email: user.email,
+      role: user.position || user.role,
+      db_role: user.role,
+      avatar: user.avatar_url || null,
+      nip: user.nip || null,
+      ...(studentName ? { studentId, studentName, studentClass, studentWali, parentName, motherName, birthPlace, birthDate, studentGender, studentAddress, studentPhone, studentNis, studentNisn, children } : {})
       }
     }), {
       headers: { 'Content-Type': 'application/json' }

@@ -900,6 +900,84 @@ export const useStudents = () => {
         }
     };
 
+    const syncParentAccounts = async (): Promise<{ success: number; failed: number; skipped: number; total: number }> => {
+        const token = localStorage.getItem('eduadmin_token');
+        if (!token) throw new Error('Token tidak ditemukan');
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        const studentRes = await fetch('/api/students', { headers });
+        if (!studentRes.ok) throw new Error('Gagal mengambil data siswa');
+        const allStudents: any[] = await studentRes.json();
+
+        let success = 0, failed = 0, skipped = 0;
+        const batchSize = 5;
+
+        for (let i = 0; i < allStudents.length; i += batchSize) {
+            const batch = allStudents.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (student) => {
+                try {
+                    const nis = student.nis;
+                    if (!nis) { skipped++; return; }
+
+                    const parentProfileId = `prof-ortu-${nis}`;
+                    const parentUsername = `ortu_${nis}`;
+                    const displayName = student.full_name || student.nis;
+                    const parentProfileName = `Orang Tua ${displayName}`;
+
+                    const profileRes = await fetch(`/api/profiles?id=eq.${parentProfileId}`, { headers });
+                    const profileExists = profileRes.ok && (await profileRes.json()).length > 0;
+
+                    if (!profileExists) {
+                        const parentPasswordHash = bcrypt.hashSync(nis, 10);
+                        await fetch('/api/profiles', {
+                            method: 'POST',
+                            headers: { ...headers, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: parentProfileId,
+                                email: parentUsername,
+                                full_name: parentProfileName,
+                                password_hash: parentPasswordHash,
+                                role: 'ortu',
+                                is_active: 1
+                            })
+                        }).catch(() => null);
+                    }
+
+                    const psRes = await fetch(`/api/parent_students?student_id=eq.${student.id}`, { headers });
+                    let linkExists = false;
+                    if (psRes.ok) {
+                        const psData = await psRes.json();
+                        linkExists = Array.isArray(psData) && psData.length > 0;
+                    }
+
+                    if (!linkExists) {
+                        const createRes = await fetch('/api/parent_students', {
+                            method: 'POST',
+                            headers: { ...headers, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: `ps-${student.id}-${parentProfileId}`,
+                                parent_id: parentProfileId,
+                                student_id: student.id.toString()
+                            })
+                        });
+                        if (createRes.ok) success++;
+                        else {
+                            const errText = await createRes.text();
+                            if (errText.includes('UNIQUE')) success++;
+                            else failed++;
+                        }
+                    } else {
+                        skipped++;
+                    }
+                } catch (err) {
+                    failed++;
+                    console.warn(`Sync gagal untuk ${student.nis || student.id}:`, err);
+                }
+            }));
+        }
+        return { success, failed, skipped, total: allStudents.length };
+    };
+
     const handleDownloadTemplate = () => {
         const headers = ["NIS", "NISN", "Nama Lengkap", "Tempat Lahir", "Tanggal Lahir", "Jenis Kelamin (L/P)", "Kelas", "Tingkat", "Paralel", "Nama Ayah", "Nama Ibu", "Pekerjaan Ayah", "Pekerjaan Ibu", "No HP (WA)", "Username"];
         const csvContent = headers.join(",") + "\n" + 
@@ -1033,6 +1111,7 @@ export const useStudents = () => {
         handleDownloadTemplate,
         handleUploadClick,
         handleSaveData,
+        syncParentAccounts,
         refreshStudents: fetchStudents
     };
 };

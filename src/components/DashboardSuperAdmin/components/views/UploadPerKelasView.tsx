@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronRight, Download, UploadCloud, Save, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { ChevronRight, Download, UploadCloud, Save, Plus, Eye, Edit, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface UploadPerKelasViewProps {
     setActiveView: (view: string) => void;
@@ -12,6 +13,7 @@ interface UploadPerKelasViewProps {
     handleViewStudent: (student: any) => void;
     handleEditStudent: (student: any) => void;
     handleDelete: (name: string) => void;
+    syncParentAccounts?: () => Promise<{ success: number; failed: number; skipped: number; total: number }>;
     user?: any;
 }
 
@@ -26,6 +28,7 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
     handleViewStudent,
     handleEditStudent,
     handleDelete,
+    syncParentAccounts,
     user
 }) => {
     const classOptions = classes && classes.length > 0
@@ -45,6 +48,27 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
     const roleCode = (user?.roleCode || user?.role || '').toLowerCase();
     const isAdmin = roleCode === 'admin';
     const isKeuangan = roleCode === 'keuangan';
+
+    const [syncing, setSyncing] = useState(false);
+
+    const handleSync = async () => {
+        if (!syncParentAccounts) return;
+        if (!confirm('Proses ini akan membuat akun orang tua untuk semua siswa yang belum memiliki akun. Lanjutkan?')) return;
+        setSyncing(true);
+        try {
+            const result = await syncParentAccounts();
+            const msg = `Selesai! ${result.success} berhasil, ${result.skipped} sudah ada, ${result.failed} gagal (dari ${result.total} siswa)`;
+            if (result.failed > 0) {
+                toast.error(msg, { duration: 6000 });
+            } else {
+                toast.success(msg, { duration: 5000 });
+            }
+        } catch (err: any) {
+            toast.error(`Gagal sinkronisasi: ${err.message}`);
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     return (
         <div className="bg-white rounded-[2.5rem] p-6 h-full shadow-sm animate-in slide-in-from-right flex flex-col">
@@ -89,6 +113,9 @@ const UploadPerKelasView: React.FC<UploadPerKelasViewProps> = ({
                             </button>
                             <button onClick={handleSaveData} className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200">
                                 <Save size={18} /> Simpan
+                            </button>
+                            <button onClick={handleSync} disabled={syncing} className="flex items-center gap-2 px-5 py-2.5 bg-purple-500 text-white rounded-xl font-bold hover:bg-purple-600 transition-colors shadow-lg shadow-purple-200 disabled:opacity-50">
+                                {syncing ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />} {syncing ? 'Sinkron...' : 'Sync Akun'}
                             </button>
                         </>
                     )}

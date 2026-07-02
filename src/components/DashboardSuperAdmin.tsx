@@ -150,7 +150,8 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
         handleDelete,
         handleDownloadTemplate,
         handleUploadClick,
-        handleSaveData
+        handleSaveData,
+        syncParentAccounts
     } = useStudents();
 
     const { subjectGroups, setSubjectGroups, subjects, setSubjects } = useSubjects();
@@ -538,6 +539,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleViewStudent={handleViewStudent}
                             handleEditStudent={handleEditStudent}
                             handleDelete={handleDelete}
+                            syncParentAccounts={syncParentAccounts}
                             user={user}
                         />
                     )}
@@ -554,6 +556,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleViewStudent={handleViewStudent}
                             handleEditStudent={handleEditStudent}
                             handleDelete={handleDelete}
+                            syncParentAccounts={syncParentAccounts}
                             user={user}
                         />
                     )}
@@ -571,6 +574,7 @@ const DashboardSuperAdmin: React.FC<SuperAdminProps> = ({ user, onLogout }) => {
                             handleDelete={handleDelete}
                             classes={classes}
                             handleAddStudent={handleAddStudent}
+                            syncParentAccounts={syncParentAccounts}
                             user={user}
                         />
                     )}
